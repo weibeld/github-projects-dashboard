@@ -1,100 +1,99 @@
-// app.js
-import React from "https://cdn.skypack.dev/react";
+import React, { useEffect, useState } from "https://cdn.skypack.dev/react";
 import ReactDOM from "https://cdn.skypack.dev/react-dom";
 import { Column } from "./components/Column.js";
 
-const { createElement: h, useEffect, useState } = React;
-const { createRoot } = ReactDOM;
+const statuses = ["todo", "doing", "done"];
+const STATUS_FILE = "./statuses.json";
 
 function App() {
   const [projects, setProjects] = useState([]);
-  const [statuses, setStatuses] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [statusMap, setStatusMap] = useState({});
 
   useEffect(() => {
-    async function load() {
-      const token = localStorage.getItem("github_pat") || prompt("Enter GitHub Personal Access Token:");
-      if (!token) return;
-      localStorage.setItem("github_pat", token);
-
-      try {
-        const userRes = await fetch("https://api.github.com/graphql", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ query: `query { viewer { login }}` }),
-        });
-        const userData = await userRes.json();
-        const login = userData.data.viewer.login;
-
-        const projectRes = await fetch("https://api.github.com/graphql", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            query: `query {
-              user(login: "${login}") {
-                projectsV2(first: 20) {
-                  nodes {
-                    id
-                    title
-                    url
-                  }
-                }
-              }
-            }`,
-          }),
-        });
-
-        const projectData = await projectRes.json();
-        const fetchedProjects = projectData.data.user.projectsV2.nodes;
-        setProjects(fetchedProjects);
-
-        const statusRes = await fetch("./statuses.json");
-        const statusJson = await statusRes.json();
-        setStatuses(statusJson);
-      } catch (e) {
-        console.error(e);
-        setError("Failed to load GitHub Projects or statuses.");
-      } finally {
-        setLoading(false);
-      }
+    const token = localStorage.getItem("gh_pat") || prompt("Enter GitHub PAT:");
+    if (token) {
+      localStorage.setItem("gh_pat", token);
+      fetchProjects(token);
     }
-    load();
+    fetchStatusMap();
   }, []);
 
-  function updateProjectStatus(projectId, newStatus) {
-    const updated = { ...statuses, [projectId]: newStatus };
-    setStatuses(updated);
+  async function fetchProjects(token) {
+    const query = `
+      query {
+        viewer {
+          projectsV2(first: 20) {
+            nodes {
+              id
+              title
+              url
+            }
+          }
+        }
+      }
+    `;
+    const res = await fetch("https://api.github.com/graphql", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query }),
+    });
+    const data = await res.json();
+    setProjects(data.data.viewer.projectsV2.nodes);
+  }
 
-    fetch("./statuses.json", {
+  async function fetchStatusMap() {
+    const res = await fetch(STATUS_FILE);
+    const json = await res.json();
+    setStatusMap(json);
+  }
+
+  function updateStatus(projectId, newStatus) {
+    const newMap = { ...statusMap, [projectId]: newStatus };
+    setStatusMap(newMap);
+    saveStatusMap(newMap);
+  }
+
+  async function saveStatusMap(updatedMap) {
+    const fileUrl = `https://api.github.com/repos/YOUR_USERNAME/YOUR_REPO/contents/statuses.json`;
+    const token = localStorage.getItem("gh_pat");
+
+    const currentFile = await fetch(fileUrl, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then((res) => res.json());
+
+    const content = btoa(JSON.stringify(updatedMap, null, 2));
+    await fetch(fileUrl, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updated, null, 2),
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        message: "Update project status",
+        content,
+        sha: currentFile.sha,
+      }),
     });
   }
 
-  if (loading) return h("div", { className: "text-center mt-10" }, "Loading...");
-  if (error) return h("div", { className: "text-red-500 text-center mt-10" }, error);
-
-  const columns = ["todo", "doing", "done"];
-
-  return h("div", { className: "grid grid-cols-1 sm:grid-cols-3 gap-4" },
-    columns.map(status =>
-      h(Column, {
+  return React.createElement(
+    "div",
+    { className: "grid grid-cols-1 sm:grid-cols-3 gap-4" },
+    statuses.map((status) =>
+      React.createElement(Column, {
         key: status,
         status,
-        projects: projects.filter(p => statuses[p.id] === status || (!statuses[p.id] && status === "todo")),
-        onDrop: (id) => updateProjectStatus(id, status)
+        projects: projects.filter((p) => (statusMap[p.id] || "todo") === status),
+        onDrop: (projectId) => updateStatus(projectId, status),
       })
     )
   );
 }
 
-const root = createRoot(document.getElementById("root"));
-root.render(h(App));
+ReactDOM.render(
+  React.createElement(App),
+  document.getElementById("root")
+);
