@@ -1,4 +1,6 @@
 // app.js
+import React from "https://cdn.skypack.dev/react";
+import ReactDOM from "https://cdn.skypack.dev/react-dom";
 import { Column } from "./components/Column.js";
 
 const { createElement: h, useEffect, useState } = React;
