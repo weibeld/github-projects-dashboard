@@ -1,6 +1,6 @@
 // components/ProjectCard.js
 const { createElement: h } = React;
-const { useDraggable } = window["@dnd-kit/core"];
+import { useDraggable } from "https://cdn.skypack.dev/@dnd-kit/core";
 
 export function ProjectCard({ id, title, url }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id });

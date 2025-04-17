@@ -2,8 +2,7 @@
 import { ProjectCard } from "./ProjectCard.js";
 
 const { createElement: h } = React;
-const { DndContext } = window["@dnd-kit/core"];
-const { useDroppable } = window["@dnd-kit/core"];
+import { DndContext, useDroppable } from "https://cdn.skypack.dev/@dnd-kit/core";
 
 export function Column({ status, projects, onDrop }) {
   const { setNodeRef } = useDroppable({ id: status });
