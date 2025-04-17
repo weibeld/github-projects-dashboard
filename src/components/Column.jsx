@@ -22,7 +22,6 @@ export function Column({ status, projects, onDrop }) {
             key={project.id}
             id={project.id}
             title={project.title}
-            url={project.url}
           />
         ))}
       </div>
