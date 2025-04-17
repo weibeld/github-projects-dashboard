@@ -1,4 +1,7 @@
-// ProjectCard.jsx
+// src/components/ProjectCard.jsx
+import React from "react";
+import { useDraggable } from "@dnd-kit/core";
+
 export function ProjectCard({ id, title, url }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id });
 
