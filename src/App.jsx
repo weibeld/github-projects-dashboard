@@ -1,10 +1,9 @@
-// src/App.jsx
 import React, { useEffect, useState, useRef } from "react";
 import ReactDOM from "react-dom/client";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { Column } from "./components/Column";
 import { debounce } from "./utils/debounce";
-import "../index.css";  // Tailwind and custom styles
+import "../index.css";
 
 const GITHUB_GRAPHQL = "https://api.github.com/graphql";
 const GITHUB_REST = "https://api.github.com/repos/weibeld/github-projects-dashboard/contents/statuses.json";
@@ -97,7 +96,7 @@ function App() {
       <DndContext
         collisionDetection={closestCenter}
         onDragEnd={({ active, over }) => {
-          if (active && over && active.id !== over.id) {
+          if (over && active.id && over.id && active.id !== over.id) {
             updateStatus(active.id, over.id);
           }
         }}
@@ -110,7 +109,7 @@ function App() {
               projects={projects.filter(
                 (p) => (statusMap[p.id] || "todo") === status
               )}
-              onDrop={updateStatus}
+              onDrop={(projectId) => updateStatus(projectId, status)}
             />
           ))}
         </div>
