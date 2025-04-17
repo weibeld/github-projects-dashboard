@@ -1,26 +1,23 @@
-// src/components/ProjectCard.jsx
-import React from "react";
-import { useDraggable } from "@dnd-kit/core";
-
+// ProjectCard.jsx
 export function ProjectCard({ id, title, url }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id });
 
   const style = {
-    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transform: transform
+      ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
+      : undefined,
   };
 
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
+    <div
       ref={setNodeRef}
       style={style}
       {...listeners}
       {...attributes}
+      onClick={() => window.open(url, "_blank")}
       className="block bg-blue-100 hover:bg-blue-200 p-3 rounded-lg shadow mb-2 cursor-move"
     >
       {title}
-    </a>
+    </div>
   );
 }
