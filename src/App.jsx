@@ -4,8 +4,13 @@
 
 import React, { useEffect, useState } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
-import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import {
+  arrayMove,
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { Column } from "./components/Column";
+import { restrictToParentElement } from "@dnd-kit/modifiers";
 
 const GITHUB_API = "https://api.github.com/graphql";
 const STATUS_FILE_PATH = "data/statuses.json"; // path in your repo
@@ -59,9 +64,12 @@ export default function App() {
   }
 
   async function fetchStatusFile() {
-    const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${STATUS_FILE_PATH}?ref=${BRANCH}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetch(
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${STATUS_FILE_PATH}?ref=${BRANCH}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
     if (!res.ok) return;
     const data = await res.json();
     const content = atob(data.content);
@@ -77,32 +85,45 @@ export default function App() {
 
   async function saveStatusToFile(map) {
     const content = btoa(JSON.stringify(map, null, 2));
-    await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${STATUS_FILE_PATH}`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        message: "Update project statuses",
-        content,
-        sha: fileSha,
-        branch: BRANCH,
-      }),
-    });
+    await fetch(
+      `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${STATUS_FILE_PATH}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: "Update project statuses",
+          content,
+          sha: fileSha,
+          branch: BRANCH,
+        }),
+      }
+    );
   }
 
   const columns = ["todo", "doing", "done"];
 
   return (
-    <DndContext collisionDetection={closestCenter}>
+    <DndContext
+      collisionDetection={closestCenter}
+      onDragEnd={(event) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const newStatus = over.id;
+        updateStatus(active.id, newStatus);
+      }}
+      modifiers={[restrictToParentElement]}
+    >
       <div className="grid grid-cols-3 gap-4 p-4">
         {columns.map((status) => (
           <Column
             key={status}
             status={status}
-            projects={projects.filter((p) => (statusMap[p.id] || "todo") === status)}
-            onDrop={(id) => updateStatus(id, status)}
+            projects={projects.filter(
+              (p) => (statusMap[p.id] || "todo") === status
+            )}
           />
         ))}
       </div>
