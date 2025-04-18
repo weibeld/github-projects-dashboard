@@ -1,10 +1,11 @@
+// src/App.jsx
 import React, { useEffect, useState, useRef } from "react";
 import { useUser, useAuth, SignInButton, SignOutButton } from "@clerk/clerk-react";
 import ReactDOM from "react-dom/client";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { Column } from "./components/Column";
 import { debounce } from "./utils/debounce";
-import "../index.css";
+import "../index.css";  // Tailwind and custom styles
 
 const GITHUB_GRAPHQL = "https://api.github.com/graphql";
 const GITHUB_REST = "https://api.github.com/repos/weibeld/github-projects-dashboard/contents/statuses.json";
@@ -123,7 +124,7 @@ function App() {
       <DndContext
         collisionDetection={closestCenter}
         onDragEnd={({ active, over }) => {
-          if (over && active.id && over.id && active.id !== over.id) {
+          if (active && over && active.id !== over.id) {
             updateStatus(active.id, over.id);
           }
         }}
@@ -136,7 +137,7 @@ function App() {
               projects={projects.filter(
                 (p) => (statusMap[p.id] || "todo") === status
               )}
-              onDrop={(projectId) => updateStatus(projectId, status)}
+              onDrop={updateStatus}
             />
           ))}
         </div>
