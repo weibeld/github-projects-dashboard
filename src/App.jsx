@@ -36,6 +36,7 @@ function App() {
     if (user) {
       (async () => {
         const token = await getToken({ provider: "github" });
+        console.log("GitHub access token:", token);
         setAccessToken(token);
       })();
     }
