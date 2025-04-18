@@ -1,3 +1,4 @@
+
 {
   "name": "github-projects-dashboard",
   "version": "1.0.0",
@@ -10,12 +11,11 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.28.2",
-    "@dnd-kit/core": "^3.1.0",
-    "@dnd-kit/sortable": "^4.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
-    "tailwindcss": "^2.2.19"
+    "tailwindcss": "^2.2.19",
+    "@dnd-kit/core": "^3.1.0",
+    "@dnd-kit/sortable": "^4.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^1.0.0",
@@ -23,3 +23,4 @@
   },
   "browserslist": "> 1%, last 2 versions, not dead"
 }
+

@@ -1,11 +1,9 @@
-// src/App.jsx
 import React, { useEffect, useState, useRef } from "react";
-import { useUser, useAuth, SignInButton, SignOutButton } from "@clerk/clerk-react";
 import ReactDOM from "react-dom/client";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { Column } from "./components/Column";
 import { debounce } from "./utils/debounce";
-import "../index.css";  // Tailwind and custom styles
+import "../index.css";
 
 const GITHUB_GRAPHQL = "https://api.github.com/graphql";
 const GITHUB_REST = "https://api.github.com/repos/weibeld/github-projects-dashboard/contents/statuses.json";
@@ -16,39 +14,17 @@ function App() {
   const [statusMap, setStatusMap] = useState({});
   const [fileSha, setFileSha] = useState("");
   const [saving, setSaving] = useState(false);
-  const [accessToken, setAccessToken] = useState(null);
-  const { isLoaded, isSignedIn, user } = useUser();
-  const { getToken } = useAuth();
 
-  
-  if (!isLoaded) {
-    return null; // or loading UI
-  }
-
-  if (!isSignedIn) {
-    return (
-      <div className="p-4">
-        <SignInButton mode="modal" />
-      </div>
-    );
-  }
+  const token = useRef(localStorage.getItem("gh_pat") || "");
 
   useEffect(() => {
-    if (user) {
-      (async () => {
-        const token = await getToken({ template: "github" });
-        console.log("GitHub access token:", token);
-        console.log("External accounts:", user.externalAccounts);
-        setAccessToken(token);
-      })();
+    if (!token.current) {
+      token.current = prompt("Enter your GitHub PAT:");
+      localStorage.setItem("gh_pat", token.current);
     }
-    if (user && accessToken) {
-      console.log("accessToken.current:", accessToken.current);
-      console.log("accessToken:", accessToken);
-      fetchProjects();
-      fetchStatuses();
-    }
-  }, [user, accessToken]);
+    fetchProjects();
+    fetchStatuses();
+  }, []);
 
   const fetchProjects = async () => {
     const query = `{
@@ -65,7 +41,7 @@ function App() {
     const res = await fetch(GITHUB_GRAPHQL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${token.current}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ query }),
@@ -76,7 +52,7 @@ function App() {
 
   const fetchStatuses = async () => {
     const res = await fetch(GITHUB_REST, {
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: { Authorization: `Bearer ${token.current}` },
     });
     const json = await res.json();
     setStatusMap(JSON.parse(atob(json.content)));
@@ -90,7 +66,7 @@ function App() {
       await fetch(GITHUB_REST, {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token.current}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -114,17 +90,13 @@ function App() {
 
   return (
     <div className="p-4">
-      <div className="text-sm text-gray-500 mb-2 flex justify-between items-center">
-        <span>Welcome, {user.primaryEmailAddress?.emailAddress}</span>
-        <SignOutButton />
-      </div>
       <div className="text-sm text-gray-500 mb-2">
         {saving ? "Saving..." : "All changes saved."}
       </div>
       <DndContext
         collisionDetection={closestCenter}
         onDragEnd={({ active, over }) => {
-          if (active && over && active.id !== over.id) {
+          if (over && active.id && over.id && active.id !== over.id) {
             updateStatus(active.id, over.id);
           }
         }}
@@ -137,7 +109,7 @@ function App() {
               projects={projects.filter(
                 (p) => (statusMap[p.id] || "todo") === status
               )}
-              onDrop={updateStatus}
+              onDrop={(projectId) => updateStatus(projectId, status)}
             />
           ))}
         </div>
@@ -146,4 +118,4 @@ function App() {
   );
 }
 
-export default App;
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
