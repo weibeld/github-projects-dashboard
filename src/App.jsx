@@ -15,13 +15,10 @@ function App() {
   const [statusMap, setStatusMap] = useState({});
   const [fileSha, setFileSha] = useState("");
   const [saving, setSaving] = useState(false);
-
   const [accessToken, setAccessToken] = useState(null);
-
-  //const token = useRef(localStorage.getItem("gh_pat") || "");
-  //const token = await user.getToken({ provider: "github" });
-
   const { isLoaded, isSignedIn, user } = useUser();
+  const { getToken } = useAuth();
+
   
   if (!isLoaded) {
     return null; // or loading UI
@@ -38,7 +35,7 @@ function App() {
   useEffect(() => {
     if (user) {
       (async () => {
-        const token = await useAuth().getToken({ provider: "github" });
+        const token = await getToken({ provider: "github" });
         setAccessToken(token);
       })();
     }
