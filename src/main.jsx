@@ -5,7 +5,11 @@ import { ClerkProvider } from "@clerk/clerk-react";
 import App from "./App";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <ClerkProvider publishableKey="pk_test_ZGlyZWN0LWJvbmVmaXNoLTkyLmNsZXJrLmFjY291bnRzLmRldiQ">
+  <ClerkProvider
+    publishableKey="pk_test_ZGlyZWN0LWJvbmVmaXNoLTkyLmNsZXJrLmFjY291bnRzLmRldiQ"
+    afterSignInUrl="/github-projects-dashboard"
+    afterSignUpUrl="/github-projects-dashboard"
+  >
     <App />
   </ClerkProvider>
 );
