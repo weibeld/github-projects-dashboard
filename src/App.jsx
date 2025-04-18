@@ -42,6 +42,8 @@ function App() {
       })();
     }
     if (user && accessToken) {
+      console.log("accessToken.current:", accessToken.current);
+      console.log("accessToken:", accessToken);
       fetchProjects();
       fetchStatuses();
     }
@@ -62,7 +64,7 @@ function App() {
     const res = await fetch(GITHUB_GRAPHQL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${accessToken.current}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ query }),
@@ -73,7 +75,7 @@ function App() {
 
   const fetchStatuses = async () => {
     const res = await fetch(GITHUB_REST, {
-      headers: { Authorization: `Bearer ${accessToken.current}` },
+      headers: { Authorization: `Bearer ${accessToken}` },
     });
     const json = await res.json();
     setStatusMap(JSON.parse(atob(json.content)));
@@ -87,7 +89,7 @@ function App() {
       await fetch(GITHUB_REST, {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${accessToken.current}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
