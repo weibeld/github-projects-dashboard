@@ -35,7 +35,7 @@ function App() {
   useEffect(() => {
     if (user) {
       (async () => {
-        const token = await getToken({ provider: "github" });
+        const token = await getToken({ template: "github" });
         console.log("GitHub access token:", token);
         console.log("External accounts:", user.externalAccounts);
         setAccessToken(token);
