@@ -37,6 +37,7 @@ function App() {
       (async () => {
         const token = await getToken({ provider: "github" });
         console.log("GitHub access token:", token);
+        console.log("External accounts:", user.externalAccounts);
         setAccessToken(token);
       })();
     }
