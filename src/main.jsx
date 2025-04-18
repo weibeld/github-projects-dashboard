@@ -9,7 +9,9 @@ import {
 } from "@clerk/clerk-react";
 import App from "./App";
 
-const clerkPublishableKey = "pk_test_ZGlyZWN0LWJvbmVmaXNoLTkyLmNsZXJrLmFjY291bnRzLmRldiQ";
+//const clerkPublishableKey = "pk_test_ZGlyZWN0LWJvbmVmaXNoLTkyLmNsZXJrLmFjY291bnRzLmRldiQ";  // Dev
+const clerkPublishableKey = "pk_live_Y2xlcmsud2VpYmVsZC5naXRodWIuaW8k";  // Prod
+
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <ClerkProvider
