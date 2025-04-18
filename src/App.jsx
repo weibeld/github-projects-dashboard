@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useUser, SignInButton, SignOutButton } from "@clerk/clerk-react";
+import { useUser, useAuth, SignInButton, SignOutButton } from "@clerk/clerk-react";
 import ReactDOM from "react-dom/client";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { Column } from "./components/Column";
@@ -33,7 +33,7 @@ function App() {
   useEffect(() => {
     if (user) {
       (async () => {
-        const token = await user.getToken({ provider: "github" });
+        const token = await useAuth().getToken({ provider: "github" });
         setAccessToken(token);
       })();
     }
