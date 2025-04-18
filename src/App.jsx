@@ -21,14 +21,19 @@ function App() {
   //const token = useRef(localStorage.getItem("gh_pat") || "");
   //const token = await user.getToken({ provider: "github" });
 
-/*  const { isSignedIn, user } = useUser();
+  const { isLoaded, isSignedIn, user } = useUser();
+  
+  if (!isLoaded) {
+    return null; // or loading UI
+  }
+
   if (!isSignedIn) {
     return (
       <div className="p-4">
         <SignInButton mode="modal" />
       </div>
     );
-  }*/
+  }
 
   useEffect(() => {
     if (user) {
