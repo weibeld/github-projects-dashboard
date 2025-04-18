@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useUser, SignInButton, SignOutButton } from "@clerk/clerk-react";
 import ReactDOM from "react-dom/client";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { Column } from "./components/Column";
@@ -15,16 +16,32 @@ function App() {
   const [fileSha, setFileSha] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const token = useRef(localStorage.getItem("gh_pat") || "");
+  const [accessToken, setAccessToken] = useState(null);
+
+  //const token = useRef(localStorage.getItem("gh_pat") || "");
+  //const token = await user.getToken({ provider: "github" });
+
+  const { isSignedIn, user } = useUser();
+  if (!isSignedIn) {
+    return (
+      <div className="p-4">
+        <SignInButton mode="modal" />
+      </div>
+    );
+  }
 
   useEffect(() => {
-    if (!token.current) {
-      token.current = prompt("Enter your GitHub PAT:");
-      localStorage.setItem("gh_pat", token.current);
+    if (user) {
+      (async () => {
+        const token = await user.getToken({ provider: "github" });
+        setAccessToken(token);
+      })();
     }
-    fetchProjects();
-    fetchStatuses();
-  }, []);
+    if (user && accessToken) {
+      fetchProjects();
+      fetchStatuses();
+    }
+  }, [user, accessToken]);
 
   const fetchProjects = async () => {
     const query = `{
@@ -41,7 +58,7 @@ function App() {
     const res = await fetch(GITHUB_GRAPHQL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token.current}`,
+        Authorization: `Bearer ${accessToken.current}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ query }),
@@ -52,7 +69,7 @@ function App() {
 
   const fetchStatuses = async () => {
     const res = await fetch(GITHUB_REST, {
-      headers: { Authorization: `Bearer ${token.current}` },
+      headers: { Authorization: `Bearer ${accessToken.current}` },
     });
     const json = await res.json();
     setStatusMap(JSON.parse(atob(json.content)));
@@ -66,7 +83,7 @@ function App() {
       await fetch(GITHUB_REST, {
         method: "PUT",
         headers: {
-          Authorization: `Bearer ${token.current}`,
+          Authorization: `Bearer ${accessToken.current}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -90,6 +107,10 @@ function App() {
 
   return (
     <div className="p-4">
+      <div className="text-sm text-gray-500 mb-2 flex justify-between items-center">
+        <span>Welcome, {user.primaryEmailAddress?.emailAddress}</span>
+        <SignOutButton />
+      </div>
       <div className="text-sm text-gray-500 mb-2">
         {saving ? "Saving..." : "All changes saved."}
       </div>
@@ -119,3 +140,5 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+
+export default App;
