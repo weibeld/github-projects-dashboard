@@ -15583,7 +15583,8 @@ const supabase = createClient(
 );
 const index = "";
 const GITHUB_GRAPHQL = "https://api.github.com/graphql";
-const GITHUB_REST = "https://api.github.com/repos/weibeld/github-projects-dashboard/contents/statuses.json";
+const GITHUB_REST_STATUS = "https://api.github.com/repos/weibeld/github-projects-dashboard/contents/statuses.json";
+const GITHUB_REST_USER = "https://api.github.com/user";
 const GITHUB_BRANCH = "main";
 const handleLogin = async () => {
   const {
@@ -15600,12 +15601,14 @@ const handleLogin = async () => {
     console.error("Login error:", error);
 };
 function App() {
-  var _a;
   const [projects, setProjects] = react.exports.useState([]);
   const [statusMap, setStatusMap] = react.exports.useState({});
   const [fileSha, setFileSha] = react.exports.useState("");
   const [saving, setSaving] = react.exports.useState(false);
   const [session, setSession] = react.exports.useState(null);
+  const [githubUsername, setGithubUsername] = react.exports.useState(null);
+  const [githubAvatar, setGithubAvatar] = react.exports.useState(null);
+  const [githubProfileUrl, setGithubProfileUrl] = react.exports.useState(null);
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null);
@@ -15636,7 +15639,7 @@ function App() {
     setProjects(data.data.viewer.projectsV2.nodes);
   };
   const fetchStatuses = async (token) => {
-    const res = await fetch(GITHUB_REST, {
+    const res = await fetch(GITHUB_REST_STATUS, {
       headers: {
         Authorization: `Bearer ${token}`
       }
@@ -15644,6 +15647,18 @@ function App() {
     const json = await res.json();
     setStatusMap(JSON.parse(atob(json.content)));
     setFileSha(json.sha);
+  };
+  const fetchGitHubProfile = async (token) => {
+    const res = await fetch(GITHUB_REST_USER, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json"
+      }
+    });
+    const data = await res.json();
+    setGithubUsername(data.login);
+    setGithubAvatar(data.avatar_url);
+    setGithubProfileUrl(data.html_url);
   };
   react.exports.useEffect(() => {
     supabase.auth.getSession().then(({
@@ -15666,14 +15681,15 @@ function App() {
     if (!(session == null ? void 0 : session.provider_token))
       return;
     const token = session.provider_token;
-    console.log("GitHub Token before fetchProject() and fetchStatuses():", token);
+    console.log("GitHub Token:", token);
+    fetchGitHubProfile(token);
     fetchProjects(token);
     fetchStatuses(token);
   }, [session]);
   const debouncedSave = react.exports.useRef(debounce(async (map, token) => {
     setSaving(true);
     const content = btoa(JSON.stringify(map, null, 2));
-    await fetch(GITHUB_REST, {
+    await fetch(GITHUB_REST_STATUS, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -15705,12 +15721,33 @@ function App() {
     }) : /* @__PURE__ */ jsxs(Fragment, {
       children: [/* @__PURE__ */ jsxs("div", {
         className: "flex justify-between items-center mb-4 text-sm text-gray-500",
-        children: [/* @__PURE__ */ jsxs("span", {
-          children: ["Logged in as: ", ((_a = session == null ? void 0 : session.user) == null ? void 0 : _a.email) || "GitHub User"]
-        }), /* @__PURE__ */ jsx("button", {
-          onClick: handleLogout,
-          className: "bg-gray-100 hover:bg-gray-200 text-gray-800 px-2 py-1 rounded",
-          children: "Log out"
+        children: [/* @__PURE__ */ jsx("div", {
+          className: "flex items-center gap-2 text-sm text-gray-500 mb-4",
+          children: /* @__PURE__ */ jsx("a", {
+            href: `${githubProfileUrl}?tab=projects`,
+            target: "_blank",
+            rel: "noopener noreferrer",
+            className: "bg-gray-100 hover:bg-gray-200 text-gray-800 px-2 py-1 rounded",
+            children: /* @__PURE__ */ jsx("b", {
+              children: githubUsername
+            })
+          })
+        }), /* @__PURE__ */ jsxs("div", {
+          className: "flex justify-between items-center",
+          children: [/* @__PURE__ */ jsx("button", {
+            onClick: handleLogout,
+            className: "bg-gray-100 hover:bg-gray-200 text-gray-800 px-2 py-1 rounded",
+            children: "Log out"
+          }), githubAvatar && githubProfileUrl && /* @__PURE__ */ jsx("a", {
+            href: githubProfileUrl,
+            target: "_blank",
+            rel: "noopener noreferrer",
+            children: /* @__PURE__ */ jsx("img", {
+              src: githubAvatar,
+              alt: "GitHub Avatar",
+              className: "w-8 h-8 rounded-full hover:ring-2 hover:ring-gray-400 transition"
+            })
+          })]
         })]
       }), /* @__PURE__ */ jsx("div", {
         className: "text-sm text-gray-500 mb-2",

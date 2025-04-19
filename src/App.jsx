@@ -7,7 +7,8 @@ import { supabase } from "./supabaseClient";
 import "../index.css";
 
 const GITHUB_GRAPHQL = "https://api.github.com/graphql";
-const GITHUB_REST = "https://api.github.com/repos/weibeld/github-projects-dashboard/contents/statuses.json";
+const GITHUB_REST_STATUS = "https://api.github.com/repos/weibeld/github-projects-dashboard/contents/statuses.json";
+const GITHUB_REST_USER = "https://api.github.com/user";
 const GITHUB_BRANCH = "main";
 
 const handleLogin = async () => {
@@ -29,6 +30,9 @@ function App() {
   const [fileSha, setFileSha] = useState("");
   const [saving, setSaving] = useState(false);
   const [session, setSession] = useState(null);
+  const [githubUsername, setGithubUsername] = useState(null);
+  const [githubAvatar, setGithubAvatar] = useState(null);
+  const [githubProfileUrl, setGithubProfileUrl] = useState(null);
   //const token = session?.provider_token;
 
   const handleLogout = async () => {
@@ -61,12 +65,25 @@ function App() {
   };
 
   const fetchStatuses = async (token) => {
-    const res = await fetch(GITHUB_REST, {
+    const res = await fetch(GITHUB_REST_STATUS, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
     setStatusMap(JSON.parse(atob(json.content)));
     setFileSha(json.sha);
+  };
+
+  const fetchGitHubProfile = async (token) => {
+    const res = await fetch(GITHUB_REST_USER, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+      },
+    });
+    const data = await res.json();
+    setGithubUsername(data.login);
+    setGithubAvatar(data.avatar_url);
+    setGithubProfileUrl(data.html_url);
   };
 
   useEffect(() => {
@@ -84,7 +101,8 @@ function App() {
   useEffect(() => {
     if (!session?.provider_token) return;
     const token = session.provider_token;
-    console.log("GitHub Token before fetchProject() and fetchStatuses():", token);
+    console.log("GitHub Token:", token);
+    fetchGitHubProfile(token);
     fetchProjects(token);
     fetchStatuses(token);
   }, [session]);
@@ -99,7 +117,7 @@ function App() {
     debounce(async (map, token) => {
       setSaving(true);
       const content = btoa(JSON.stringify(map, null, 2));
-      await fetch(GITHUB_REST, {
+      await fetch(GITHUB_REST_STATUS, {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -131,13 +149,33 @@ function App() {
       ) : (
         <>
           <div className="flex justify-between items-center mb-4 text-sm text-gray-500">
-            <span>Logged in as: {session?.user?.email || "GitHub User"}</span>
-            <button
-              onClick={handleLogout}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-2 py-1 rounded"
-            >
-              Log out
-            </button>
+            <div className="flex items-center gap-2 text-sm text-gray-500 mb-4">
+              <a
+                href={`${githubProfileUrl}?tab=projects`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-2 py-1 rounded"
+              > 
+                <b>{githubUsername}</b>
+              </a>
+            </div>
+            <div className="flex justify-between items-center">
+              <button
+                onClick={handleLogout}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-2 py-1 rounded"
+              >
+                Log out
+              </button>
+              {githubAvatar && githubProfileUrl && (
+                <a href={githubProfileUrl} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={githubAvatar}
+                    alt="GitHub Avatar"
+                    className="w-8 h-8 rounded-full hover:ring-2 hover:ring-gray-400 transition"
+                  />
+                </a>
+              )}
+            </div>
           </div>
           <div className="text-sm text-gray-500 mb-2">
             {saving ? "Saving..." : "All changes saved."}
