@@ -28,26 +28,6 @@ function App() {
   const [saving, setSaving] = useState(false);
   const [session, setSession] = useState(null);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => { setSession(session); }
-    );
-    fetchProjects();
-    fetchStatuses();
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-
-  if (!session) {
-    return <button onClick={handleLogin}>Log in with GitHub</button>;
-  }
-  const token = session?.provider_token;
-  console.log("GitHub Token:", token);
-
   const fetchProjects = async () => {
     const query = `{
       viewer {
@@ -80,6 +60,26 @@ function App() {
     setStatusMap(JSON.parse(atob(json.content)));
     setFileSha(json.sha);
   };
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => { setSession(session); }
+    );
+    fetchProjects();
+    fetchStatuses();
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  if (!session) {
+    return <button onClick={handleLogin}>Log in with GitHub</button>;
+  }
+  const token = session?.provider_token;
+  console.log("GitHub Token:", token);
 
   const debouncedSave = useRef(
     debounce(async (map) => {

@@ -15604,33 +15604,6 @@ function App() {
   const [fileSha, setFileSha] = react.exports.useState("");
   const [saving, setSaving] = react.exports.useState(false);
   const [session, setSession] = react.exports.useState(null);
-  react.exports.useEffect(() => {
-    supabase.auth.getSession().then(({
-      data: {
-        session: session2
-      }
-    }) => {
-      setSession(session2);
-    });
-    const {
-      data: authListener
-    } = supabase.auth.onAuthStateChange((event, session2) => {
-      setSession(session2);
-    });
-    fetchProjects();
-    fetchStatuses();
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
-  if (!session) {
-    return /* @__PURE__ */ jsx("button", {
-      onClick: handleLogin,
-      children: "Log in with GitHub"
-    });
-  }
-  const token = session == null ? void 0 : session.provider_token;
-  console.log("GitHub Token:", token);
   const fetchProjects = async () => {
     const query = `{
       viewer {
@@ -15666,6 +15639,33 @@ function App() {
     setStatusMap(JSON.parse(atob(json.content)));
     setFileSha(json.sha);
   };
+  react.exports.useEffect(() => {
+    supabase.auth.getSession().then(({
+      data: {
+        session: session2
+      }
+    }) => {
+      setSession(session2);
+    });
+    const {
+      data: authListener
+    } = supabase.auth.onAuthStateChange((event, session2) => {
+      setSession(session2);
+    });
+    fetchProjects();
+    fetchStatuses();
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+  if (!session) {
+    return /* @__PURE__ */ jsx("button", {
+      onClick: handleLogin,
+      children: "Log in with GitHub"
+    });
+  }
+  const token = session == null ? void 0 : session.provider_token;
+  console.log("GitHub Token:", token);
   const debouncedSave = react.exports.useRef(debounce(async (map) => {
     setSaving(true);
     const content = btoa(JSON.stringify(map, null, 2));
