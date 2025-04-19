@@ -7,6 +7,7 @@ export default defineConfig({
   base: "/github-projects-dashboard/",
   build: {
     outDir: "docs",
+    minify: "false"
   },
   plugins: [react()],
 });
