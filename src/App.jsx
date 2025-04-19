@@ -84,9 +84,9 @@ function App() {
   }, [session]);
 
 
-  if (!session) {
-    return <button onClick={handleLogin}>Log in with GitHub</button>;
-  }
+//  if (!session) {
+//    return <button onClick={handleLogin}>Log in with GitHub</button>;
+//  }
   //console.log("GitHub Token:", token);
 
   const debouncedSave = useRef(
@@ -120,30 +120,36 @@ function App() {
 
   return (
     <div className="p-4">
-      <div className="text-sm text-gray-500 mb-2">
-        {saving ? "Saving..." : "All changes saved."}
-      </div>
-      <DndContext
-        collisionDetection={closestCenter}
-        onDragEnd={({ active, over }) => {
-          if (over && active.id && over.id && active.id !== over.id) {
-            updateStatus(active.id, over.id);
-          }
-        }}
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {columns.map((status) => (
-            <Column
-              key={status}
-              status={status}
-              projects={projects.filter(
-                (p) => (statusMap[p.id] || "todo") === status
-              )}
-              onDrop={(projectId) => updateStatus(projectId, status)}
-            />
-          ))}
-        </div>
-      </DndContext>
+      {!session ? (
+        <button onClick={handleLogin}>Log in with GitHub</button>
+      ) : (
+        <>
+          <div className="text-sm text-gray-500 mb-2">
+            {saving ? "Saving..." : "All changes saved."}
+          </div>
+          <DndContext
+            collisionDetection={closestCenter}
+            onDragEnd={({ active, over }) => {
+              if (over && active.id && over.id && active.id !== over.id) {
+                updateStatus(active.id, over.id);
+              }
+            }}
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {columns.map((status) => (
+                <Column
+                  key={status}
+                  status={status}
+                  projects={projects.filter(
+                    (p) => (statusMap[p.id] || "todo") === status
+                  )}
+                  onDrop={(projectId) => updateStatus(projectId, status)}
+                />
+              ))}
+            </div>
+          </DndContext>
+        </>
+      )}
     </div>
   );
 }

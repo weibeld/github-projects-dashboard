@@ -15665,12 +15665,6 @@ function App() {
     fetchProjects(token);
     fetchStatuses(token);
   }, [session]);
-  if (!session) {
-    return /* @__PURE__ */ jsx("button", {
-      onClick: handleLogin,
-      children: "Log in with GitHub"
-    });
-  }
   const debouncedSave = react.exports.useRef(debounce(async (map, token) => {
     setSaving(true);
     const content = btoa(JSON.stringify(map, null, 2));
@@ -15698,30 +15692,35 @@ function App() {
     debouncedSave(updated, session == null ? void 0 : session.provider_token);
   };
   const columns = ["todo", "doing", "done"];
-  return /* @__PURE__ */ jsxs("div", {
+  return /* @__PURE__ */ jsx("div", {
     className: "p-4",
-    children: [/* @__PURE__ */ jsx("div", {
-      className: "text-sm text-gray-500 mb-2",
-      children: saving ? "Saving..." : "All changes saved."
-    }), /* @__PURE__ */ jsx(DndContext, {
-      collisionDetection: closestCenter,
-      onDragEnd: ({
-        active,
-        over
-      }) => {
-        if (over && active.id && over.id && active.id !== over.id) {
-          updateStatus(active.id, over.id);
-        }
-      },
-      children: /* @__PURE__ */ jsx("div", {
-        className: "grid grid-cols-1 sm:grid-cols-3 gap-4",
-        children: columns.map((status) => /* @__PURE__ */ jsx(Column, {
-          status,
-          projects: projects.filter((p2) => (statusMap[p2.id] || "todo") === status),
-          onDrop: (projectId) => updateStatus(projectId, status)
-        }, status))
-      })
-    })]
+    children: !session ? /* @__PURE__ */ jsx("button", {
+      onClick: handleLogin,
+      children: "Log in with GitHub"
+    }) : /* @__PURE__ */ jsxs(Fragment, {
+      children: [/* @__PURE__ */ jsx("div", {
+        className: "text-sm text-gray-500 mb-2",
+        children: saving ? "Saving..." : "All changes saved."
+      }), /* @__PURE__ */ jsx(DndContext, {
+        collisionDetection: closestCenter,
+        onDragEnd: ({
+          active,
+          over
+        }) => {
+          if (over && active.id && over.id && active.id !== over.id) {
+            updateStatus(active.id, over.id);
+          }
+        },
+        children: /* @__PURE__ */ jsx("div", {
+          className: "grid grid-cols-1 sm:grid-cols-3 gap-4",
+          children: columns.map((status) => /* @__PURE__ */ jsx(Column, {
+            status,
+            projects: projects.filter((p2) => (statusMap[p2.id] || "todo") === status),
+            onDrop: (projectId) => updateStatus(projectId, status)
+          }, status))
+        })
+      })]
+    })
   });
 }
 client.createRoot(document.getElementById("root")).render(/* @__PURE__ */ jsx(App, {}));
