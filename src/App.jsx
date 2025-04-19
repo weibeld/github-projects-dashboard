@@ -30,6 +30,11 @@ function App() {
   const [session, setSession] = useState(null);
   //const token = session?.provider_token;
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+  };
+
   const fetchProjects = async (token) => {
     const query = `{
       viewer {
@@ -124,6 +129,15 @@ function App() {
         <button onClick={handleLogin}>Log in with GitHub</button>
       ) : (
         <>
+          <div className="flex justify-between items-center mb-4 text-sm text-gray-500">
+            <span>Logged in as: {session?.user?.email || "GitHub User"}</span>
+            <button
+              onClick={handleLogout}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-2 py-1 rounded"
+            >
+              Log out
+            </button>
+          </div>
           <div className="text-sm text-gray-500 mb-2">
             {saving ? "Saving..." : "All changes saved."}
           </div>

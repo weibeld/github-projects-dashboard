@@ -15600,11 +15600,16 @@ const handleLogin = async () => {
     console.error("Login error:", error);
 };
 function App() {
+  var _a;
   const [projects, setProjects] = react.exports.useState([]);
   const [statusMap, setStatusMap] = react.exports.useState({});
   const [fileSha, setFileSha] = react.exports.useState("");
   const [saving, setSaving] = react.exports.useState(false);
   const [session, setSession] = react.exports.useState(null);
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+  };
   const fetchProjects = async (token) => {
     const query = `{
       viewer {
@@ -15698,7 +15703,16 @@ function App() {
       onClick: handleLogin,
       children: "Log in with GitHub"
     }) : /* @__PURE__ */ jsxs(Fragment, {
-      children: [/* @__PURE__ */ jsx("div", {
+      children: [/* @__PURE__ */ jsxs("div", {
+        className: "flex justify-between items-center mb-4 text-sm text-gray-500",
+        children: [/* @__PURE__ */ jsxs("span", {
+          children: ["Logged in as: ", ((_a = session == null ? void 0 : session.user) == null ? void 0 : _a.email) || "GitHub User"]
+        }), /* @__PURE__ */ jsx("button", {
+          onClick: handleLogout,
+          className: "bg-gray-100 hover:bg-gray-200 text-gray-800 px-2 py-1 rounded",
+          children: "Log out"
+        })]
+      }), /* @__PURE__ */ jsx("div", {
         className: "text-sm text-gray-500 mb-2",
         children: saving ? "Saving..." : "All changes saved."
       }), /* @__PURE__ */ jsx(DndContext, {
