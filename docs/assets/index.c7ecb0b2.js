@@ -15604,6 +15604,7 @@ function App() {
   const [fileSha, setFileSha] = react.exports.useState("");
   const [saving, setSaving] = react.exports.useState(false);
   const [session, setSession] = react.exports.useState(null);
+  const token = session == null ? void 0 : session.provider_token;
   const fetchProjects = async () => {
     const query = `{
       viewer {
@@ -15664,7 +15665,6 @@ function App() {
       children: "Log in with GitHub"
     });
   }
-  const token = session == null ? void 0 : session.provider_token;
   console.log("GitHub Token:", token);
   const debouncedSave = react.exports.useRef(debounce(async (map) => {
     setSaving(true);

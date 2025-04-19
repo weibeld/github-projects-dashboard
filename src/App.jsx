@@ -27,6 +27,7 @@ function App() {
   const [fileSha, setFileSha] = useState("");
   const [saving, setSaving] = useState(false);
   const [session, setSession] = useState(null);
+  const token = session?.provider_token;
 
   const fetchProjects = async () => {
     const query = `{
@@ -78,7 +79,6 @@ function App() {
   if (!session) {
     return <button onClick={handleLogin}>Log in with GitHub</button>;
   }
-  const token = session?.provider_token;
   console.log("GitHub Token:", token);
 
   const debouncedSave = useRef(
