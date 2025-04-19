@@ -69,6 +69,7 @@ function App() {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => { setSession(session); }
     );
+    console.log("GitHub Token before fetchProject() and fetchStatuses():", token);
     fetchProjects();
     fetchStatuses();
     return () => {

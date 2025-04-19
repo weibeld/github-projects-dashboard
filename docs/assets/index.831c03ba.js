@@ -15653,6 +15653,7 @@ function App() {
     } = supabase.auth.onAuthStateChange((event, session2) => {
       setSession(session2);
     });
+    console.log("GitHub Token before fetchProject() and fetchStatuses():", token);
     fetchProjects();
     fetchStatuses();
     return () => {
