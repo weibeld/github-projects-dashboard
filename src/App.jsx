@@ -28,9 +28,9 @@ function App() {
   const [fileSha, setFileSha] = useState("");
   const [saving, setSaving] = useState(false);
   const [session, setSession] = useState(null);
-  const token = session?.provider_token;
+  //const token = session?.provider_token;
 
-  const fetchProjects = async () => {
+  const fetchProjects = async (token) => {
     const query = `{
       viewer {
         projectsV2(first: 50) {
@@ -54,7 +54,7 @@ function App() {
     setProjects(data.data.viewer.projectsV2.nodes);
   };
 
-  const fetchStatuses = async () => {
+  const fetchStatuses = async (token) => {
     const res = await fetch(GITHUB_REST, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -70,21 +70,27 @@ function App() {
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => { setSession(session); }
     );
-    console.log("GitHub Token before fetchProject() and fetchStatuses():", token);
-    fetchProjects();
-    fetchStatuses();
     return () => {
       authListener.subscription.unsubscribe();
     };
   }, []);
 
+  useEffect(() => {
+    if (!session?.provider_token) return;
+    const token = session.provider_token;
+    console.log("GitHub Token before fetchProject() and fetchStatuses():", token);
+    fetchProjects(token);
+    fetchStatuses(token);
+  }, [session]);
+
+
   if (!session) {
     return <button onClick={handleLogin}>Log in with GitHub</button>;
   }
-  console.log("GitHub Token:", token);
+  //console.log("GitHub Token:", token);
 
   const debouncedSave = useRef(
-    debounce(async (map) => {
+    debounce(async (map, token) => {
       setSaving(true);
       const content = btoa(JSON.stringify(map, null, 2));
       await fetch(GITHUB_REST, {
@@ -107,7 +113,7 @@ function App() {
   const updateStatus = (projectId, newStatus) => {
     const updated = { ...statusMap, [projectId]: newStatus };
     setStatusMap(updated);
-    debouncedSave(updated);
+    debouncedSave(updated, session?.provider_token);
   };
 
   const columns = ["todo", "doing", "done"];

@@ -15605,8 +15605,7 @@ function App() {
   const [fileSha, setFileSha] = react.exports.useState("");
   const [saving, setSaving] = react.exports.useState(false);
   const [session, setSession] = react.exports.useState(null);
-  const token = session == null ? void 0 : session.provider_token;
-  const fetchProjects = async () => {
+  const fetchProjects = async (token) => {
     const query = `{
       viewer {
         projectsV2(first: 50) {
@@ -15631,7 +15630,7 @@ function App() {
     const data = await res.json();
     setProjects(data.data.viewer.projectsV2.nodes);
   };
-  const fetchStatuses = async () => {
+  const fetchStatuses = async (token) => {
     const res = await fetch(GITHUB_REST, {
       headers: {
         Authorization: `Bearer ${token}`
@@ -15654,21 +15653,25 @@ function App() {
     } = supabase.auth.onAuthStateChange((event, session2) => {
       setSession(session2);
     });
-    console.log("GitHub Token before fetchProject() and fetchStatuses():", token);
-    fetchProjects();
-    fetchStatuses();
     return () => {
       authListener.subscription.unsubscribe();
     };
   }, []);
+  react.exports.useEffect(() => {
+    if (!(session == null ? void 0 : session.provider_token))
+      return;
+    const token = session.provider_token;
+    console.log("GitHub Token before fetchProject() and fetchStatuses():", token);
+    fetchProjects(token);
+    fetchStatuses(token);
+  }, [session]);
   if (!session) {
     return /* @__PURE__ */ jsx("button", {
       onClick: handleLogin,
       children: "Log in with GitHub"
     });
   }
-  console.log("GitHub Token:", token);
-  const debouncedSave = react.exports.useRef(debounce(async (map) => {
+  const debouncedSave = react.exports.useRef(debounce(async (map, token) => {
     setSaving(true);
     const content = btoa(JSON.stringify(map, null, 2));
     await fetch(GITHUB_REST, {
@@ -15692,7 +15695,7 @@ function App() {
       [projectId]: newStatus
     };
     setStatusMap(updated);
-    debouncedSave(updated);
+    debouncedSave(updated, session == null ? void 0 : session.provider_token);
   };
   const columns = ["todo", "doing", "done"];
   return /* @__PURE__ */ jsxs("div", {
