@@ -14,7 +14,8 @@ const handleLogin = async () => {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'github',
     options: {
-      redirectTo: 'https://weibeld.github.io/github-projects-dashboard',
+      // Supports both local and production deployment
+      redirectTo: window.location.origin + window.location.pathname,
       scopes: 'repo read:user read:project'
     }
   });

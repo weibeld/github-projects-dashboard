@@ -15592,7 +15592,7 @@ const handleLogin = async () => {
   } = await supabase.auth.signInWithOAuth({
     provider: "github",
     options: {
-      redirectTo: "https://weibeld.github.io/github-projects-dashboard",
+      redirectTo: window.location.origin + window.location.pathname,
       scopes: "repo read:user read:project"
     }
   });
