@@ -6,8 +6,7 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   base: "/github-projects-dashboard/",
   build: {
-    outDir: "docs",
-    minify: "false"
+    outDir: "docs"
   },
   plugins: [react()],
 });
