@@ -89,7 +89,7 @@
 
 <main class="p-4 text-gray-800">
   {#if !session}
-    <button on:click={handleLogin} class="bg-black text-white px-4 py-2 rounded">
+    <button on:click={handleLogin} class="px-4 py-2 rounded shadow">
       Log in with GitHub
     </button>
   {:else}
@@ -97,34 +97,37 @@
       <p class="text-sm">Signed in as {session.user.email}</p>
       <button on:click={handleLogout} class="text-sm text-red-600">Log out</button>
     </div>
+    {#if projects.length === 0}
+      <p>Loading projects...</p>
+    {:else}
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {#each columns as column}
+          <div class="bg-gray-100 p-3 rounded shadow">
+            <h2 class="text-lg font-semibold mb-2 capitalize">{column}</h2>
+            <div class="space-y-2">
+              {#each projects.filter(p => (statusMap[p.id] || "todo") === column) as project}
+                <div class="p-2 bg-white rounded border shadow-sm">
+                  <a href={project.url} target="_blank" class="hover:underline text-blue-600">
+                    {project.title}
+                  </a>
+                  <div class="mt-1 text-xs text-gray-400">ID: {project.id}</div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      {#each columns as column}
-        <div class="bg-gray-100 p-3 rounded shadow">
-          <h2 class="text-lg font-semibold mb-2 capitalize">{column}</h2>
-          <div class="space-y-2">
-            {#each projects.filter(p => (statusMap[p.id] || "todo") === column) as project}
-              <div class="p-2 bg-white rounded border shadow-sm">
-                <a href={project.url} target="_blank" class="hover:underline text-blue-600">
-                  {project.title}
-                </a>
-                <div class="mt-1 text-xs text-gray-400">ID: {project.id}</div>
-
-                <div class="mt-2 space-x-1 text-xs">
-                  {#each columns.filter(c => c !== column) as c}
-                    <button
-                      class="bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
-                      on:click={() => updateStatus(project.id, c)}
-                    >
-                      Move to {c}
-                    </button>
-                  {/each}
+                  <div class="mt-2 space-x-1 text-xs">
+                    {#each columns.filter(c => c !== column) as c}
+                      <button
+                        class="bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
+                        on:click={() => updateStatus(project.id, c)}
+                      >
+                        Move to {c}
+                      </button>
+                    {/each}
+                  </div>
                 </div>
-              </div>
-            {/each}
+              {/each}
+            </div>
           </div>
-        </div>
-      {/each}
-    </div>
+        {/each}
+      </div>
+    {/if}
   {/if}
 </main>
