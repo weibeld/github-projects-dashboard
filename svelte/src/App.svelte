@@ -125,9 +125,9 @@
       <p>Loading projects...</p>
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
-        <div class="bg-gray-100 p-3 rounded shadow" bind:this={todoRef}>
+        <div class="bg-gray-100 p-3 rounded shadow">
           <h2 class="text-lg font-semibold mb-2 capitalize">todo</h2>
-          <div class="space-y-2 min-h-[50px]">
+          <div class="space-y-2 min-h-[50px]" bind:this={todoRef}>
             {#each getFilteredProjects("todo") as project (project.id)}
               <div
                 class="p-2 bg-white rounded border shadow-sm cursor-move"
@@ -142,9 +142,9 @@
           </div>
         </div>
 
-        <div class="bg-gray-100 p-3 rounded shadow" bind:this={doingRef}>
+        <div class="bg-gray-100 p-3 rounded shadow">
           <h2 class="text-lg font-semibold mb-2 capitalize">doing</h2>
-          <div class="space-y-2 min-h-[50px]">
+          <div class="space-y-2 min-h-[50px]" bind:this={doingRef}>
             {#each getFilteredProjects("doing") as project (project.id)}
               <div
                 class="p-2 bg-white rounded border shadow-sm cursor-move"
@@ -159,9 +159,9 @@
           </div>
         </div>
 
-        <div class="bg-gray-100 p-3 rounded shadow" bind:this={doneRef}>
+        <div class="bg-gray-100 p-3 rounded shadow">
           <h2 class="text-lg font-semibold mb-2 capitalize">done</h2>
-          <div class="space-y-2 min-h-[50px]">
+          <div class="space-y-2 min-h-[50px]" bind:this={doneRef}>
             {#each getFilteredProjects("done") as project (project.id)}
               <div
                 class="p-2 bg-white rounded border shadow-sm cursor-move"
