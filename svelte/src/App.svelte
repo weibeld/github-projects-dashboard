@@ -79,6 +79,9 @@
       Sortable.create(el, {
         group: 'columns',
         animation: 150,
+        swapThreshold: 0.5,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
         onEnd: (evt) => {
           const projectId = evt.item?.dataset?.id;
           if (projectId) {

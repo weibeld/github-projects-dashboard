@@ -81,3 +81,15 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+.sortable-ghost {
+  opacity: 0.4;
+  transform: scale(0.98);
+  background-color: #f0f0f0;
+  border: 1px dashed #ccc;
+}
+
+.sortable-chosen {
+  opacity: 0.8;
+  background-color: #e2e8f0; /* light blue-gray */
+}
