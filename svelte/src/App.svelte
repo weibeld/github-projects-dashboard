@@ -1,5 +1,6 @@
 <script>
   import { onMount } from 'svelte';
+  import Sortable from 'sortablejs';
   import { supabase } from './supabaseClient';
 
   let session = null;
@@ -8,6 +9,8 @@
   let statusMap = {}; // { projectId: "todo" | "doing" | "done" }
 
   const columns = ["todo", "doing", "done"];
+
+  let todoRef, doingRef, doneRef;
 
   const GITHUB_GRAPHQL = "https://api.github.com/graphql";
 
@@ -52,6 +55,7 @@
     const json = await res.json();
     projects = json.data.viewer.projectsV2.nodes;
     loadStatusMap();
+    setupSortables();
   };
 
   const loadStatusMap = () => {
@@ -65,10 +69,26 @@
     localStorage.setItem("projectStatuses", JSON.stringify(statusMap));
   };
 
-  const updateStatus = (projectId, newStatus) => {
-    statusMap = { ...statusMap, [projectId]: newStatus };
-    saveStatusMap();
-  };
+  function setupSortables() {
+    const refs = { todo: todoRef, doing: doingRef, done: doneRef };
+
+    for (const column of columns) {
+      const el = refs[column];
+      if (!el) continue;
+
+      Sortable.create(el, {
+        group: 'columns',
+        animation: 150,
+        onEnd: (evt) => {
+          const projectId = evt.item?.dataset?.id;
+          if (projectId) {
+            statusMap[projectId] = column;
+            saveStatusMap();
+          }
+        }
+      });
+    }
+  }
 
   onMount(async () => {
     const { data } = await supabase.auth.getSession();
@@ -85,6 +105,9 @@
       await fetchProjects();
     }
   });
+
+  const getFilteredProjects = (column) =>
+    projects.filter(p => (statusMap[p.id] || "todo") === column);
 </script>
 
 <main class="p-4 text-gray-800">
@@ -97,36 +120,61 @@
       <p class="text-sm">Signed in as {session.user.email}</p>
       <button on:click={handleLogout} class="text-sm text-red-600">Log out</button>
     </div>
+
     {#if projects.length === 0}
       <p>Loading projects...</p>
     {:else}
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {#each columns as column}
-          <div class="bg-gray-100 p-3 rounded shadow">
-            <h2 class="text-lg font-semibold mb-2 capitalize">{column}</h2>
-            <div class="space-y-2">
-              {#each projects.filter(p => (statusMap[p.id] || "todo") === column) as project}
-                <div class="p-2 bg-white rounded border shadow-sm">
-                  <a href={project.url} target="_blank" class="hover:underline text-blue-600">
-                    {project.title}
-                  </a>
-                  <div class="mt-1 text-xs text-gray-400">ID: {project.id}</div>
-
-                  <div class="mt-2 space-x-1 text-xs">
-                    {#each columns.filter(c => c !== column) as c}
-                      <button
-                        class="bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
-                        on:click={() => updateStatus(project.id, c)}
-                      >
-                        Move to {c}
-                      </button>
-                    {/each}
-                  </div>
-                </div>
-              {/each}
-            </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
+        <div class="bg-gray-100 p-3 rounded shadow" bind:this={todoRef}>
+          <h2 class="text-lg font-semibold mb-2 capitalize">todo</h2>
+          <div class="space-y-2 min-h-[50px]">
+            {#each getFilteredProjects("todo") as project (project.id)}
+              <div
+                class="p-2 bg-white rounded border shadow-sm cursor-move"
+                data-id={project.id}
+              >
+                <a href={project.url} target="_blank" class="hover:underline text-blue-600">
+                  {project.title}
+                </a>
+                <div class="mt-1 text-xs text-gray-400">ID: {project.id}</div>
+              </div>
+            {/each}
           </div>
-        {/each}
+        </div>
+
+        <div class="bg-gray-100 p-3 rounded shadow" bind:this={doingRef}>
+          <h2 class="text-lg font-semibold mb-2 capitalize">doing</h2>
+          <div class="space-y-2 min-h-[50px]">
+            {#each getFilteredProjects("doing") as project (project.id)}
+              <div
+                class="p-2 bg-white rounded border shadow-sm cursor-move"
+                data-id={project.id}
+              >
+                <a href={project.url} target="_blank" class="hover:underline text-blue-600">
+                  {project.title}
+                </a>
+                <div class="mt-1 text-xs text-gray-400">ID: {project.id}</div>
+              </div>
+            {/each}
+          </div>
+        </div>
+
+        <div class="bg-gray-100 p-3 rounded shadow" bind:this={doneRef}>
+          <h2 class="text-lg font-semibold mb-2 capitalize">done</h2>
+          <div class="space-y-2 min-h-[50px]">
+            {#each getFilteredProjects("done") as project (project.id)}
+              <div
+                class="p-2 bg-white rounded border shadow-sm cursor-move"
+                data-id={project.id}
+              >
+                <a href={project.url} target="_blank" class="hover:underline text-blue-600">
+                  {project.title}
+                </a>
+                <div class="mt-1 text-xs text-gray-400">ID: {project.id}</div>
+              </div>
+            {/each}
+          </div>
+        </div>
       </div>
     {/if}
   {/if}
