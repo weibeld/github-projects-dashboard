@@ -1,11 +1,19 @@
 <script>
   import { slide } from 'svelte/transition';
   export let project;
+  import dayjs from 'dayjs';
+  import relativeTime from 'dayjs/plugin/relativeTime';
+  dayjs.extend(relativeTime);
   let expanded = false;
   const toggle = () => {
     expanded = !expanded;
   };
   const formatDate = (date) =>
+    date ? dayjs(date).format('D MMM YYYY HH:mm') : '–';
+
+  const relativeDate = (date) =>
+    date ? dayjs(date).fromNow() : '';
+  /*const formatDate = (date) =>
     date ? new Date(date).toLocaleDateString("en-GB", {
       day: "numeric",
       month: "short",
@@ -13,7 +21,7 @@
       hour: "2-digit",
       minute: "2-digit",
       hour12: false, 
-    }) : "–";
+    }) : "–";*/
 </script>
 
 <div class="p-2 bg-white text-left rounded border shadow-sm cursor-default">
@@ -28,20 +36,21 @@
       <div>
         <span>{project.public ? "Public" : "Private"}</span>
       </div>
-      <div>
-        <span>Updated:</span>
-        <span>{formatDate(project.updatedAt)}</span>
-      </div>
-      <div>
-        <span>Created:</span>
-        <span>{formatDate(project.createdAt)}</span>
-      </div>
       {#if project.closed}
         <div>
           <span>Closed:</span>
-          <span>{formatDate(project.closedAt)}</span>
+          <span>{formatDate(project.closedAt)} ({relativeDate(project.closedAt)})</span>
+        </div>
+      {:else}
+        <div>
+          <span>Updated:</span>
+          <span>{formatDate(project.updatedAt)} ({relativeDate(project.updatedAt)})</span>
         </div>
       {/if}
+      <div>
+        <span>Created:</span>
+        <span>{formatDate(project.createdAt)} ({relativeDate(project.createdAt)})</span>
+      </div>
       <div>
         <span>{project.id}</span>
       </div>
