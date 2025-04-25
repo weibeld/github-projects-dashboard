@@ -2,7 +2,9 @@
   import { onMount } from 'svelte';
   import Sortable from 'sortablejs';
   import { supabase } from './supabaseClient';
+  import Column from './components/Column.svelte';
   import ProjectCard from './components/ProjectCard.svelte';
+  import { writable, get } from 'svelte/store';
 
   let session = null;
   let token = null;
@@ -11,7 +13,9 @@
 
   const columns = ["todo", "doing", "done"];
 
-  let todoRef, doingRef, doneRef;
+  let todoRef = writable(null);
+  let doingRef = writable(null);
+  let doneRef = writable(null);
 
   const GITHUB_GRAPHQL = "https://api.github.com/graphql";
 
@@ -71,7 +75,11 @@
   };
 
   function setupSortables() {
-    const refs = { todo: todoRef, doing: doingRef, done: doneRef };
+      const refs = {
+        todo: get(todoRef),
+        doing: get(doingRef),
+        done: get(doneRef)
+      };
 
     for (const column of columns) {
       const el = refs[column];
@@ -129,32 +137,9 @@
       <p>Loading projects...</p>
     {:else}
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
-        <div class="bg-gray-100 p-3 rounded shadow flex flex-col">
-          <h2 class="text-lg font-semibold mb-2 capitalize">todo</h2>
-          <div class="space-y-2 min-h-[50px]" bind:this={todoRef}>
-            {#each getFilteredProjects("todo") as project (project.id)}
-              <ProjectCard {project} />
-            {/each}
-          </div>
-        </div>
-
-        <div class="bg-gray-100 p-3 rounded shadow flex flex-col">
-          <h2 class="text-lg font-semibold mb-2 capitalize">doing</h2>
-          <div class="space-y-2 min-h-[50px]" bind:this={doingRef}>
-            {#each getFilteredProjects("doing") as project (project.id)}
-              <ProjectCard {project} />
-            {/each}
-          </div>
-        </div>
-
-        <div class="bg-gray-100 p-3 rounded shadow flex flex-col">
-          <h2 class="text-lg font-semibold mb-2 capitalize">done</h2>
-          <div class="space-y-2 min-h-[50px]" bind:this={doneRef}>
-            {#each getFilteredProjects("done") as project (project.id)}
-              <ProjectCard {project} />
-            {/each}
-          </div>
-        </div>
+        <Column title={columns[0]} projects={getFilteredProjects(columns[0])} bindRef={todoRef} />
+        <Column title={columns[1]} projects={getFilteredProjects(columns[1])} bindRef={doingRef} />
+        <Column title={columns[2]} projects={getFilteredProjects(columns[2])} bindRef={doneRef} />
       </div>
     {/if}
   {/if}
