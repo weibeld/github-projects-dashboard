@@ -43,6 +43,13 @@
   </button>
   {#if expanded}
     <div class="mt-2 text-xs space-y-1" transition:slide>
+      {#if project.shortDescription}
+        <div class="text-center italic mx-1">
+          <blockquote class="text-gray-600">
+            “{project.shortDescription}”
+          </blockquote>
+        </div>
+      {/if}
       <div>
         <span>{project.items.totalCount} {project.items.totalCount === 1 ? 'item' : 'items'}</span>
       </div>

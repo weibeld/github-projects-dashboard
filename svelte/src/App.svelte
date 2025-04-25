@@ -50,6 +50,7 @@
             updatedAt
             closedAt
             public
+            shortDescription
             items {
               totalCount
             }
