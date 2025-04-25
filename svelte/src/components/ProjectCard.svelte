@@ -40,6 +40,9 @@
   </button>
   {#if expanded}
     <div class="mt-2 text-xs space-y-1" transition:slide>
+      <div>
+        <span>{project.items.totalCount} {project.items.totalCount === 1 ? 'item' : 'items'}</span>
+      </div>
       {#if project.closed}
         <div>
           <span>Closed:</span>

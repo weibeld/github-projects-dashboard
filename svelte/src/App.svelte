@@ -49,6 +49,9 @@
             updatedAt
             closedAt
             public
+            items {
+              totalCount
+            }
           }
         }
       }
