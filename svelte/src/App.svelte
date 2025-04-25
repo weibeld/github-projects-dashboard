@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Sortable from 'sortablejs';
   import { supabase } from './supabaseClient';
+  import ProjectCard from './components/ProjectCard.svelte';
 
   let session = null;
   let token = null;
@@ -132,12 +133,7 @@
           <h2 class="text-lg font-semibold mb-2 capitalize">todo</h2>
           <div class="space-y-2 min-h-[50px]" bind:this={todoRef}>
             {#each getFilteredProjects("todo") as project (project.id)}
-              <div class="p-2 text-left bg-white rounded border shadow-sm cursor-move" data-id={project.id}>
-                <a href={project.url} target="_blank" class="hover:underline text-blue-600">
-                  {project.title}
-                </a>
-                <div class="mt-0.5 text-xs text-gray-400">{project.id}</div>
-              </div>
+              <ProjectCard {project} />
             {/each}
           </div>
         </div>
@@ -146,12 +142,7 @@
           <h2 class="text-lg font-semibold mb-2 capitalize">doing</h2>
           <div class="space-y-2 min-h-[50px]" bind:this={doingRef}>
             {#each getFilteredProjects("doing") as project (project.id)}
-              <div class="p-2 text-left bg-white rounded border shadow-sm cursor-move" data-id={project.id}>
-                <a href={project.url} target="_blank" class="hover:underline text-blue-600">
-                  {project.title}
-                </a>
-                <div class="mt-0.5 text-xs text-gray-400">{project.id}</div>
-              </div>
+              <ProjectCard {project} />
             {/each}
           </div>
         </div>
@@ -160,13 +151,7 @@
           <h2 class="text-lg font-semibold mb-2 capitalize">done</h2>
           <div class="space-y-2 min-h-[50px]" bind:this={doneRef}>
             {#each getFilteredProjects("done") as project (project.id)}
-              <div class="p-2 text-left bg-white rounded border shadow-sm cursor-move" data-id={project.id}
-              >
-                <a href={project.url} target="_blank" class="hover:underline text-blue-600">
-                  {project.title}
-                </a>
-                <div class="mt-0.5 text-xs text-gray-400">{project.id}</div>
-              </div>
+              <ProjectCard {project} />
             {/each}
           </div>
         </div>
