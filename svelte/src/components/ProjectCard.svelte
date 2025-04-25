@@ -6,7 +6,14 @@
     expanded = !expanded;
   };
   const formatDate = (date) =>
-    date ? new Date(date).toLocaleDateString() : "–";
+    date ? new Date(date).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false, 
+    }) : "–";
 </script>
 
 <div class="p-2 bg-white text-left rounded border shadow-sm cursor-default">
@@ -22,12 +29,12 @@
         <span>{project.public ? "Public" : "Private"}</span>
       </div>
       <div>
-        <span>Created:</span>
-        <span>{formatDate(project.createdAt)}</span>
+        <span>Updated:</span>
+        <span>{formatDate(project.updatedAt)}</span>
       </div>
       <div>
-        <span>Last updated:</span>
-        <span>{formatDate(project.updatedAt)}</span>
+        <span>Created:</span>
+        <span>{formatDate(project.createdAt)}</span>
       </div>
       {#if project.closed}
         <div>
