@@ -1,4 +1,5 @@
 <script>
+  import { Lock, Globe } from 'lucide-svelte';
   import { slide } from 'svelte/transition';
   export let project;
   import dayjs from 'dayjs';
@@ -55,8 +56,12 @@
         <span>{formatDate(project.createdAt)} ({relativeDate(project.createdAt)})</span>
       </div>
       <div>
-        <span class="inline-block border border-gray-400 text-xs px-2 py-0.5 rounded-full">
-          {project.public ? "Public" : "Private"}
+        <span class="inline-flex items-center gap-1 border border-gray-400 text-xs px-2 py-0.5 rounded-full">
+        {#if project.public}
+          <Globe class="w-3 h-3" /> Public
+        {:else}
+          <Lock class="w-3 h-3" /> Private
+        {/if}
         </span>
       </div>
     </div>
