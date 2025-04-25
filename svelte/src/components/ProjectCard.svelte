@@ -1,5 +1,5 @@
 <script>
-  import { Lock, Globe } from 'lucide-svelte';
+  import { Lock, Globe, ChevronDown, ChevronRight } from 'lucide-svelte';
   import { slide } from 'svelte/transition';
   export let project;
   import dayjs from 'dayjs';
@@ -14,15 +14,6 @@
 
   const relativeDate = (date) =>
     date ? dayjs(date).fromNow() : '';
-  /*const formatDate = (date) =>
-    date ? new Date(date).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false, 
-    }) : "–";*/
 </script>
 
 <div class="p-2 bg-white text-left rounded border shadow-sm cursor-default">
@@ -37,8 +28,12 @@
       Updated {relativeDate(project.updatedAt)}
     {/if}
   </div>
-  <button on:click={toggle} class="text-sm mt-1 flex items-center gap-1 px-1 py-0.5 rounded hover:bg-gray-100 transition-colors">
-    <span>{expanded ? "▼" : "►"}</span>
+  <button on:click={toggle} class="text-sm mt-1 flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-gray-100 transition-colors">
+    {#if expanded}
+      <ChevronDown class="w-4 h-4" />
+    {:else}
+      <ChevronRight class="w-4 h-4" />
+    {/if}
     Details
   </button>
   {#if expanded}
