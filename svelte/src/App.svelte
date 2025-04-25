@@ -42,6 +42,7 @@
         projectsV2(first: 50) {
           nodes {
             id
+            number
             title
             url
             closed

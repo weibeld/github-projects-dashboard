@@ -26,7 +26,10 @@
 </script>
 
 <div class="p-2 bg-white text-left rounded border shadow-sm cursor-default">
-  <a href={project.url} target="_blank" class="hover:underline text-blue-600 block">{project.title}</a>
+  <div>
+    <span class="text-blue-500 font-semibold">#{project.number}</span>
+    <a href={project.url} target="_blank" class="hover:underline text-blue-600 font-semibold">{project.title}</a>
+  </div>
   <div class="text-sm italic text-gray-500 mt-0.5">
     {#if project.closed}
       Closed {relativeDate(project.closedAt)}
