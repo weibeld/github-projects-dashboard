@@ -1,28 +1,43 @@
 <script>
+  import { slide } from 'svelte/transition';
   export let project;
+  let expanded = false;
+  const toggle = () => {
+    expanded = !expanded;
+  };
+  const formatDate = (date) =>
+    date ? new Date(date).toLocaleDateString() : "–";
 </script>
 
-<div class="p-2 text-left bg-white rounded border shadow-sm cursor-move" data-id={project.id}>
-  <a href={project.url} target="_blank" class="hover:underline text-blue-600 font-medium">
-    {project.title}
-  </a>
-  <div class="mt-1 text-xs">
-    {#if project.public}
-      <span class="text-green-500">Public</span>
-    {:else}
-      <span class="text-red-500">Private</span>
-    {/if}
-    {#if project.closed}
-      <span class="ml-2 text-red-500">Closed</span>
-    {/if}
-  </div>
-  <div class="mt-1 text-xs text-gray-400">
-    {#if project.closed}
-      Closed: {project.closedAt ? new Date(project.closedAt).toLocaleDateString() : '—'}
-    {:else}
-      Updated: {project.updatedAt ? new Date(project.updatedAt).toLocaleDateString() : '—'}<br>
-      Created: {new Date(project.createdAt).toLocaleDateString()}<br>
-    {/if}
-  </div>
-  <div class="mt-0.5 text-xs text-gray-400">{project.id}</div>
+<div class="p-2 bg-white text-left rounded border shadow-sm cursor-default">
+  <a href={project.url} target="_blank" class="hover:underline text-blue-600 block">{project.title}</a>
+  <button on:click={toggle} class="text-sm mt-1 flex items-center gap-1 px-1 py-0.5 rounded hover:bg-gray-100 transition-colors">
+    <span>{expanded ? "▼" : "►"}</span>
+    Details
+  </button>
+
+  {#if expanded}
+    <div class="mt-2 text-xs space-y-1" transition:slide>
+      <div>
+        <span>{project.public ? "Public" : "Private"}</span>
+      </div>
+      <div>
+        <span>Created:</span>
+        <span>{formatDate(project.createdAt)}</span>
+      </div>
+      <div>
+        <span>Last updated:</span>
+        <span>{formatDate(project.updatedAt)}</span>
+      </div>
+      {#if project.closed}
+        <div>
+          <span>Closed:</span>
+          <span>{formatDate(project.closedAt)}</span>
+        </div>
+      {/if}
+      <div>
+        <span>{project.id}</span>
+      </div>
+    </div>
+  {/if}
 </div>
