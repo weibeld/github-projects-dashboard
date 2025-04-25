@@ -26,11 +26,17 @@
 
 <div class="p-2 bg-white text-left rounded border shadow-sm cursor-default">
   <a href={project.url} target="_blank" class="hover:underline text-blue-600 block">{project.title}</a>
+  <div class="text-sm italic text-gray-500 mt-0.5">
+    {#if project.closed}
+      Closed {relativeDate(project.closedAt)}
+    {:else}
+      Updated {relativeDate(project.updatedAt)}
+    {/if}
+  </div>
   <button on:click={toggle} class="text-sm mt-1 flex items-center gap-1 px-1 py-0.5 rounded hover:bg-gray-100 transition-colors">
     <span>{expanded ? "▼" : "►"}</span>
     Details
   </button>
-
   {#if expanded}
     <div class="mt-2 text-xs space-y-1" transition:slide>
       <div>
