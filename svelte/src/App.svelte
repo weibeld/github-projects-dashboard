@@ -36,6 +36,7 @@
   };
 
   const fetchProjects = async () => {
+    // TODO: fetching repositories always returns an empty list
     const query = `{
       viewer {
         projectsV2(first: 50) {
@@ -43,11 +44,15 @@
             id
             title
             url
+            closed
+            createdAt
+            updatedAt
+            closedAt
+            public
           }
         }
       }
     }`;
-
     const res = await fetch(GITHUB_GRAPHQL, {
       method: "POST",
       headers: {
@@ -58,6 +63,7 @@
     });
 
     const json = await res.json();
+    console.log("GitHub response:", json);
     projects = json.data.viewer.projectsV2.nodes;
     loadStatusMap();
     setupSortables();
