@@ -2,94 +2,95 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global styles */
 :root {
+  /* Typography */
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+  /* Color Variables */
+  --color-bg: #ffffff;
+  --color-text: #213547;
+  --color-link: #0969da;
+  --color-link-hover: #747bff;
+  --color-link-focus-border: #2188ff;
+  --color-button-bg: #f6f8fa;
+  --color-button-text: #24292f;
+  --color-button-hover-bg: #f0f4f8;
+  --color-sortable-ghost-bg: #f0f0f0;
+  --color-sortable-chosen-bg: #e2e8f0;
+  --color-sortable-border: #ccc;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  width: 100%;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-text);
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+a {
+  font-weight: 500;
+  color: var(--color-link);
+  text-decoration: none;
+  transition: color 0.2s, border-color 0.2s;
+  border: 1px solid transparent;
+  padding: 2px 4px;
+  border-radius: 4px;
 }
 
-.card {
-  padding: 2em;
+a:hover {
+  text-decoration: underline;
+  color: var(--color-link-hover);
 }
 
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+a:focus,
+a:focus-visible {
+  outline: none;
+  border-color: var(--color-link-focus-border);
 }
 
 button {
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
+  padding: 0.5em 1em;
+  font-size: 0.95em;
   font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
+  background-color: var(--color-button-bg);
+  color: var(--color-button-text);
   cursor: pointer;
-  transition: border-color 0.25s;
+  transition: background-color 0.2s, border-color 0.2s;
 }
+
 button:hover {
-  border-color: #646cff;
+  background-color: var(--color-button-hover-bg);
+  border-color: var(--color-link-focus-border);
 }
+
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: none;
+  border-color: var(--color-link-focus-border);
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
-}
-
+/* Drag and drop styles */
 .sortable-ghost {
   opacity: 0.4;
   transform: scale(0.98);
-  background-color: #f0f0f0;
-  border: 1px dashed #ccc;
+  background-color: var(--color-sortable-ghost-bg);
+  border: 1px dashed var(--color-sortable-border);
 }
 
 .sortable-chosen {
   opacity: 0.8;
-  background-color: #e2e8f0; /* light blue-gray */
+  background-color: var(--color-sortable-chosen-bg);
 }
