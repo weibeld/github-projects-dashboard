@@ -134,27 +134,21 @@
     projects.filter(p => (statusMap[p.id] || "todo") === column);
 </script>
 
-<Header {session} onLogout={handleLogout} />
-<main class="p-4 text-gray-800">
-  {#if !session}
-    <!-- TODO: centre vertically in page -->
-    <div class="flex items-center justify-center">
-      <button on:click={handleLogin} class="px-4 py-2 rounded shadow">
-        Log in with GitHub
-      </button>
-    </div>
-  {:else}
-    {#if projects.length === 0}
-      <!-- TODO: centre vertically in page -->
-      <div class="flex items-center justify-center">
-        <p class="text-gray-500 text-lg">Loading projects...</p>
-      </div>
+<main class="flex flex-col min-h-screen">
+  <Header {session} onLogout={handleLogout} class="h-16"/>
+  <div class="flex-1 flex flex-col items-center justify-center text-gray-800">
+    {#if !session}
+      <button on:click={handleLogin} class="px-4 py-2 rounded shadow">Log in with GitHub</button>
     {:else}
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
-        <Column title={columns[0]} projects={getFilteredProjects(columns[0])} bindRef={todoRef} />
-        <Column title={columns[1]} projects={getFilteredProjects(columns[1])} bindRef={doingRef} />
-        <Column title={columns[2]} projects={getFilteredProjects(columns[2])} bindRef={doneRef} />
-      </div>
+      {#if projects.length === 0}
+        <p class="text-lg text-gray-500">Loading projects...</p>
+      {:else}
+        <div class="pt-6 pb-2 px-4 flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
+          <Column title={columns[0]} projects={getFilteredProjects(columns[0])} bindRef={todoRef} />
+          <Column title={columns[1]} projects={getFilteredProjects(columns[1])} bindRef={doingRef} />
+          <Column title={columns[2]} projects={getFilteredProjects(columns[2])} bindRef={doneRef} />
+        </div>
+      {/if}
     {/if}
-  {/if}
+  </div>
 </main>
