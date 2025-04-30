@@ -16,35 +16,29 @@
     date ? dayjs(date).fromNow() : '';
 </script>
 
-<div class="p-2 bg-white text-left rounded border shadow-sm cursor-default">
+<div class="p-2 bg-white text-left rounded border shadow-sm cursor-grab">
   <div>
-    <span class="text-blue-500 font-semibold">#{project.number}</span>
-    <a href={project.url} target="_blank" class="hover:underline text-blue-600 font-semibold">{project.title}</a>
+    <span class="text-githubSecondaryTextColor font-semibold">#{project.number}</span>
+    <a href={project.url} target="_blank" class="_classic-link font-semibold">{project.title}</a>
   </div>
-  <div class="text-sm italic text-gray-500 mt-0.5">
+  <div class="text-sm text-githubSecondaryTextColor mt-0.5">
     {#if project.closed}
       Closed {relativeDate(project.closedAt)}
     {:else}
       Updated {relativeDate(project.updatedAt)}
     {/if}
   </div>
-  <button on:click={toggle} class="text-sm mt-1 flex items-center gap-0.5 px-1 py-0.5 rounded hover:bg-gray-100 transition-colors">
+  <!-- TODO: apply _button class -->
+  <button on:click={toggle} class="_button gap-0.5 text-sm mt-1 px-1 py-0.5">
     {#if expanded}
-      <ChevronDown class="w-4 h-4" />
+      <ChevronDown class="_icon" />
     {:else}
-      <ChevronRight class="w-4 h-4" />
+      <ChevronRight class="_icon" />
     {/if}
     Details
   </button>
   {#if expanded}
-    <div class="mt-2 text-xs space-y-1" transition:slide>
-      {#if project.shortDescription}
-        <div class="text-center italic mx-1">
-          <blockquote class="text-gray-600">
-            “{project.shortDescription}”
-          </blockquote>
-        </div>
-      {/if}
+    <div class="mt-2 text-xs space-y-1 bg-githubBgColor rounded border border-githubBordercolor p-2" transition:slide>
       <div>
         <span>{project.items.totalCount} {project.items.totalCount === 1 ? 'item' : 'items'}</span>
       </div>
@@ -63,13 +57,17 @@
         <span>Created:</span>
         <span>{formatDate(project.createdAt)} ({relativeDate(project.createdAt)})</span>
       </div>
+      {#if project.shortDescription}
+        <div class="text-center italic my-1">
+          <!--<blockquote class="text-githubSecondaryTextColor bg-githubBgColor rounded-md border border-githubBorderColor _padding">-->
+          <blockquote class="text-githubSecondaryTextColor">
+            “{project.shortDescription}”
+          </blockquote>
+        </div>
+      {/if}
       <div>
-        <span class="inline-flex items-center gap-1 border border-gray-400 text-xs px-2 py-0.5 rounded-full">
-        {#if project.public}
-          <Globe class="w-3 h-3" /> Public
-        {:else}
-          <Lock class="w-3 h-3" /> Private
-        {/if}
+        <span class="inline-flex items-center gap-0.5 border border-githubBorderColor text-xs text-githubSecondaryTextColor px-1 py-0.5 rounded-full">
+        {#if project.public}<Globe class="w-3 h-3" /> Public{:else}<Lock class="w-3 h-3" /> Private{/if}
         </span>
       </div>
     </div>

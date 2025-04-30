@@ -2,95 +2,110 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global styles */
-:root {
-  /* Typography */
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-
-  /* Color Variables */
-  --color-bg: #ffffff;
-  --color-text: #213547;
-  --color-link: #0969da;
-  --color-link-hover: #747bff;
-  --color-link-focus-border: #2188ff;
-  --color-button-bg: #f6f8fa;
-  --color-button-text: #24292f;
-  --color-button-hover-bg: #f0f4f8;
-  --color-sortable-ghost-bg: #f0f0f0;
-  --color-sortable-chosen-bg: #e2e8f0;
-  --color-sortable-border: #ccc;
+/*----------------------------------------------------------------------------*
+ * Body
+ *----------------------------------------------------------------------------*/
+@layer base {
+  body {
+    @apply font-sans font-normal leading-normal bg-white text-githubPrimaryTextColor;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
 }
 
-body {
-  margin: 0;
-  width: 100%;
-  min-width: 320px;
-  min-height: 100vh;
-  background-color: var(--color-bg);
-  color: var(--color-text);
+/*----------------------------------------------------------------------------*
+ * Link (box)
+ *----------------------------------------------------------------------------*/
+/* Resembling a button, grey background on hover, may include icon */
+@layer components {
+  ._box-link {
+    @apply no-underline text-githubPrimaryTextColor rounded-lg _padding _h-flex;
+  }
+  ._box-link:hover {
+    @apply no-underline text-githubPrimaryTextColor bg-githubBoxLinkHoverBgColor;
+  }
 }
 
-a {
-  font-weight: 500;
-  color: var(--color-link);
-  text-decoration: none;
-  transition: color 0.2s, border-color 0.2s;
-  border: 1px solid transparent;
-  padding: 2px 4px;
-  border-radius: 4px;
+/*----------------------------------------------------------------------------*
+ * Link (classic)
+ *----------------------------------------------------------------------------*/
+/* Classical link, underline and different text colour on hover */
+@layer components {
+  ._classic-link {
+    @apply no-underline;
+  }
+  ._classic-link:hover {
+    @apply underline text-githubActionColor;
+  }
+  ._classic-link:focus {
+    @apply _focus;
+  }
 }
 
-a:hover {
-  text-decoration: underline;
-  color: var(--color-link-hover);
+/*----------------------------------------------------------------------------*
+ * Button
+ *----------------------------------------------------------------------------*/
+/* TODO: define different types of buttons */
+@layer components {
+  ._button {
+    @apply bg-githubBgColor text-githubButtonTextColor font-semibold border border-githubBorderColor rounded-md _padding _h-flex;
+  }
+  ._button:hover {
+    @apply bg-githubButtonHoverBgColor;
+  }
 }
 
-a:focus,
-a:focus-visible {
-  outline: none;
-  border-color: var(--color-link-focus-border);
+/*----------------------------------------------------------------------------*
+ * SortableJS drag-and-drop
+ *----------------------------------------------------------------------------*/
+/* Use 'utilities' instead of 'components' to avoid loss by tree-shaking */
+@layer utilities {
+  /* Applied to chosenClass in Sortable.create() in App.svelte */
+  ._sortable-chosen {
+    @apply bg-sortableChosenBgColor border border-githubBorderColor opacity-80;
+  }
+  /* TODO: when defining .sortable-ghost and assigning it to ghostClass in
+   * App.svelte, it is never applied. */
 }
 
-button {
-  border-radius: 6px;
-  border: 1px solid transparent;
-  padding: 0.5em 1em;
-  font-size: 0.95em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: var(--color-button-bg);
-  color: var(--color-button-text);
-  cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
+/*----------------------------------------------------------------------------*
+ * Utilities
+ *----------------------------------------------------------------------------*/
+
+@layer utilities {
+  /* Frame when focusing on an element (usually using the tab key) */
+  ._focus {
+    @apply ring ring-githubActionColor rounded-md;
+  }
+  /* Horizontally arrange multiple elements (e.g. icon and text) */
+  ._h-flex {
+    @apply flex items-center gap-1;
+  }
+  /* Regular icon size */
+  ._icon {
+    @apply w-4 h-4;
+  }
+  /* Regular padding */
+  ._padding {
+    @apply px-2 py-1;
+  }
 }
 
-button:hover {
-  background-color: var(--color-button-hover-bg);
-  border-color: var(--color-link-focus-border);
+
+/*----------------------------------------------------------------------------*
+ * Misc
+ *----------------------------------------------------------------------------*/
+
+/* Disable hover actions (e.g. underlining, pointer cursor) during DnD */
+._disable-pointer-events a,
+._disable-pointer-events button {
+  pointer-events: none !important;
 }
 
-button:focus,
-button:focus-visible {
-  outline: none;
-  border-color: var(--color-link-focus-border);
-}
-
-/* Drag and drop styles */
-.sortable-ghost {
-  opacity: 0.4;
-  transform: scale(0.98);
-  background-color: var(--color-sortable-ghost-bg);
-  border: 1px dashed var(--color-sortable-border);
-}
-
-.sortable-chosen {
-  opacity: 0.8;
-  background-color: var(--color-sortable-chosen-bg);
+/* Overwrite ProjectCard 'cursor: grab' with 'grabbing' during DnD to prevent
+ * 'dragging' cursor from changing to 'drag' when hovering over ProjectCard */
+body._cursor-grab-to-grabbing .cursor-grab {
+  cursor: grabbing !important;
 }
