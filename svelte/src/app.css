@@ -21,7 +21,7 @@
 /* Resembling a button, grey background on hover, may include icon */
 @layer components {
   ._box-link {
-    @apply no-underline text-githubPrimaryTextColor rounded-lg _padding _h-flex;
+    @apply no-underline text-githubPrimaryTextColor rounded-md _padding _h-flex;
   }
   ._box-link:hover {
     @apply no-underline text-githubPrimaryTextColor bg-githubBoxLinkHoverBgColor;
@@ -71,23 +71,23 @@
 }
 
 /*----------------------------------------------------------------------------*
- * Utilities
+ * Menu slide-in animation
  *----------------------------------------------------------------------------*/
 
 @layer utilities {
-  @keyframes slide-in {
+  @keyframes slide-in-right {
     from {
+      transform: translateX(100%);
       opacity: 0;
-      transform: translateX(20px);
     }
     to {
-      opacity: 1;
       transform: translateX(0);
+      opacity: 1;
     }
   }
 
-  .animate-slide-in {
-    animation: slide-in 0.2s ease-out;
+  .animate-slide-in-right {
+    animation: slide-in-right 0.25s ease-out forwards;
   }
 }
 
