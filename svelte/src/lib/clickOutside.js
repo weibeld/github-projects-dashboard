@@ -1,7 +1,5 @@
-
-/* Call callback whenever a click outside of node occurs */
 export function clickOutside(node, callback) {
-  const handleClick = (event) => {
+  const handleClick = event => {
     if (!node.contains(event.target)) {
       callback();
     }
