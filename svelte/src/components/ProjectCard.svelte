@@ -40,7 +40,9 @@
   {#if expanded}
     <div class="mt-2 text-xs space-y-1 bg-githubBgColor rounded border border-githubBordercolor p-2" transition:slide>
       <div>
-        <span>{project.items.totalCount} {project.items.totalCount === 1 ? 'item' : 'items'}</span>
+        <a href={project.url} target="_blank" class="_classic-link">
+          <span>{project.items.totalCount} {project.items.totalCount === 1 ? 'item' : 'items'}</span>
+        </a>
       </div>
       {#if project.closed}
         <div>

@@ -77,7 +77,7 @@
 @layer utilities {
   /* Frame when focusing on an element (usually using the tab key) */
   ._focus {
-    @apply ring ring-githubActionColor rounded-md;
+    @apply ring ring-githubActionColor rounded;
   }
   /* Horizontally arrange multiple elements (e.g. icon and text) */
   ._h-flex {
