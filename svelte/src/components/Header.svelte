@@ -2,7 +2,7 @@
   export let session;
   export let onLogout;
   import { Github, Book, User, PanelsTopLeft } from 'lucide-svelte';
-  import logoUrl from '../assets/logo.svg?url';
+  import logoUrl from '../../public/logo.svg?url';
   import { clickOutside } from '../lib/clickOutside.js'
 
   let menuOpen = false;
