@@ -1,10 +1,9 @@
 <script>
   import { onMount } from 'svelte';
-  import Sortable from 'sortablejs';
+  //import Sortable from 'sortablejs';
   import { supabase } from './lib/supabaseClient';
   import Header from './components/Header.svelte';
   import Column from './components/Column.svelte';
-  import ProjectCard from './components/ProjectCard.svelte';
   import ClosedColumnPane from './components/ClosedColumnPane.svelte';
   import { writable, get } from 'svelte/store';
   import { Loader } from 'lucide-svelte';
@@ -76,7 +75,7 @@
     console.log("GitHub response:", json);
     projects = json.data.viewer.projectsV2.nodes;
     loadStatusMap();
-    setupSortables();
+    //setupSortables();
   };
 
   const loadStatusMap = () => {
@@ -90,45 +89,14 @@
     localStorage.setItem("projectStatuses", JSON.stringify(statusMap));
   };
 
-  function setupSortables() {
-      const refs = {
-        todo: get(todoRef),
-        doing: get(doingRef),
-        done: get(doneRef)
-      };
-
-    for (const column of columns) {
-      const el = refs[column];
-      if (!el) continue;
-
-      Sortable.create(el, {
-        group: 'columns',
-        animation: 150,
-        swapThreshold: 0.5,
-        /* TODO: ghostClass is not applied when adding it here */
-        chosenClass: '_sortable-chosen',
-        forceFallback: true,
-        fallbackOnBody: true,
-        onStart: () => {
-          // Disable hover behaviour (e.g. underlining, pointer cursor)
-          document.body.classList.add('_disable-pointer-events')
-          // Enable 'cursor-grabbing' (Tailwind class) on entire page
-          document.body.classList.add('cursor-grabbing');
-          // Overwrite ProjectCard 'cursor: grab' to 'cursor: grabbing'
-          document.body.classList.add('_cursor-grab-to-grabbing');
-        },
-        onEnd: (evt) => {
-          document.body.classList.remove('_disable-pointer-events');
-          document.body.classList.remove('cursor-grabbing');
-          document.body.classList.remove('_cursor-grab-to-grabbing');
-          const projectId = evt.item?.dataset?.id;
-          if (projectId) {
-            statusMap[projectId] = column;
-            saveStatusMap();
-          };
-        }
-      });
-    }
+  function handleDrop(column) {
+    return (evt) => {
+      const projectId = evt.item?.dataset?.id;
+      if (projectId) {
+        statusMap[projectId] = column;
+        saveStatusMap();
+      }
+    };
   }
 
   onMount(async () => {
@@ -169,14 +137,14 @@
         </div>
       {:else}
         <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 w-full pt-4 pb-2 px-4 gap-4">
-          <Column title={columns[0]} projects={getFilteredProjects(columns[0])} bindRef={todoRef} />
-          <Column title={columns[1]} projects={getFilteredProjects(columns[1])} bindRef={doingRef} />
+          <Column title={columns[0]} projects={getFilteredProjects(columns[0])} bindRef={todoRef} dndOnDrop={handleDrop(columns[0])} />
+          <Column title={columns[1]} projects={getFilteredProjects(columns[1])} bindRef={doingRef} dndOnDrop={handleDrop(columns[1])} />
         </div>
         <button on:click={() => closedPaneOpen = true} class="absolute top-1/2 right-0 transform -translate-y-1/2 bg-gray-300 hover:bg-gray-400 px-2 py-1 rounded-l z-30">
           Closed {closedPaneOpen ? '→' : '←'}
         </button>
         {#if closedPaneOpen}
-          <ClosedColumnPane onClose={() => closedPaneOpen = false} projects={getClosedProjects()} />
+          <ClosedColumnPane onClose={() => closedPaneOpen = false} projects={getClosedProjects()} dndOnDrop={handleDrop(columns[2])} />
         {/if}
       {/if}
     {/if}

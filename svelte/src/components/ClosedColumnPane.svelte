@@ -2,12 +2,12 @@
   import Column from './Column.svelte';
   import Overlay from './Overlay.svelte';
   import { X } from 'lucide-svelte';
-  import { onMount, onDestroy } from 'svelte';
   // Custom Svelte Actions
   import { onEscape } from '../lib/onEscape.js';  // Svelte action
   import { disableScroll } from '../lib/disableScroll.js';  // Svelte action
   export let projects = [];
   export let onClose;
+  export let dndOnDrop = () => {}; // DnD drop (from App.svelte)
 </script>
 
 <!-- Overlay shading page content below header when pane is open -->
@@ -19,6 +19,6 @@
     <X class="w-4 h-4" />
   </button>-->
   <div class="flex-1 w-full grid grid-cols-1 sm:grid-cols-1 pt-4 pb-2 px-4">
-    <Column title="closed" projects={projects} readonly={true} />
+    <Column title="closed" projects={projects} isClosedColum={true} dndOnDrop={dndOnDrop("closed")} />
   </div>
 </div>

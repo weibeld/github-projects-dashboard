@@ -1,16 +1,21 @@
 <script>
   import ProjectCard from './ProjectCard.svelte';
+  import { dndSortable } from '../lib/dndSortable.js';
   export let title;
   export let projects = [];
   export let bindRef = null;
+  export let dndIsClosedColumn = false;
+  // TODO: fix persistence with local storage
+  export let dndOnDrop = () => {};
   let containerRef;
   // Forward the actual DOM element to the parent
+  // TODO: what is this for?
   $: if (bindRef) bindRef.set(containerRef);
 </script>
 
 <div class="bg-githubBgColor border border-githubBorderColor p-3 rounded flex flex-col">
   <h2 class="text-lg text-left font-semibold mb-2 capitalize">{title} <span class="text-githubSecondaryTextColor text-sm">({projects.length})</span></h2>
-  <div class="space-y-2 min-h-[50px]" bind:this={containerRef}>
+  <div use:dndSortable={{ group: dndIsClosedColumn ? "closed-column" : "normal-columns", dndOnDrop }} class="space-y-2 min-h-[50px]" bind:this={containerRef}>
     {#each projects as project (project.id)}
       <ProjectCard {project} />
     {/each}
