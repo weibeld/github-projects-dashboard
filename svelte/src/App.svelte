@@ -5,6 +5,7 @@
   import Header from './components/Header.svelte';
   import Column from './components/Column.svelte';
   import ProjectCard from './components/ProjectCard.svelte';
+  import ClosedColumnPane from './components/ClosedColumnPane.svelte';
   import { writable, get } from 'svelte/store';
   import { Loader } from 'lucide-svelte';
 
@@ -18,6 +19,8 @@
   let todoRef = writable(null);
   let doingRef = writable(null);
   let doneRef = writable(null);
+
+  let closedPaneOpen = false;
 
   const GITHUB_GRAPHQL = "https://api.github.com/graphql";
 
@@ -146,7 +149,10 @@
   });
 
   const getFilteredProjects = (column) =>
-    projects.filter(p => (statusMap[p.id] || "todo") === column);
+  projects.filter(p => (statusMap[p.id] || "todo") === column);
+
+  const getClosedProjects = () =>
+    projects.filter((p) => p.closed || statusMap[p.id] === 'done');
 </script>
 
 <main class="flex flex-col min-h-screen">
@@ -162,11 +168,17 @@
           <p class="text-lg font-semibold text-githubSecondaryTextColor animate-pulse duration-100">Loading projects</p>
         </div>
       {:else}
-        <div class="pt-4 pb-2 px-4 flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
+        <div class="pt-4 pb-2 px-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Column title={columns[0]} projects={getFilteredProjects(columns[0])} bindRef={todoRef} />
           <Column title={columns[1]} projects={getFilteredProjects(columns[1])} bindRef={doingRef} />
-          <Column title={columns[2]} projects={getFilteredProjects(columns[2])} bindRef={doneRef} />
+          <!--<Column title={columns[2]} projects={getFilteredProjects(columns[2])} bindRef={doneRef} />-->
         </div>
+        <button on:click={() => closedPaneOpen = true} class="absolute top-1/2 right-0 transform -translate-y-1/2 bg-gray-300 hover:bg-gray-400 px-2 py-1 rounded-l z-30">
+          Closed {closedPaneOpen ? '→' : '←'}
+        </button>
+        {#if closedPaneOpen}
+          <ClosedColumnPane onClose={() => closedPaneOpen = false} projects={getClosedProjects()} />
+        {/if}
       {/if}
     {/if}
   </div>

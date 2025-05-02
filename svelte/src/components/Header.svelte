@@ -5,29 +5,13 @@
   import { Github, Book, User, PanelsTopLeft, X, LogOut, Hourglass, Code} from 'lucide-svelte';
   import logoUrl from '../../public/logo.svg?url';
   import { onMount, onDestroy } from 'svelte';
+  import { onEscape } from '../lib/onEscape.js';  // Svelte action
+  import { disableScroll } from '../lib/disableScroll.js';  // Svelte action
 
   let menuOpen = false;
-
-  // Disable scrolling when menu is open
-  $: {
-    if (menuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-  }
-  // Allow closing menu with Esc
-  onMount(() => {
-    const handleKeydown = (e) => {
-      if (e.key === 'Escape') {
-        menuOpen = false;
-      }
-    };
-    window.addEventListener('keydown', handleKeydown);
-    onDestroy(() => {
-      window.removeEventListener('keydown', handleKeydown);
-    });
-  });
+  const closeMenu = () => {
+    menuOpen = false;
+  };
 
   $: user = session?.user ?? null;
   $: ghUsername = user?.user_metadata?.user_name;
@@ -58,7 +42,7 @@
         <!-- Overlay when opening menu -->
         <div class="fixed inset-0 bg-githubSecondaryTextColor bg-opacity-30 z-40" on:click={() => (menuOpen = false)} in:fade={{ duration: 150 }} out:fade={{ duration: 0 }}></div>
         <!-- Menu container -->
-        <div class="fixed top-0 right-0 w-80 bg-white rounded-l-xl shadow-xl z-50 animate-slide-in-right overflow-hidden p-4">
+        <div use:onEscape={closeMenu} use:disableScroll class="fixed top-0 right-0 w-80 bg-white rounded-l-xl shadow-xl z-50 animate-slide-in-right overflow-hidden p-4">
           <!-- Menu header -->
           <div class="flex items-center justify-between mb-4 relative">
             <!-- Left side of menu header -->
