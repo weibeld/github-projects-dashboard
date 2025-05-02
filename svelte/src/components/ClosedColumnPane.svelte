@@ -1,5 +1,6 @@
 <script>
   import Column from './Column.svelte';
+  import Overlay from './Overlay.svelte';
   import { X } from 'lucide-svelte';
   import { onMount, onDestroy } from 'svelte';
   // Custom Svelte Actions
@@ -9,8 +10,8 @@
   export let onClose;
 </script>
 
-<!-- Overlay -->
-<div class="fixed inset-0 z-40 bg-black bg-opacity-30" on:click={onClose}></div>
+<!-- Overlay shading page content below header when pane is open -->
+<Overlay topClass="top-16" onClick={onClose} />
 
 <!-- Pane -->
 <div use:onEscape={onClose} use:disableScroll class="fixed top-16 right-0 z-50 w-1/2 h-[calc(100vh-4rem)] bg-white border-l border-githubBorderColor rounded-l-xl shadow-xl animate-slide-in-right flex flex-col">
