@@ -86,7 +86,7 @@
     }
   }
 
-  .animate-slide-in-right {
+  ._animate-slide-in-right {
     animation: slide-in-right 0.25s ease-out forwards;
   }
 }
@@ -111,6 +111,10 @@
   /* Regular padding */
   ._padding {
     @apply px-2 py-1;
+  }
+  /* Container sliding in from the right (menu, closed projects pane) */
+  ._slide-in-container {
+    @apply fixed z-50 right-0 bg-white rounded-l-xl border-l border-githubBorderColor shadow-xl _animate-slide-in-right;
   }
 }
 
