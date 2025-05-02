@@ -38,16 +38,13 @@
   <a href="https://github.com/weibeld/github-projects-dashboard" target="_blank" on:click={onClose} class="_box-link p-2 gap-2 mb-1">
     <Code class="_icon" /> Code
   </a>
-  <a href="javascript:void(0)" on:click={() => { onClose(); onLogout(); }} class="_box-link p-2 gap-2 mb-1">
-    <Hourglass class="_icon" /> Log out (temporary)
-  </a>
 
   <hr class="border-t border-1 border-githubDividerColor mt-2 mb-2" />
 
-  <div class="flex items-center p-2 pb-1 gap-2 text-githubSecondaryTextColor">
-    <LogOut class="_icon" />
-    <div class="text-xs leading-tight">
-      To sign out, please log out from <a href="https://github.com/" target="_blank" class="_classic-link text-githubActionColor" on:click={onClose}>GitHub</a> in this browser.
-    </div>
-  </div>
+  <button on:click={() => { onClose(); onLogout(); }} class="_box-link p-2 gap-2 w-full hover:text-githubRedColor hover:bg-githubRedHoverBgColor">
+    <LogOut class="_icon" /> Log out
+  </button>
+  <!--<div class="text-xs leading-tight text-right">
+    To permanently sign out, also sign out from <a href="https://github.com/" target="_blank" class="_classic-link text-githubActionColor" on:click={onClose}>GitHub</a> in this browser.
+  </div>-->
 </div>
