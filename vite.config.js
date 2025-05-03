@@ -8,7 +8,7 @@ export default defineConfig({
   plugins: [svelte()],
   build: {
     // Output directory for GitHub Pages (temporary)
-    outDir: path.resolve(__dirname, '../docs'),
+    outDir: path.resolve(__dirname, 'docs'),
     emptyOutDir: true,
   },
 })
