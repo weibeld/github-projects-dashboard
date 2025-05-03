@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   //import Sortable from 'sortablejs';
   import { supabase } from './lib/supabaseClient';
+  import { tooltip } from './lib/tooltip';  // Svelte action
   import Header from './components/Header.svelte';
   import Column from './components/Column.svelte';
   import ClosedColumnPane from './components/ClosedColumnPane.svelte';
@@ -140,7 +141,7 @@
           <Column title={columns[0]} projects={getFilteredProjects(columns[0])} bindRef={todoRef} dndOnDrop={handleDrop(columns[0])} />
           <Column title={columns[1]} projects={getFilteredProjects(columns[1])} bindRef={doingRef} dndOnDrop={handleDrop(columns[1])} />
         </div>
-        <button on:click={() => closedPaneOpen = !closedPaneOpen} class="_button p-2 absolute right-0 top-16 mt-4 z-30" aria-label="Toggle closed pane">
+        <button use:tooltip={{ text: "Closed projects", align: "right" }} on:click={() => closedPaneOpen = !closedPaneOpen} class="_button p-2 absolute right-0 top-16 mt-4 z-30" aria-label="Toggle closed pane">
           <Archive class="_icon" />
         </button>
         {#if closedPaneOpen}
