@@ -6,7 +6,7 @@
   import Column from './components/Column.svelte';
   import ClosedColumnPane from './components/ClosedColumnPane.svelte';
   import { writable, get } from 'svelte/store';
-  import { Loader } from 'lucide-svelte';
+  import { Loader, Archive } from 'lucide-svelte';
 
   let session = null;
   let token = null;
@@ -140,8 +140,8 @@
           <Column title={columns[0]} projects={getFilteredProjects(columns[0])} bindRef={todoRef} dndOnDrop={handleDrop(columns[0])} />
           <Column title={columns[1]} projects={getFilteredProjects(columns[1])} bindRef={doingRef} dndOnDrop={handleDrop(columns[1])} />
         </div>
-        <button on:click={() => closedPaneOpen = true} class="absolute top-1/2 right-0 transform -translate-y-1/2 bg-gray-300 hover:bg-gray-400 px-2 py-1 rounded-l z-30">
-          Closed {closedPaneOpen ? '→' : '←'}
+        <button on:click={() => closedPaneOpen = !closedPaneOpen} class="_button p-2 absolute right-0 top-16 mt-4 z-30" aria-label="Toggle closed pane">
+          <Archive class="_icon" />
         </button>
         {#if closedPaneOpen}
           <ClosedColumnPane onClose={() => closedPaneOpen = false} projects={getClosedProjects()} dndOnDrop={handleDrop(columns[2])} />
