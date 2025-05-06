@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Build
 on:
   push:
     branches: [main]
@@ -16,7 +16,7 @@ jobs:
       run: npm ci
     - name: Build project
       run: npm run build
-    - name: Deploy to gh-pages branch
+    - name: Copy build output to gh-pages branch
       # https://github.com/peaceiris/actions-gh-pages
       uses: peaceiris/actions-gh-pages@v4
       with:
