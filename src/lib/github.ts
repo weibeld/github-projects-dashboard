@@ -1,0 +1,113 @@
+import type { Project } from './types';
+import { appData } from './dummyBackend';
+import { get } from 'svelte/store';
+
+const GITHUB_GRAPHQL_URL = "https://api.github.com/graphql";
+const GITHUB_GRAPHQL_QUERY = `
+  query {
+    viewer {
+      projectsV2(first: 100) {
+        nodes {
+          id
+          number
+          title
+          url
+          public
+          closed
+          shortDescription
+          createdAt
+          updatedAt
+          closedAt
+          items {
+            totalCount
+          }
+        }
+      }
+    }
+  }
+`;
+
+
+export async function loadProjectsFromGitHub(token: string) {
+  const response = await fetch(GITHUB_GRAPHQL_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ query: GITHUB_GRAPHQL_QUERY })
+  });
+
+  if (!response.ok) {
+    console.error(await response.text());
+    throw new Error('Failed to fetch projects from GitHub');
+  }
+
+  const json = await response.json();
+
+  const projectsRaw = json?.data?.viewer?.projectsV2?.nodes;
+  if (!Array.isArray(projectsRaw)) {
+    throw new Error('Invalid response format from GitHub');
+  }
+
+  // TODO: temporarily only handle open projects (include closed projects later)
+  const openProjects = projectsRaw.filter((p: any) => !p.closed);
+
+  // Adapt GitHub projects to your app's `Project` model
+  const parsedProjects: Project[] = openProjects.map((p: any) => ({
+    id: p.id,
+    statusId: null,
+    labelIds: [],
+    isNew: true,
+  }));
+
+  // Set app state
+  appData.update(data => {
+    parsedProjects.forEach(project => {
+      data.projects[project.id] = project;
+    });
+    return data;
+  });
+  console.log("appData update: ", get(appData));
+}
+
+/*
+const fetchProjects = async () => {
+  // TODO: fetching repositories always returns an empty list
+  const query = `{
+    viewer {
+      projectsV2(first: 50) {
+        nodes {
+          id
+          number
+          title
+          url
+          closed
+          createdAt
+          updatedAt
+          closedAt
+          public
+          shortDescription
+          items {
+            totalCount
+          }
+        }
+      }
+    }
+  }`;
+  const res = await fetch(GITHUB_GRAPHQL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ query })
+  });
+
+  const json = await res.json();
+  console.log("GitHub response:", json);
+  projects = json.data.viewer.projectsV2.nodes;
+  loadStatusMap();
+  //setupSortables();
+};
+*/
