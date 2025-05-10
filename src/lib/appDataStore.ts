@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store';
-import { type SortKey, type SortDirection } from './commonTypes';
+import { type SortKey, type SortDirection, type LabelColor } from './commonTypes';
 
 /*----------------------------------------------------------------------------*
  * Types
@@ -25,7 +25,7 @@ export interface Status {
 export interface Label {
   id: LabelId;
   title: string;
-  colorCssClass: string;
+  color: LabelColor;
 }
 
 export interface View {
@@ -180,11 +180,11 @@ export function getProjectIds(): ProjectId[] {
  *----------------------------------------------------------------------------*/
 
 // 1. Ensure that label title is unique
-export function createLabel(title: string, colorCssClass: string) {
+export function createLabel(title: string, color: LabelColor) {
   appData.update(data => {
     if (Object.values(data.labels).some(l => l.title === title)) return data;
     const id = getNewLabelId();
-    data.labels[id] = { id, title, colorCssClass };
+    data.labels[id] = { id, title, color };
     return data;
   });
 }
@@ -199,10 +199,10 @@ export function setLabelTitle(labelId: LabelId, title: string) {
   });
 }
 
-export function setLabelColor(labelId: LabelId, colorCssClass: string) {
+export function setLabelColor(labelId: LabelId, color: LabelColor) {
   appData.update(data => {
     const label = data.labels[labelId];
-    if (label) label.colorCssClass = colorCssClass;
+    if (label) label.color = color;
     return data;
   });
 }
