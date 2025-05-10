@@ -66,15 +66,15 @@ export const appData = writable<AppData>({
  *----------------------------------------------------------------------------*/
 
 function getNewLabelId(): LabelId {
-  return Math.max(0, ...Object.keys($appData.labels).map(Number)) + 1;
+  return Math.max(0, ...Object.keys(get(appData).labels).map(Number)) + 1;
   //const data = get(appData);
   //return Math.max(0, ...data.statuses.map(s => s.id)) + 1;
 }
 function getNewStatusId(): StatusId {
-  return Math.max(0, ...$appData.statuses.map(s => s.id)) + 1;
+  return Math.max(0, ...get(appData).statuses.map(s => s.id)) + 1;
 }
 function getNewViewId(): ViewId {
-  return Math.max(0, ...$appData.views.map(v => v.id)) + 1;
+  return Math.max(0, ...get(appData).views.map(v => v.id)) + 1;
 }
 
 // Return a title of the form "Untitled" or "Untitled X" as follows:
@@ -83,7 +83,7 @@ function getNewViewId(): ViewId {
 //   3. If another view with title "Untitled X" exists, return "Untitled X+1"k
 function getNewViewTitle(): string {
   const base = 'Untitled';
-  const existing = $appData.views.map(v => v.title);
+  const existing = get(appData).views.map(v => v.title);
   if (!existing.includes(base)) return base;
   let i = 2;
   while (existing.includes(`${base} ${i}`)) i++;
@@ -111,15 +111,15 @@ function addDefaultViewStatusConfig(viewId: ViewId, statusId: StatusId) {
  *----------------------------------------------------------------------------*/
 
 export function isLabelTitleUnique(title: string) {
-  return !Object.values($appData.labels).some(l => l.title === title);
+  return !Object.values(get(appData).labels).some(l => l.title === title);
 }
 
 export function isStatusTitleUnique(title: string) {
-  return !$appData.statuses.some(s => s.title === title);
+  return !get(appData).statuses.some(s => s.title === title);
 }
 
 export function isViewTitleUnique(title: string) {
-  return !$appData.views.some(v => v.title === title);
+  return !get(appData).views.some(v => v.title === title);
 }
 
 /*----------------------------------------------------------------------------*
@@ -129,7 +129,7 @@ export function isViewTitleUnique(title: string) {
 // 1. Assign Default status and empty set of labels to new projects
 export function createProject(projectId: ProjectId) {
   appData.update(data => {
-    data.projects[projectId] = { id: projectId, statusId: DEFAULT_STATUS_ID,  new Set() };
+    data.projects[projectId] = { id: projectId, statusId: DEFAULT_STATUS_ID, labelIds: new Set() };
     return data;
   });
 }
@@ -289,15 +289,15 @@ export function deleteStatus(statusId: StatusId) {
 // 2. Create the view with an empty statusConfigs
 // 3. Add the new view to the back of the ordered list of views
 // 4. Add default status configs to the view by calling 'addViewStatusConfig()' on the view for every status
-export function createView(query: string) {
+export function createView(query: string = '') {
   appData.update(data => {
     const id = getNewViewId();
     const title = getNewViewTitle();
-    const newView: View = { id, title, query };
+    const view: View = { id, title, query, statusConfigs: {} };
+    data.views.push(view);
     for (const status of data.statuses) {
-      addDefaultViewStatusConfig(newView.id, status.id);
+      addDefaultViewStatusConfig(view.id, status.id);
     }
-    data.views.push(newView);
     return data;
   });
 }

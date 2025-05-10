@@ -62,13 +62,13 @@ export async function loadProjectsFromGitHub(token: string) {
   }));
 
   // Set app state
-  appData.update(data => {
+  /*appData.update(data => {
     parsedProjects.forEach(project => {
       data.projects[project.id] = project;
     });
     return data;
-  });
-  console.log("appData update: ", get(appData));
+  });*/
+  //console.log("appData update: ", get(appData));
 }
 
 /*
