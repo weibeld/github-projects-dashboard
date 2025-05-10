@@ -1,17 +1,57 @@
 import { writable } from 'svelte/store';
-import type {
-  AppData,
-  ProjectId,
-  StatusId,
-  LabelId,
-  ViewId
-  Project,
-  Status,
-  Label,
-  SortKey,
-  SortDirection
 
-} from './types';
+/*----------------------------------------------------------------------------*
+ * Types
+ *----------------------------------------------------------------------------*/
+
+export type ProjectId = string;
+type NumericId = number;
+export type StatusId = NumericId;
+export type LabelId = NumericId;
+export type ViewId = NumericId;
+
+export interface Project {
+  id: ProjectId;
+  statusId: number;
+  labelIds: Set<number>;
+}
+
+export interface Status {
+  id: StatusId;
+  title: string;
+}
+
+export interface Label {
+  id: LabelId;
+  title: string;
+  colorCssClass: string;
+}
+
+export type SortKey = 'updated' | 'created' | 'title' | 'items';
+export type SortDirection = 'asc' | 'desc';
+export interface View {
+  id: ViewId;
+  title: string;
+  query: string;
+  statusConfigs: Record<StatusId, {
+    visible: boolean;
+    sortKey: SortKey;
+    sortDirection: SortDirection;
+  }>;
+}
+
+export interface AppData {
+  // Unordered data
+  projects: Record<ProjectId, Project>;
+  labels: Record<LabelId, Label>;
+  // Ordered data
+  statuses: Status[];
+  views: View[];
+}
+
+/*----------------------------------------------------------------------------*
+ * Instance
+ *----------------------------------------------------------------------------*/
 
 export const appData = writable<AppData>({
   projects: {},
@@ -21,16 +61,16 @@ export const appData = writable<AppData>({
 });
 
 /*----------------------------------------------------------------------------*
- * Helpers
+ * Private helper functions
  *----------------------------------------------------------------------------*/
 
-export function getNewLabelId(): LabelId {
+function getNewLabelId(): LabelId {
   return Math.max(0, ...Object.keys($appData.labels).map(Number)) + 1;
 }
-export function getNewStatusId(): StatusId {
+function getNewStatusId(): StatusId {
   return Math.max(0, ...$appData.statuses.map(s => s.id)) + 1;
 }
-export function getNewViewId(): ViewId {
+function getNewViewId(): ViewId {
   return Math.max(0, ...$appData.views.map(v => v.id)) + 1;
 }
 
@@ -38,7 +78,7 @@ export function getNewViewId(): ViewId {
 //   1. If no other view with title "Untitled" exists, return "Untitled"
 //   2. If another view with title "Untitled" exists, return "Untitled 2"
 //   3. If another view with title "Untitled X" exists, return "Untitled X+1"k
-export function getNewViewTitle(): string {
+function getNewViewTitle(): string {
   const base = 'Untitled';
   const existing = $appData.views.map(v => v.title);
   if (!existing.includes(base)) return base;
@@ -49,7 +89,7 @@ export function getNewViewTitle(): string {
 
 // Add a default status config for a given status to a given view. The default
 // status config has visible: true, sortKey: 'updated', sortDirection: 'desc'.
-export function addDefaultViewStatusConfig(viewId: ViewId, statusId: StatusId) {
+function addDefaultViewStatusConfig(viewId: ViewId, statusId: StatusId) {
   appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
     if (view) {
@@ -64,8 +104,9 @@ export function addDefaultViewStatusConfig(viewId: ViewId, statusId: StatusId) {
 }
 
 /*----------------------------------------------------------------------------*
- * Project
+ * Project manipulation functions
  *----------------------------------------------------------------------------*/
+
 export function setProjectStatus(projectId: ProjectId, statusId: StatusId) {
   appData.update(data => {
     const project = data.projects[projectId];
@@ -104,7 +145,7 @@ export function deleteProject(projectId: ProjectId) {
 }
 
 /*----------------------------------------------------------------------------*
- * Label
+ * Label manipulation functions
  *----------------------------------------------------------------------------*/
 // 1. Ensure that label title is unique
 export function createLabel(title: string, colorCssClass: string) {
@@ -148,7 +189,7 @@ export function deleteLabel(labelId: LabelId) {
 }
 
 /*----------------------------------------------------------------------------*
- * Status
+ * Status manipulation functions
  *----------------------------------------------------------------------------*/
 
 // 1. Ensure that status title is unique
@@ -214,7 +255,7 @@ export function deleteStatus(statusId: StatusId) {
 
 
 /*----------------------------------------------------------------------------*
- * View
+ * View manipulation functions
  *----------------------------------------------------------------------------*/
 // 1. Get a unique new view title by calling 'getNewViewTitle()'
 // 2. Create the view with an empty statusConfigs
