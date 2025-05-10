@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { writable, get } from 'svelte/store';
 
 /*----------------------------------------------------------------------------*
  * Types
@@ -27,8 +27,11 @@ export interface Label {
   colorCssClass: string;
 }
 
+// TODO: change into enum or similar and define outside of this file so that
+// it can be imported separately in App.svelte
 export type SortKey = 'updated' | 'created' | 'title' | 'items';
 export type SortDirection = 'asc' | 'desc';
+
 export interface View {
   id: ViewId;
   title: string;
@@ -66,6 +69,8 @@ export const appData = writable<AppData>({
 
 function getNewLabelId(): LabelId {
   return Math.max(0, ...Object.keys($appData.labels).map(Number)) + 1;
+  //const data = get(appData);
+  //return Math.max(0, ...data.statuses.map(s => s.id)) + 1;
 }
 function getNewStatusId(): StatusId {
   return Math.max(0, ...$appData.statuses.map(s => s.id)) + 1;
@@ -101,6 +106,22 @@ function addDefaultViewStatusConfig(viewId: ViewId, statusId: StatusId) {
     }
     return data;
   });
+}
+
+/*----------------------------------------------------------------------------*
+ * Query functions
+ *----------------------------------------------------------------------------*/
+
+export function isLabelTitleUnique(title: string) {
+  return !Object.values($appData.labels).some(l => l.title === title);
+}
+
+export function isStatusTitleUnique(title: string) {
+  return !$appData.statuses.some(s => s.title === title);
+}
+
+export function isViewTitleUnique(title: string) {
+  return !$appData.views.some(v => v.title === title);
 }
 
 /*----------------------------------------------------------------------------*
@@ -147,10 +168,10 @@ export function deleteProject(projectId: ProjectId) {
 /*----------------------------------------------------------------------------*
  * Label manipulation functions
  *----------------------------------------------------------------------------*/
+
 // 1. Ensure that label title is unique
 export function createLabel(title: string, colorCssClass: string) {
   appData.update(data => {
-    // TODO: return error if title already exists
     if (Object.values(data.labels).some(l => l.title === title)) return data;
     const id = getNewLabelId();
     data.labels[id] = { id, title, colorCssClass };
@@ -161,7 +182,6 @@ export function createLabel(title: string, colorCssClass: string) {
 // 1. Ensure that label title is unique
 export function setLabelTitle(labelId: LabelId, title: string) {
   appData.update(data => {
-    // TODO: return erorr if title already exists
     if (Object.values(data.labels).some(l => l.title === title)) return data;
     const label = data.labels[labelId];
     if (label) label.title = title;
@@ -197,7 +217,6 @@ export function deleteLabel(labelId: LabelId) {
 // 3. Call 'addViewStatusConfig()' for the created status on all views
 export function createStatus(title: string) {
   appData.update(data => {
-    // TODO: if title is not unique, show an error to the user
     if (data.statuses.some(s => s.title === title)) return data;
     const statusId = getNewStatusId();
     data.statuses.push({ statusId, title });
@@ -211,7 +230,6 @@ export function createStatus(title: string) {
 // 1. Ensure that status title is unique
 export function setStatusTitle(statusId: StatusId, title: string) {
   appData.update(data => {
-    // TODO: if title is not unique, show an error to the user
     if (data.statuses.some(s => s.title === title)) return data;
     const status = data.statuses.find(s => s.id === statusId);
     if (status) status.title = title;
@@ -257,6 +275,7 @@ export function deleteStatus(statusId: StatusId) {
 /*----------------------------------------------------------------------------*
  * View manipulation functions
  *----------------------------------------------------------------------------*/
+
 // 1. Get a unique new view title by calling 'getNewViewTitle()'
 // 2. Create the view with an empty statusConfigs
 // 3. Add the new view to the back of the ordered list of views
