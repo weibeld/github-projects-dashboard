@@ -24,11 +24,11 @@ export const appData = writable<AppData>({
  * Helpers
  *----------------------------------------------------------------------------*/
 
-export function getNewStatusId(): StatusId {
-  return Math.max(0, ...$appData.statuses.map(s => s.id)) + 1;
-}
 export function getNewLabelId(): LabelId {
   return Math.max(0, ...Object.keys($appData.labels).map(Number)) + 1;
+}
+export function getNewStatusId(): StatusId {
+  return Math.max(0, ...$appData.statuses.map(s => s.id)) + 1;
 }
 export function getNewViewId(): ViewId {
   return Math.max(0, ...$appData.views.map(v => v.id)) + 1;
@@ -48,14 +48,14 @@ export function getNewViewTitle(): string {
 }
 
 // Add a default status config for a given status to a given view. The default
-// status config has visible: true, sortBy: 'updated', sortDirection: 'desc'.
+// status config has visible: true, sortKey: 'updated', sortDirection: 'desc'.
 export function addDefaultViewStatusConfig(viewId: ViewId, statusId: StatusId) {
   appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
     if (view) {
       view.statusConfigs[statusId] = {
         visible: true,
-        sortBy: 'updated',
+        sortKey: 'updated',
         sortDirection: 'desc'
       };
     }
@@ -267,7 +267,7 @@ export function setViewStatusSortKey(viewId: ViewId, statusId: StatusId, sortKey
   appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
     if (view && view.statuses[statusId]) {
-      view.statuses[statusId].sortBy = sortKey;
+      view.statuses[statusId].sortKey = sortKey;
     }
     return data;
   });

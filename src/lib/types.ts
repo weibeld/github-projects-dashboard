@@ -30,8 +30,7 @@ export interface View {
   query: string;
   statusConfigs: Record<StatusId, {
     visible: boolean;
-    // TODO: rename to sortKey
-    sortBy: SortKey;
+    sortKey: SortKey;
     sortDirection: SortDirection;
   }>;
 }
