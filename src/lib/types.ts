@@ -8,8 +8,7 @@ export type ViewId = NumericId;
 export interface Project {
   id: ProjectId;
   statusId: number;
-  // TODO: make labelIds a set
-  labelIds: number[];
+  labelIds: Set<number>;
 }
 
 export interface Status {

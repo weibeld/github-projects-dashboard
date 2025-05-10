@@ -76,28 +76,73 @@ export function setProjectStatus(projectId: ProjectId, statusId: StatusId) {
 
 export function addProjectLabel(projectId: ProjectId, labelId: LabelId) {
   appData.update(data => {
-    const project = data.projects[projectId];
-    if (project && !project.labelIds.includes(labelId)) {
-      project.labelIds.push(labelId);
-    }
+    data.projects[projectId].labelIds.add(labelId);
+    // TODO: use below if no reactive update in UI
+    /*const newLabelSet = new Set(data.projects[projectId].labelIds);
+    newLabelSet.add(labelId);
+    data.projects[projectId].labelIds = newLabelSet;*/
     return data;
   });
 }
 
 export function deleteProjectLabel(projectId: ProjectId, labelId: LabelId) {
   appData.update(data => {
-    const project = data.projects[projectId];
-    if (project) {
-      project.labelIds = project.labelIds.filter(id => id !== labelId);
-    }
+    data.projects[projectId].labelIds.delete(labelId);
+    // TODO: use below if no reactive update in UI
+    /*const newLabelSet = new Set(data.projects[projectId].labelIds);
+    newLabelSet.delete(labelId);
+    data.projects[projectId].labelIds = newLabelSet;*/
     return data;
   });
 }
 
 export function deleteProject(projectId: ProjectId) {
   appData.update(data => {
-    // TODO: does this leave a gap?
     delete data.projects[projectId];
+    return data;
+  });
+}
+
+/*----------------------------------------------------------------------------*
+ * Label
+ *----------------------------------------------------------------------------*/
+// 1. Ensure that label title is unique
+export function createLabel(title: string, colorCssClass: string) {
+  appData.update(data => {
+    // TODO: return error if title already exists
+    if (Object.values(data.labels).some(l => l.title === title)) return data;
+    const id = getNewLabelId();
+    data.labels[id] = { id, title, colorCssClass };
+    return data;
+  });
+}
+
+// 1. Ensure that label title is unique
+export function setLabelTitle(labelId: LabelId, title: string) {
+  appData.update(data => {
+    // TODO: return erorr if title already exists
+    if (Object.values(data.labels).some(l => l.title === title)) return data;
+    const label = data.labels[labelId];
+    if (label) label.title = title;
+    return data;
+  });
+}
+
+export function setLabelColor(labelId: LabelId, colorCssClass: string) {
+  appData.update(data => {
+    const label = data.labels[labelId];
+    if (label) label.colorCssClass = colorCssClass;
+    return data;
+  });
+}
+
+// 1. Call 'deleteProjectLabel()' for the deleted label on all projects that have this label
+export function deleteLabel(labelId: LabelId) {
+  appData.update(data => {
+    delete data.labels[labelId];
+    for (const projectId in data.projects) {
+      deleteProjectLabel(projectId, labelId);
+    }
     return data;
   });
 }
@@ -167,51 +212,6 @@ export function deleteStatus(statusId: StatusId) {
 }
 
 
-
-/*----------------------------------------------------------------------------*
- * Label
- *----------------------------------------------------------------------------*/
-// 1. Ensure that label title is unique
-export function createLabel(title: string, colorCssClass: string) {
-  appData.update(data => {
-    // TODO: return error if title already exists
-    if (Object.values(data.labels).some(l => l.title === title)) return data;
-    const id = getNewLabelId();
-    data.labels[id] = { id, title, colorCssClass };
-    return data;
-  });
-}
-
-// 1. Ensure that label title is unique
-export function setLabelTitle(labelId: LabelId, title: string) {
-  appData.update(data => {
-    // TODO: return erorr if title already exists
-    if (Object.values(data.labels).some(l => l.title === title)) return data;
-    const label = data.labels[labelId];
-    if (label) label.title = title;
-    return data;
-  });
-}
-
-export function setLabelColor(labelId: LabelId, colorCssClass: string) {
-  appData.update(data => {
-    const label = data.labels[labelId];
-    if (label) label.colorCssClass = colorCssClass;
-    return data;
-  });
-}
-
-
-// 1. Call 'deleteProjectLabel()' for the deleted label on all projects that have this label
-export function deleteLabel(labelId: LabelId) {
-  appData.update(data => {
-    delete data.labels[labelId];
-    for (const projectId in data.projects) {
-      deleteProjectLabel(projectId, labelId);
-    }
-    return data;
-  });
-}
 
 /*----------------------------------------------------------------------------*
  * View
