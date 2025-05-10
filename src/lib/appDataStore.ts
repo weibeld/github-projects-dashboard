@@ -1,4 +1,5 @@
 import { writable, get } from 'svelte/store';
+import { type SortKey, type SortDirection } from './commonTypes';
 
 /*----------------------------------------------------------------------------*
  * Types
@@ -26,11 +27,6 @@ export interface Label {
   title: string;
   colorCssClass: string;
 }
-
-// TODO: change into enum or similar and define outside of this file so that
-// it can be imported separately in App.svelte
-export type SortKey = 'updated' | 'created' | 'title' | 'items';
-export type SortDirection = 'asc' | 'desc';
 
 export interface View {
   id: ViewId;
@@ -316,8 +312,8 @@ export function setViewQuery(viewId: ViewId, query: string) {
 export function setViewStatusVisibility(viewId: ViewId, statusId: StatusId, visibility: boolean) {
   appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
-    if (view && view.statuses[statusId]) {
-      view.statuses[statusId].visible = visibility;
+    if (view && view.statusConfigs[statusId]) {
+      view.statusConfigs[statusId].visible = visibility;
     }
     return data;
   });
@@ -326,8 +322,8 @@ export function setViewStatusVisibility(viewId: ViewId, statusId: StatusId, visi
 export function setViewStatusSortKey(viewId: ViewId, statusId: StatusId, sortKey: SortKey) {
   appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
-    if (view && view.statuses[statusId]) {
-      view.statuses[statusId].sortKey = sortKey;
+    if (view && view.statusConfigs[statusId]) {
+      view.statusConfigs[statusId].sortKey = sortKey;
     }
     return data;
   });
@@ -336,8 +332,8 @@ export function setViewStatusSortKey(viewId: ViewId, statusId: StatusId, sortKey
 export function setViewStatusSortDirection(viewId: ViewId, statusId: StatusId, sortDirection: SortDirection) {
   appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
-    if (view && view.statuses[statusId]) {
-      view.statuses[statusId].sortDirection = sortDirection;
+    if (view && view.statusConfigs[statusId]) {
+      view.statusConfigs[statusId].sortDirection = sortDirection;
     }
     return data;
   });
