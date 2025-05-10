@@ -123,8 +123,16 @@ export function isViewTitleUnique(title: string) {
 }
 
 /*----------------------------------------------------------------------------*
- * Project manipulation functions
+ * Project functions
  *----------------------------------------------------------------------------*/
+
+// 1. Assign Default status and empty set of labels to new projects
+export function createProject(projectId: ProjectId) {
+  appData.update(data => {
+    data.projects[projectId] = { id: projectId, statusId: DEFAULT_STATUS_ID,  new Set() };
+    return data;
+  });
+}
 
 export function setProjectStatus(projectId: ProjectId, statusId: StatusId) {
   appData.update(data => {
@@ -161,6 +169,10 @@ export function deleteProject(projectId: ProjectId) {
     delete data.projects[projectId];
     return data;
   });
+}
+
+export function getProjectIds(): ProjectId[] {
+  return Object.keys(get(appData).projects);
 }
 
 /*----------------------------------------------------------------------------*
