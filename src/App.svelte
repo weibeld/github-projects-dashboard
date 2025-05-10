@@ -8,7 +8,7 @@
   import Column from './components/Column.svelte';
   import ClosedColumnPane from './components/ClosedColumnPane.svelte';
   import { Loader, Archive } from 'lucide-svelte';
-  import { appData } from './lib/dummyBackend';
+  import { appData } from './lib/appDataStore';
   import type { Project } from './lib/types';
   import { get } from 'svelte/store';
   import { loadProjectsFromGitHub } from './lib/github.ts';

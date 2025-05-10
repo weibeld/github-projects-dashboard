@@ -1,5 +1,5 @@
 import type { Project } from './types';
-import { appData } from './dummyBackend';
+import { appData } from './appDataStore';
 import { get } from 'svelte/store';
 
 const GITHUB_GRAPHQL_URL = "https://api.github.com/graphql";

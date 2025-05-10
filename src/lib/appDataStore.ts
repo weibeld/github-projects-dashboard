@@ -56,9 +56,11 @@ export interface AppData {
  * Instance
  *----------------------------------------------------------------------------*/
 
+const DEFAULT_STATUS_ID: StatusId = 0;
+
 export const appData = writable<AppData>({
   projects: {},
-  statuses: [{ id: 0, title: 'Default' }],
+  statuses: [{ id: DEFAULT_STATUS_ID, title: 'Default' }],
   labels: [],
   views: [],
 });
@@ -221,7 +223,7 @@ export function createStatus(title: string) {
     const statusId = getNewStatusId();
     data.statuses.push({ statusId, title });
     for (const view of data.views) {
-      addDefaultViewStatusConfig(viewId = view.id, statusId) {
+      addDefaultViewStatusConfig(viewId = view.id, statusId);
     }
     return data;
   });
@@ -254,13 +256,12 @@ export function moveStatus(statusId: StatusId, index: number) {
 // 3. Assign the "Default" status to all projects that have the deleted status by calling 'setProjectStatus(statusId = 0, ...)' for these projects
 // 4. Call 'deleteViewStatusConfig()' for the deleted status on all views
 export function deleteStatus(statusId: StatusId) {
-  if (statusId === 0) return;
+  if (statusId === DEFAULT_STATUS_ID) return;
   appData.update(data => {
     data.statuses = data.statuses.filter(s => s.id !== statusId);
     for (const projectId in data.projects) {
       if (data.projects[projectId].statusId === statusId) {
-        // TODO: save ID 0 in constant
-        data.projects[projectId].statusId = 0;
+        data.projects[projectId].statusId = DEFAULT_STATUS_ID;
       }
     }
     for (const view of data.views) {
@@ -286,7 +287,7 @@ export function createView(query: string) {
     const title = getNewViewTitle();
     const newView: View = { id, title, query };
     for (const status of data.statuses) {
-      addDefaultViewStatusConfig(newView.id, status.id)
+      addDefaultViewStatusConfig(newView.id, status.id);
     }
     data.views.push(newView);
     return data;
@@ -296,7 +297,6 @@ export function createView(query: string) {
 // 1. Ensure that the view title is unique
 export function setViewTitle(viewId: ViewId, title: string) {
   appData.update(data => {
-    // TODO: return error if the title already exists
     if (data.views.some(v => v.title === title)) return data;
     const view = data.views.find(v => v.id === viewId);
     if (view) view.title = title;
