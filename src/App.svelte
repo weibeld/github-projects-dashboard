@@ -6,16 +6,13 @@
   import Header from './components/Header.svelte';
   import Column from './components/Column.svelte';
   import ClosedColumnPane from './components/ClosedColumnPane.svelte';
-  import { supabase } from './lib/supabaseClient';
-  import { loadProjectsFromGitHub } from './lib/github.ts';
   import { tooltip } from './lib/tooltip';  // Svelte action
-  import {
-    appData,
-    createView,
-  } from './lib/appDataStore';
+  import { setupAuth, checkSession, login, logout, isSession } from './lib/auth';
+  import { loadProjectsFromGitHub } from './lib/github.ts';
+  import { appData, createView } from './lib/appDataStore';
 
-  let session = null;
-  let token = null;
+  //let session = null;
+  //let token = null;
 
   // Subscribe to the store
   /*let $appData;
@@ -52,7 +49,7 @@
 
   let closedPaneOpen = false;
 
-  const handleLogin = async () => {
+  /*const handleLogin = async () => {
     await supabase.auth.signInWithOAuth({
       provider: 'github',
       options: {
@@ -60,13 +57,13 @@
         scopes: 'repo read:user read:project'
       }
     });
-  };
+  };*/
 
-  const handleLogout = async () => {
+  /*const handleLogout = async () => {
     await supabase.auth.signOut();
     session = null;
     token = null;
-  };
+  };*/
 
 
   function handleDrop(statusId: string) {
@@ -85,6 +82,34 @@
   }
 
   onMount(async () => {
+    await setupAuth();
+    await checkSession();
+    if (get(isSession)) {
+      if (get(appData).views.length === 0) {
+        createView();
+      }
+      loadProjectsFromGitHub();
+    }
+  });
+
+  /*$: if ($session) {
+    handleLogin();
+  }
+  async function handleLogin() {
+    if (get(appData).views.length === 0) {
+      createView();
+    }
+    loadProjectsFromGitHub();
+  }*/
+
+    /*onAuthStateChange(session => {
+      if (session) loadProjectsFromGitHub(getToken());
+    });
+    if (hasActiveSession()) {
+      if (get(appData).views.length === 0) createView();
+      await loadProjectsFromGitHub(getToken());
+    }
+
     const { data } = await supabase.auth.getSession();
     session = data.session;
 
@@ -101,16 +126,18 @@
       console.log('appData: ', get(appData));
       await loadProjectsFromGitHub(token);
     }
-  });
+  });*/
 
 </script>
 
 <main class="flex flex-col min-h-screen">
-  <Header {session} onLogout={handleLogout}/>
+  <!-- TODO: onLogout not needed, Header can import isSession and logout itself -->
+  <Header onLogout={logout}/>
   <div class="flex-1 flex flex-col items-center justify-center">
-    {#if !session}
+    {#if !$isSession}
+      <!-- TODO: login page component -->
       <!--<button on:click={handleLogin} class="px-4 py-2 rounded shadow">Log in with GitHub</button>-->
-      <button on:click={handleLogin} class="_button text-githubPrimaryTextColor px-4 py-2">Log in with GitHub</button>
+      <button on:click={login} class="_button text-githubPrimaryTextColor px-4 py-2">Log in with GitHub</button>
     {:else}
       <!-- TODO: this should check for the completion of loadProjectsFromGitHub() -->
       {#if !$appData}

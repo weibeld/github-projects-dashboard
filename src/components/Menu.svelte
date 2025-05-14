@@ -3,11 +3,13 @@
   import { onEscape } from '../lib/onEscape.js';
   import { disableScroll } from '../lib/disableScroll.js';
   import Overlay from './Overlay.svelte';
+  import { logout } from '../lib/auth';
 
   // Parameters
   export let ghUsername;
   export let ghFullName;
   export let ghAvatarUrl;
+  // TODO: eliminate
   export let onLogout;
   export let onClose;
 
@@ -16,6 +18,7 @@
   const ghProjectsUrl = `${ghProfileUrl}?tab=projects`;
 </script>
 
+<!-- Note: when this runs, isSession is true -->
 <Overlay onClick={onClose} />
 <div use:onEscape={onClose} use:disableScroll class="_slide-in-container top-0 w-80 p-4">
   <!-- Menu header -->
@@ -41,6 +44,7 @@
 
   <hr class="border-t border-1 border-githubDividerColor mt-2 mb-2" />
 
+  <!-- TODO: use imported 'logout' from auth.ts -->
   <button on:click={() => { onClose(); onLogout(); }} class="_box-link p-2 gap-2 w-full hover:text-githubRedColor hover:bg-githubRedHoverBgColor">
     <LogOut class="_icon" /> Log out
   </button>

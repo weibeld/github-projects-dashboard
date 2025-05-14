@@ -8,7 +8,12 @@ if (import.meta.env.DEV) {
 
 export default log;
 
-/* Log the name of a function and its arguments */
+/* Log the name of a function and an arbitrary message */
+export function logFn(fnName: string, msg: string) {
+  log.debug(`[${fnName}()]`, msg);
+}
+
+/* Log the name of a function and its arguments (pass args as single object) */
 export function logFnArgs(fnName: string, ...args: any[]) {
   log.debug(`[${fnName}()]`, ...args);
 }
