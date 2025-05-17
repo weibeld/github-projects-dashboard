@@ -1,4 +1,4 @@
-import { logFnArgs, logFnReturn } from './log';
+import { logFn, logFnArgs, logFnReturn } from './log';
 
 const TOKEN_KEY = 'github_api_token';
 
@@ -8,6 +8,7 @@ const TOKEN_KEY = 'github_api_token';
  *   - Safe to call when there's a token already saved (idempotent), in which
  *     case, the existing token will be overwritten
  *----------------------------------------------------------------------------*/
+// TODO: move to auth.ts
 export function saveGitHubApiToken(token: string) {
   logFnArgs('saveGitHubApiToken', { token });
   localStorage.setItem(TOKEN_KEY, token);
@@ -18,10 +19,10 @@ export function saveGitHubApiToken(token: string) {
  * Notes:
  *   - If there's no saved token, null is returned
  *----------------------------------------------------------------------------*/
+// TODO: move to auth.ts
 export function getGitHubApiToken(): string | null {
-  const ret = localStorage.getItem(TOKEN_KEY);
-  logFnReturn('getGitHubApiToken', ret);
-  return ret;
+  logFn('getGitHubApiToken');
+  return logFnReturn('getGitHubApiToken', localStorage.getItem(TOKEN_KEY));
 }
 
 /*----------------------------------------------------------------------------*
@@ -30,8 +31,15 @@ export function getGitHubApiToken(): string | null {
  *   - Safe to call if there is no saved token (idempotent)
  *----------------------------------------------------------------------------*/
 export function deleteGitHubApiToken() {
-  logFnArgs('deleteGitHubApiToken', { });
+  logFn('deleteGitHubApiToken');
   localStorage.removeItem(TOKEN_KEY);
+}
+
+
+export function hasGitHubApiToken(): boolean {
+  logFn('hasGitHubApiToken');
+  const token = getGitHubApiToken();
+  return logFnReturn('hasGitHubApiToken', !!token);
 }
 
 /*----------------------------------------------------------------------------*
@@ -40,17 +48,15 @@ export function deleteGitHubApiToken() {
  *   - The validity of the token is checked by using it to make a simple
  *     request to the GitHub API
  *----------------------------------------------------------------------------*/
+// TODO: move check to github.ts
 export async function hasValidGitHubApiToken(): Promise<boolean> {
-  logFnArgs('hasValidGitHubApiToken', { });
-  const token = getGitHubApiToken();
-  if (!token) return false;
+  logFn('hasValidGitHubApiToken');
+  if (!hasGitHubApiToken) return false;
   const response = await fetch('https://api.github.com/user', {
     headers: {
-      Authorization: `token ${token}`,
+      Authorization: `token ${getGitHubApiToken()}`,
       Accept: 'application/vnd.github+json',
     },
   });
-  const ret = response.ok;
-  logFnReturn('hasValidGitHubApiToken', ret);
-  return ret;
+  return logFnReturn('hasValidGitHubApiToken', response.ok);
 }

@@ -6,8 +6,11 @@
   import Header from './components/Header.svelte';
   import Column from './components/Column.svelte';
   import ClosedColumnPane from './components/ClosedColumnPane.svelte';
-  import { tooltip } from './lib/tooltip';  // Svelte action
-  import { setupAuth, checkSession, login, logout, isSession } from './lib/auth';
+  import LoginPage from './components/LoginPage.svelte';
+  import LoadingScreen from './components/LoadingScreen.svelte';
+  import MainContent from './components/MainContent.svelte';
+  import { setupAuth, login, logout,
+    isLoggingOut, isLoggingInInit, isLoggingInAfterOAuth, isLoggedIn } from './lib/auth';
   import { loadProjectsFromGitHub } from './lib/github.ts';
   import { appData, createView } from './lib/appDataStore';
 
@@ -82,14 +85,22 @@
   }
 
   onMount(async () => {
+    /*console.log('Full URL:', window.location.href);
+    console.log('Query string:', window.location.search);
+
+    const url = new URL(window.location.href);
+    console.log('Has "code"?', url.searchParams.has('code'));
+    console.log('Has "state"?', url.searchParams.has('state'));*/
+
+
     await setupAuth();
-    await checkSession();
-    if (get(isSession)) {
+    //await checkSession();
+    /*if (get(isSession)) {
       if (get(appData).views.length === 0) {
         createView();
       }
       loadProjectsFromGitHub();
-    }
+    }*/
   });
 
   /*$: if ($session) {
@@ -134,51 +145,14 @@
   <!-- TODO: onLogout not needed, Header can import isSession and logout itself -->
   <Header onLogout={logout}/>
   <div class="flex-1 flex flex-col items-center justify-center">
-    {#if !$isSession}
-      <!-- TODO: login page component -->
-      <!--<button on:click={handleLogin} class="px-4 py-2 rounded shadow">Log in with GitHub</button>-->
-      <button on:click={login} class="_button text-githubPrimaryTextColor px-4 py-2">Log in with GitHub</button>
+    {#if $isLoggingOut}
+      <LoadingScreen message="Logging out" />
+    {:else if $isLoggingInAfterOAuth}
+      <LoadingScreen message="Logging in" />
+    {:else if $isLoggedIn}
+      <MainContent />
     {:else}
-      <!-- TODO: this should check for the completion of loadProjectsFromGitHub() -->
-      {#if !$appData}
-        <div class="flex flex-col items-center">
-          <Loader class="w-8 h-8 animate-spin mb-2" />
-          <p class="text-lg font-semibold text-githubSecondaryTextColor animate-pulse duration-100">Loading projects</p>
-        </div>
-      {:else}
-        {#each $appData.views as view (view.id)}
-          <!--{#if view.id === $activeViewId}-->
-            <!--<div class="grid grid-cols-1 sm:grid-cols-2 w-full pt-4 pb-2 px-4 gap-4">-->
-              {#each $appData.statuses as status (status.id)}
-                {#if view.statusConfigs[status.id]?.visible}
-                  <Column title={status.title} projects={[]} />
-                {/if}
-              {/each}
-            <!--</div>-->
-          <!--{/if}-->
-        {/each}
-
-
-        <!--{#each $appData.statuses as statusId (statusId)}
-          {#if !$appData.views[$appData.activeViewId].statusVisibility[statusId]}
-            <Column
-              title={statusId}
-              projects={getFilteredProjects(statusId)}
-              dndOnDrop={handleDrop(statusId)}
-            />
-          {/if}
-          {/each}-->
-        <!--<div class="flex-1 grid grid-cols-1 sm:grid-cols-2 w-full pt-4 pb-2 px-4 gap-4">
-          <Column title={columns[0]} projects={getFilteredProjects(columns[0])} bindRef={todoRef} dndOnDrop={handleDrop(columns[0])} />
-          <Column title={columns[1]} projects={getFilteredProjects(columns[1])} bindRef={doingRef} dndOnDrop={handleDrop(columns[1])} />
-        </div>-->
-        <button use:tooltip={{ text: "Closed projects", align: "right" }} on:click={() => closedPaneOpen = !closedPaneOpen} class="_button p-2 absolute right-0 top-16 mt-4 z-30" aria-label="Toggle closed pane">
-          <Archive class="_icon" />
-        </button>
-        <!--{#if closedPaneOpen}
-          <ClosedColumnPane onClose={() => closedPaneOpen = false} projects={getClosedProjects()} dndOnDrop={handleDrop(columns[2])} />
-        {/if}-->
-      {/if}
+      <LoginPage />
     {/if}
   </div>
 </main>

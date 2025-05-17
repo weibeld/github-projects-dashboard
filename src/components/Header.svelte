@@ -8,7 +8,7 @@
   import { disableScroll } from '../lib/disableScroll.js';  // Svelte action
   import Overlay from './Overlay.svelte';
   import Menu from './Menu.svelte';
-  import { isSession } from '../lib/auth';
+  import { isLoggedIn, isLoggingInAfterOAuth } from '../lib/auth';
 
   let menuOpen = false;
   const closeMenu = () => {
@@ -44,7 +44,7 @@
     <img src={logoUrl} alt="Logo" class="w-8 h-8" /> GitHub Projects Dashboard
   </div>
 
-  {#if $isSession}
+  {#if $isLoggedIn || $isLoggingInAfterOAuth}
     <div class="flex items-center gap-3">
       <div class="flex items-center text gap-1">
         <a href="https://github.com" target="_blank" class="_box-link "><Github class="_icon" />GitHub</a>/

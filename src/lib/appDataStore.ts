@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store';
-import { log, logFnArgs, logFnReturn } from './log';
+import { logFnArgs, logFnReturn } from './log';
 import { type SortKey, type SortDirection, type LabelColor } from './commonTypes';
 
 /*----------------------------------------------------------------------------*
@@ -68,23 +68,17 @@ export const appData = writable<AppData>({
 
 function getNewLabelId(): LabelId {
   logFnArgs('getNewLabelId', { });
-  const ret = Math.max(0, ...Object.keys(get(appData).labels).map(Number)) + 1;
-  logFnReturn('getNewLabelId', ret);
-  return ret;
+  return logFnReturn('getNewLabelId', Math.max(0, ...Object.keys(get(appData).labels).map(Number)) + 1);
   //const data = get(appData);
   //return Math.max(0, ...data.statuses.map(s => s.id)) + 1;
 }
 function getNewStatusId(): StatusId {
   logFnArgs('getNewStatusId', { });
-  const ret = Math.max(0, ...get(appData).statuses.map(s => s.id)) + 1;
-  logFnReturn('getNewStatusId', ret);
-  return ret
+  return logFnReturn('getNewStatusId', Math.max(0, ...get(appData).statuses.map(s => s.id)) + 1);
 }
 function getNewViewId(): ViewId {
   logFnArgs('getNewViewId', { });
-  const ret = Math.max(0, ...get(appData).views.map(v => v.id)) + 1;
-  logFnReturn('getNewViewId', ret);
-  return ret;
+  return logFnReturn('getNewViewId', Math.max(0, ...get(appData).views.map(v => v.id)) + 1);
 }
 
 // Return a title of the form "Untitled" or "Untitled X" as follows:
@@ -96,15 +90,12 @@ function getNewViewTitle(): string {
   const base = 'Untitled';
   const existing = get(appData).views.map(v => v.title);
   if (!existing.includes(base)) {
-    logFnReturn('getNewViewTitle', base);
-    return base;
+    return logFnReturn('getNewViewTitle', base);
   }
   else {
     let i = 2;
     while (existing.includes(`${base} ${i}`)) i++;
-    const ret = `${base} ${i}`;
-    logFnReturn('getNewViewTitle', ret);
-    return ret;
+    return logFnReturn('getNewViewTitle', `${base} ${i}`);
   }
 }
 
@@ -131,23 +122,17 @@ function addDefaultViewStatusConfig(viewId: ViewId, statusId: StatusId) {
 
 export function isLabelTitleUnique(title: string) {
   logFnArgs('isLabelTitleUnique', { title });
-  const ret = !Object.values(get(appData).labels).some(l => l.title === title);
-  logFnReturn('isLabelTitleUnique', ret);
-  return ret;
+  return logFnReturn('isLabelTitleUnique', !Object.values(get(appData).labels).some(l => l.title === title));
 }
 
 export function isStatusTitleUnique(title: string) {
   logFnArgs('isStatusTitleUnique', { title });
-  const ret = !get(appData).statuses.some(s => s.title === title);
-  logFnReturn('isStatusTitleUnique', ret);
-  return ret;
+  return logFnReturn('isStatusTitleUnique', !get(appData).statuses.some(s => s.title === title));
 }
 
 export function isViewTitleUnique(title: string) {
   logFnArgs('isViewTitleUnique', { title });
-  const ret = !get(appData).views.some(v => v.title === title);
-  logFnReturn('isViewTitleUnique', ret);
-  return ret;
+  return logFnReturn('isViewTitleUnique', !get(appData).views.some(v => v.title === title));
 }
 
 /*----------------------------------------------------------------------------*
@@ -206,9 +191,7 @@ export function deleteProject(projectId: ProjectId) {
 
 export function getProjectIds(): ProjectId[] {
   logFnArgs('getProjectIds', { });
-  const ret = Object.keys(get(appData).projects);
-  logFnReturn('getProjectIds', ret);
-  return ret;
+  return logFnReturn('getProjectIds', Object.keys(get(appData).projects));
 }
 
 /*----------------------------------------------------------------------------*

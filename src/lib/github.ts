@@ -1,6 +1,8 @@
 import type { Project } from './types';
 import { appData } from './appDataStore';
 import { get } from 'svelte/store';
+import { logFn, logFnArgs, logFnReturn } from './log';
+import { getGitHubApiToken } from './githubApiTokenStore';
 
 const GITHUB_GRAPHQL_URL = "https://api.github.com/graphql";
 const GITHUB_GRAPHQL_QUERY = `
@@ -27,8 +29,11 @@ const GITHUB_GRAPHQL_QUERY = `
   }
 `;
 
-
-export async function loadProjectsFromGitHub(token: string) {
+// TODO: include synchronisation with app data (appDataStore.ts)
+export async function loadProjectsFromGitHub() {
+  logFnArgs('loadProjectsFromGitHub', { });
+  const token = getGitHubApiToken();
+  if (!token) throw new Error('No GitHub token available');
   const response = await fetch(GITHUB_GRAPHQL_URL, {
     method: 'POST',
     headers: {
@@ -46,6 +51,7 @@ export async function loadProjectsFromGitHub(token: string) {
   const json = await response.json();
 
   const projectsRaw = json?.data?.viewer?.projectsV2?.nodes;
+  logFn('loadProjectsFromGitHub', projectsRaw)
   if (!Array.isArray(projectsRaw)) {
     throw new Error('Invalid response format from GitHub');
   }
