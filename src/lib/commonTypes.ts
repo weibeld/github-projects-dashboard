@@ -1,3 +1,5 @@
+export type ProjectID = string;
+
 export const SortKeyValues = {
   UpdatedAt: 'updatedAt',
   CreatedAt: 'createdAt',

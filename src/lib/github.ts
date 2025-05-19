@@ -1,20 +1,40 @@
-import { get } from 'svelte/store';
-import type { Project } from './types';
+import { writable, readonly, get } from 'svelte/store';
 import { appData } from './appDataStore';
-import { logFn, logRaw, logErr } from './log';
-import { logout, githubUserInfo } from '../lib/auth';
+import { logFn, logRaw, logErr, logStore } from './log';
+import { logout, githubUserInfo } from './auth';
+import type { ProjectID } from './commonTypes';
 
-/*type GitHubProject = {
+// TODO: include linked repositories
+export type GitHubProject = {
+  id: ProjectID,
+  number: number;
+  title: string;
+  url: string;
+  isPublic: boolean;
+  isClosed: boolean;
+  shortDescription: string | null;
+  createdAt: Date;
+  updatedAt: Date | null;
+  closedAt: Date | null;
+  items: number;
+};
+
+// Data returned by the GitHub API for each project (see GraphQL query)
+type GitHubApiData = {
   id: string;
   number: number;
   title: string;
   url: string;
+  public: boolean;
+  closed: boolean;
+  shortDescription: string | null;
   createdAt: string;
-  updatedAt: string;
-  closedAt: string;
-};*/
+  updatedAt: string | null;
+  closedAt: string | null;
+  items: { totalCount: number };
+};
 
-const query = `
+const graphQlQuery = `
   query {
     viewer {
       projectsV2(first: 100) {
@@ -37,6 +57,31 @@ const query = `
     }
   }`;
 
+const _githubProjects = writable<Record<ProjectID, GitHubProject>>({});
+export const githubProjects = readonly(_githubProjects);
+githubProjects.subscribe(val => { logStore('githubProjects', val); })
+
+function setGitHubProjects(projects: GitHubApiData[] | null | undefined): void {
+  const data: Record<ProjectID, GitHubProject> = {};
+  if (projects) {
+    for (const p of projects) {
+      data[p.id] = {
+        id: p.id,
+        number: p.number,
+        title: p.title,
+        url: p.url,
+        isPublic: p.public,
+        isClosed: p.closed,
+        shortDescription: p.shortDescription,
+        createdAt: new Date(p.createdAt),
+        updatedAt: p.updatedAt ? new Date(p.updatedAt) : null,
+        closedAt: p.closedAt ? new Date(p.closedAt) : null,
+        items: p.items.totalCount
+      };
+    }
+  }
+  _githubProjects.set(data);
+}
 
 // TODO: include synchronisation with app data (appDataStore.ts)
 export async function loadProjectsFromGitHub() {
@@ -48,7 +93,7 @@ export async function loadProjectsFromGitHub() {
       'Authorization': `bearer ${apiToken}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ query: query })
+    body: JSON.stringify({ query: graphQlQuery })
   });
   if (!response.ok) {
     // Most likely cause: expired GitHub API token
@@ -61,67 +106,7 @@ export async function loadProjectsFromGitHub() {
     }
     return;
   }
-
-  const projects = (await response.json())?.data?.viewer?.projectsV2?.nodes;
-  logRaw('Loaded projects:', projects)
-  // TODO: temporarily only handle open projects (include closed projects later)
-  //const openProjects = projectsRaw.filter((p: any) => !p.closed);
-
-  // Adapt GitHub projects to your app's `Project` model
-  const parsedProjects: Project[] = projects.map((p: any) => ({
-    id: p.id,
-    statusId: null,
-    labelIds: [],
-    isNew: true,
-  }));
-
-  // Set app state
-  /*appData.update(data => {
-    parsedProjects.forEach(project => {
-      data.projects[project.id] = project;
-    });
-    return data;
-  });*/
-  //console.log("appData update: ", get(appData));
+  const data: GitHubApiData[] = (await response.json())?.data?.viewer?.projectsV2?.nodes;
+  logRaw('Fetched projects:', data);
+  setGitHubProjects(data);
 }
-
-/*
-const fetchProjects = async () => {
-  // TODO: fetching repositories always returns an empty list
-  const query = `{
-    viewer {
-      projectsV2(first: 50) {
-        nodes {
-          id
-          number
-          title
-          url
-          closed
-          createdAt
-          updatedAt
-          closedAt
-          public
-          shortDescription
-          items {
-            totalCount
-          }
-        }
-      }
-    }
-  }`;
-  const res = await fetch(GITHUB_GRAPHQL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ query })
-  });
-
-  const json = await res.json();
-  console.log("GitHub response:", json);
-  projects = json.data.viewer.projectsV2.nodes;
-  loadStatusMap();
-  //setupSortables();
-};
-*/

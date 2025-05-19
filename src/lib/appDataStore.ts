@@ -1,12 +1,12 @@
 import { writable, get } from 'svelte/store';
 import { logFnArgs, logFnReturn } from './log';
-import { type SortKey, type SortDirection, type LabelColor } from './commonTypes';
+import type { ProjectID, SortKey, SortDirection, LabelColor } from './commonTypes';
 
 /*----------------------------------------------------------------------------*
  * Types
  *----------------------------------------------------------------------------*/
 
-export type ProjectId = string;
+// TODO: also move to commonTypes.ts?
 type NumericId = number;
 export type StatusId = NumericId;
 export type LabelId = NumericId;
