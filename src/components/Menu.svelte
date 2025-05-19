@@ -3,31 +3,20 @@
   import { onEscape } from '../lib/onEscape.js';
   import { disableScroll } from '../lib/disableScroll.js';
   import Overlay from './Overlay.svelte';
-  import { logout } from '../lib/auth';
-
-  // Parameters
-  export let ghUsername;
-  export let ghFullName;
-  export let ghAvatarUrl;
-  // TODO: eliminate
+  import { logout, githubUserInfo } from '../lib/auth';
   export let onLogout;
   export let onClose;
-
-  // Static values
-  const ghProfileUrl = `https://github.com/${ghUsername}`;
-  const ghProjectsUrl = `${ghProfileUrl}?tab=projects`;
 </script>
 
-<!-- Note: when this runs, isSession is true -->
 <Overlay onClick={onClose} />
 <div use:onEscape={onClose} use:disableScroll class="_slide-in-container top-0 w-80 p-4">
   <!-- Menu header -->
   <div class="flex items-center justify-between mb-4 relative">
     <div class="flex items-center gap-2">
-      <img src={ghAvatarUrl} alt="Avatar" class="w-9 h-9 rounded-full border border-githubBorderColor" />
+      <img src={$githubUserInfo.avatarUrl} alt="Avatar" class="w-9 h-9 rounded-full border border-githubBorderColor" />
       <div class="flex flex-col text-sm leading-tight">
-        <span class="font-bold text-githubPrimaryTextColor">{ghUsername}</span>
-        <span class="text-githubSecondaryTextColor">{ghFullName}</span>
+        <span class="font-bold text-githubPrimaryTextColor">{$githubUserInfo.userName}</span>
+        <span class="text-githubSecondaryTextColor">{$githubUserInfo.fullName}</span>
       </div>
     </div>
     <button on:click={onClose} aria-label="Close menu" class="text-githubSecondaryTextColor hover:bg-githubButtonHoverBgColor p-2.5 rounded-lg absolute top-0 right-0">

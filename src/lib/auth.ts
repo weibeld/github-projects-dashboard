@@ -1,5 +1,5 @@
 import { writable, readonly } from 'svelte/store';
-import { supabase } from './supabase';
+import { supabase, Session } from './supabase';
 import { saveGitHubApiToken } from './githubApiTokenStore';
 import { logRaw, logFn, logFnReturn, logStore } from './log';
 
@@ -9,23 +9,52 @@ function isRedirectFromOAuth(): boolean {
   return logFnReturn('isRedirectFromOAuth', window.location.hash.includes('access_token'));
 }
 
+type GitHubUserInfo = {
+  userName: string;
+  fullName: string;
+  avatarUrl: string;
+  profileUrl: string;
+  projectsUrl: string;
+} | null;
+
 // Cross-pageload cache for login state to enable smooth page reloads
 const FLAG_IS_LOGGED_IN = 'is_logged_in';
+const GITHUB_USER_INFO = 'github_user_info';
+const GITHUB_API_TOKEN = 'github_api_token';
 
-const _isLoggedIn = writable(localStorage.getItem(FLAG_IS_LOGGED_IN) !== null);
+function getPersistentValue(name: string, fromJson: boolean = false): unknown {
+  const value = localStorage.getItem(name);
+  if (value === null) return null;
+  return fromJson ? JSON.parse(value) : value;
+}
+
+function setPersistentValue(name: string, value: unknown, toJson: boolean = false): void {
+  const data = toJson ? JSON.stringify(value) : String(value);
+  localStorage.setItem(name, data);
+}
+
+function deletePersistentValue(name: string): void {
+  localStorage.removeItem(name);
+}
+
+const _isLoggedIn = writable(getPersistentValue(FLAG_IS_LOGGED_IN) !== null);
 const _isLoggingInInit = writable(false);
 const _isLoggingInAfterOAuth = writable(isRedirectFromOAuth());
 const _isLoggingOut = writable(false);
+const _githubUserInfo = writable<GitHubUserInfo>(getPersistentValue(GITHUB_USER_INFO, true));
+// TODO: add GitHub API token
 
 export const isLoggedIn = readonly(_isLoggedIn);
 export const isLoggingInInit = readonly(_isLoggingInInit);
 export const isLoggingInAfterOAuth = readonly(_isLoggingInAfterOAuth);
 export const isLoggingOut = readonly(_isLoggingOut);
+export const githubUserInfo = readonly(_githubUserInfo);
 
 isLoggedIn.subscribe(val => { logStore('isLoggedIn', val); })
 isLoggingInInit.subscribe(val => { logStore('isLoggingInInit', val); })
 isLoggingInAfterOAuth.subscribe(val => { logStore('isLoggingInAfterOAuth', val); })
 isLoggingOut.subscribe(val => { logStore('isLoggingOut', val); })
+githubUserInfo.subscribe(val => { logStore('githubUserInfo', val); })
 
 function setIsLoggingOut(state: boolean): void {
   _isLoggingOut.set(state);
@@ -33,9 +62,8 @@ function setIsLoggingOut(state: boolean): void {
 
 function setIsLoggedIn(state: boolean): void {
   _isLoggedIn.set(state);
-  // Set persistent flag to determine status immediately on page reload
-  if (state) localStorage.setItem(FLAG_IS_LOGGED_IN, '1');
-  else localStorage.removeItem(FLAG_IS_LOGGED_IN);
+  if (state) setPersistentValue(FLAG_IS_LOGGED_IN, '1');
+  else deletePersistentValue(FLAG_IS_LOGGED_IN);
 }
 
 function setIsLoggingInInit(state: boolean): void {
@@ -44,6 +72,19 @@ function setIsLoggingInInit(state: boolean): void {
 
 function setIsLoggingInAfterOAuth(state: boolean): void {
   _isLoggingInAfterOAuth.set(state);
+}
+
+function setGitHubUserInfo(session: Session): void {
+  const metadata = session.user.user_metadata;
+  const githubUserInfo: GitHubUserInfo = {
+    userName: metadata.user_name,
+    fullName: metadata.full_name,
+    avatarUrl: metadata.avatar_url,
+    profileUrl: `https://github.com/${metadata.user_name}`,
+    projectsUrl: `https://github.com/${metadata.user_name}?tab=projects`
+  }
+  _githubUserInfo.set(githubUserInfo);
+  setPersistentValue(GITHUB_USER_INFO, githubUserInfo, true);
 }
 
 /*----------------------------------------------------------------------------*
@@ -56,16 +97,18 @@ function setIsLoggingInAfterOAuth(state: boolean): void {
 /*----------------------------------------------------------------------------*/
 export async function setupAuth(): void {
   supabase.auth.onAuthStateChange(async (event, session) => {
-    // Executed on page load if there is a session (i.e. user is logged in)
-    if (event === 'INITIAL_SESSION' && session) {
+    // Executed on page load after logging in
+    if (event === 'INITIAL_SESSION' && session && session.provider_token) {
       logRaw('onAuthStateChange Handler', 'INITIAL_SESSION', session);
-      if (session.provider_token) saveGitHubApiToken(session.provider_token);
+      saveGitHubApiToken(session.provider_token);
+      setGitHubUserInfo(session);
       setIsLoggingInAfterOAuth(false);
       setIsLoggedIn(true);
     }
     // Executed when logout is complete (no reload)
     if (event === 'SIGNED_OUT') {
       logRaw('onAuthStateChange Handler', 'SIGNED_OUT');
+      deletePersistentValue(GITHUB_USER_INFO);
       setIsLoggingOut(false);
       setIsLoggedIn(false);
     }
