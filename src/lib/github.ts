@@ -1,11 +1,20 @@
+import { get } from 'svelte/store';
 import type { Project } from './types';
 import { appData } from './appDataStore';
-import { get } from 'svelte/store';
-import { logFn, logFnArgs, logFnReturn } from './log';
-import { githubUserInfo } from '../lib/auth';
+import { logFn, logRaw, logErr } from './log';
+import { logout, githubUserInfo } from '../lib/auth';
 
-const GITHUB_GRAPHQL_URL = "https://api.github.com/graphql";
-const GITHUB_GRAPHQL_QUERY = `
+/*type GitHubProject = {
+  id: string;
+  number: number;
+  title: string;
+  url: string;
+  createdAt: string;
+  updatedAt: string;
+  closedAt: string;
+};*/
+
+const query = `
   query {
     viewer {
       projectsV2(first: 100) {
@@ -26,58 +35,40 @@ const GITHUB_GRAPHQL_QUERY = `
         }
       }
     }
-  }
-`;
+  }`;
 
-
-// TODO: include check for validity of token when request is to be made (or
-// just optimistically try request with whatever token is found and handle 
-// errors). If the token is found to be invalid (e.g. expired), the user should
-// be automatically logged out and redirected to the login page for reauthentication.
-/*async function hasValidGitHubApiToken(): Promise<boolean> {
-  logFn('hasValidGitHubApiToken');
-  if (!hasGitHubApiToken) return false;
-  const response = await fetch('https://api.github.com/user', {
-    headers: {
-      Authorization: `token ${getGitHubApiToken()}`,
-      Accept: 'application/vnd.github+json',
-    },
-  });
-  return logFnReturn('hasValidGitHubApiToken', response.ok);
-}*/
 
 // TODO: include synchronisation with app data (appDataStore.ts)
 export async function loadProjectsFromGitHub() {
-  logFnArgs('loadProjectsFromGitHub', { });
+  logFn('loadProjectsFromGitHub');
   const apiToken = get(githubUserInfo)?.apiToken;
-  if (!apiToken) throw new Error('No GitHub token available');
-  const response = await fetch(GITHUB_GRAPHQL_URL, {
+  const response = await fetch('https://api.github.com/graphql', {
     method: 'POST',
     headers: {
-      Authorization: `bearer ${apiToken}`,
+      'Authorization': `bearer ${apiToken}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ query: GITHUB_GRAPHQL_QUERY })
+    body: JSON.stringify({ query: query })
   });
-
   if (!response.ok) {
-    console.error(await response.text());
-    throw new Error('Failed to fetch projects from GitHub');
+    // Most likely cause: expired GitHub API token
+    if (response.status === 401) {
+      // TODO: show toast message saying that reauthentication is necessary
+      logout();
+    }
+    else {
+      throw new Error(`Failed to fetch projects from GitHub: ${await response.text()}`);
+    }
+    return;
   }
 
-  const json = await response.json();
-
-  const projectsRaw = json?.data?.viewer?.projectsV2?.nodes;
-  logFn('loadProjectsFromGitHub', projectsRaw)
-  if (!Array.isArray(projectsRaw)) {
-    throw new Error('Invalid response format from GitHub');
-  }
-
+  const projects = (await response.json())?.data?.viewer?.projectsV2?.nodes;
+  logRaw('Loaded projects:', projects)
   // TODO: temporarily only handle open projects (include closed projects later)
-  const openProjects = projectsRaw.filter((p: any) => !p.closed);
+  //const openProjects = projectsRaw.filter((p: any) => !p.closed);
 
   // Adapt GitHub projects to your app's `Project` model
-  const parsedProjects: Project[] = openProjects.map((p: any) => ({
+  const parsedProjects: Project[] = projects.map((p: any) => ({
     id: p.id,
     statusId: null,
     labelIds: [],

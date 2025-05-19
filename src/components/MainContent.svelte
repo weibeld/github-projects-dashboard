@@ -3,6 +3,7 @@
   import LoadingScreen from './LoadingScreen.svelte';
   import { appData, createView } from '../lib/appDataStore';
   import { tooltip } from '../lib/tooltip';  // Svelte action
+  import Column from './Column.svelte';
 </script>
 
 <!-- TODO: this should check for the completion of loadProjectsFromGitHub() -->

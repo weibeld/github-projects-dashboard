@@ -4,7 +4,6 @@
   import { get } from 'svelte/store';
   import { Loader, Archive } from 'lucide-svelte';
   import Header from './components/Header.svelte';
-  import Column from './components/Column.svelte';
   import ClosedColumnPane from './components/ClosedColumnPane.svelte';
   import LoginPage from './components/LoginPage.svelte';
   import LoadingScreen from './components/LoadingScreen.svelte';
@@ -85,22 +84,16 @@
   }
 
   onMount(async () => {
-    /*console.log('Full URL:', window.location.href);
-    console.log('Query string:', window.location.search);
-
-    const url = new URL(window.location.href);
-    console.log('Has "code"?', url.searchParams.has('code'));
-    console.log('Has "state"?', url.searchParams.has('state'));*/
-
-
-    await setupAuth();
-    //await checkSession();
-    /*if (get(isSession)) {
-      if (get(appData).views.length === 0) {
-        createView();
+    setupAuth();
+    // Execute only after isLoggedIn has been set to true in INITIAL_SESSION
+    isLoggedIn.subscribe(async (value) => {
+      if (value) {
+        // TODO: hardcode default view in appData default value
+        if (get(appData).views.length === 0) createView();
+        // TODO: implement loading indicator
+        await loadProjectsFromGitHub();
       }
-      loadProjectsFromGitHub();
-    }*/
+    });
   });
 
   /*$: if ($session) {
