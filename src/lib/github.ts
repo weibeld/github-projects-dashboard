@@ -2,7 +2,7 @@ import type { Project } from './types';
 import { appData } from './appDataStore';
 import { get } from 'svelte/store';
 import { logFn, logFnArgs, logFnReturn } from './log';
-import { getGitHubApiToken } from './githubApiTokenStore';
+import { githubUserInfo } from '../lib/auth';
 
 const GITHUB_GRAPHQL_URL = "https://api.github.com/graphql";
 const GITHUB_GRAPHQL_QUERY = `
@@ -29,15 +29,32 @@ const GITHUB_GRAPHQL_QUERY = `
   }
 `;
 
+
+// TODO: include check for validity of token when request is to be made (or
+// just optimistically try request with whatever token is found and handle 
+// errors). If the token is found to be invalid (e.g. expired), the user should
+// be automatically logged out and redirected to the login page for reauthentication.
+/*async function hasValidGitHubApiToken(): Promise<boolean> {
+  logFn('hasValidGitHubApiToken');
+  if (!hasGitHubApiToken) return false;
+  const response = await fetch('https://api.github.com/user', {
+    headers: {
+      Authorization: `token ${getGitHubApiToken()}`,
+      Accept: 'application/vnd.github+json',
+    },
+  });
+  return logFnReturn('hasValidGitHubApiToken', response.ok);
+}*/
+
 // TODO: include synchronisation with app data (appDataStore.ts)
 export async function loadProjectsFromGitHub() {
   logFnArgs('loadProjectsFromGitHub', { });
-  const token = getGitHubApiToken();
-  if (!token) throw new Error('No GitHub token available');
+  const apiToken = get(githubUserInfo)?.apiToken;
+  if (!apiToken) throw new Error('No GitHub token available');
   const response = await fetch(GITHUB_GRAPHQL_URL, {
     method: 'POST',
     headers: {
-      Authorization: `bearer ${token}`,
+      Authorization: `bearer ${apiToken}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({ query: GITHUB_GRAPHQL_QUERY })
