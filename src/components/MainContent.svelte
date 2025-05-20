@@ -14,7 +14,7 @@
     <!--{#if view.id === $activeViewId}-->
       <!--<div class="grid grid-cols-1 sm:grid-cols-2 w-full pt-4 pb-2 px-4 gap-4">-->
         {#each $appData.statuses as status (status.id)}
-          {#if view.statusConfigs[status.id]?.visible}
+          {#if view.columnConfigs[status.id]?.visible}
             <Column title={status.title} projects={[]} />
           {/if}
         {/each}

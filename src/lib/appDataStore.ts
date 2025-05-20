@@ -12,6 +12,23 @@ export type StatusId = NumericId;
 export type LabelId = NumericId;
 export type ViewId = NumericId;
 
+type ColumnConfig = {
+  visible: boolean;
+  sortKey: SortKey;
+  sortDirection: SortDirection;
+}
+
+function getDefaultColumnConfig(): ColumnConfig {
+  return {
+    visible: true,
+    sortKey: 'updatedAt',
+    sortDirection: 'descending'
+  };
+}
+
+const DEFAULT_STATUS_ID: StatusId = 0;
+const DEFAULT_STATUS_TITLE: string = 'Default';
+
 export interface Project {
   id: ProjectId;
   statusId: number;
@@ -33,11 +50,7 @@ export interface View {
   id: ViewId;
   title: string;
   query: string;
-  statusConfigs: Record<StatusId, {
-    visible: boolean;
-    sortKey: SortKey;
-    sortDirection: SortDirection;
-  }>;
+  columnConfigs: Record<StatusId, ColumnConfig>;
 }
 
 export interface AppData {
@@ -53,11 +66,10 @@ export interface AppData {
  * Instance
  *----------------------------------------------------------------------------*/
 
-const DEFAULT_STATUS_ID: StatusId = 0;
 
 export const appData = writable<AppData>({
   projects: {},
-  statuses: [{ id: DEFAULT_STATUS_ID, title: 'Default' }],
+  statuses: [{ id: DEFAULT_STATUS_ID, title: DEFAULT_STATUS_TITLE }],
   labels: [],
   views: [],
 });
@@ -101,17 +113,11 @@ function getNewViewTitle(): string {
 
 // Add a default status config for a given status to a given view. The default
 // status config has visible: true, sortKey: 'updated', sortDirection: 'desc'.
-function addDefaultViewStatusConfig(viewId: ViewId, statusId: StatusId) {
-  logFnArgs('addDefaultViewStatusConfig', { viewId, statusId });
+function addDefaultColumnConfigForStatusToView(viewId: ViewId, statusId: StatusId): void {
+  logFnArgs('addDefaultColumnConfigForStatusToView', { viewId, statusId });
   appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
-    if (view) {
-      view.statusConfigs[statusId] = {
-        visible: true,
-        sortKey: 'updated',
-        sortDirection: 'desc'
-      };
-    }
+    if (view) view.columnConfigs[statusId] = getDefaultColumnConfig();
     return data;
   });
 }
@@ -255,7 +261,7 @@ export function createStatus(title: string) {
     const statusId = getNewStatusId();
     data.statuses.push({ statusId, title });
     for (const view of data.views) {
-      addDefaultViewStatusConfig(viewId = view.id, statusId);
+      addDefaultColumnConfigForStatusToView(viewId = view.id, statusId);
     }
     return data;
   });
@@ -300,7 +306,7 @@ export function deleteStatus(statusId: StatusId) {
       }
     }
     for (const view of data.views) {
-      delete view.statusConfigs[statusId];
+      delete view.columnConfigs[statusId];
     }
     return data;
   });
@@ -313,7 +319,7 @@ export function deleteStatus(statusId: StatusId) {
  *----------------------------------------------------------------------------*/
 
 // 1. Get a unique new view title by calling 'getNewViewTitle()'
-// 2. Create the view with an empty statusConfigs
+// 2. Create the view with an empty columnConfigs
 // 3. Add the new view to the back of the ordered list of views
 // 4. Add default status configs to the view by calling 'addViewStatusConfig()' on the view for every status
 export function createView(query: string = '') {
@@ -321,10 +327,10 @@ export function createView(query: string = '') {
   appData.update(data => {
     const id = getNewViewId();
     const title = getNewViewTitle();
-    const view: View = { id, title, query, statusConfigs: {} };
+    const view: View = { id, title, query, columnConfigs: {} };
     data.views.push(view);
     for (const status of data.statuses) {
-      addDefaultViewStatusConfig(view.id, status.id);
+      addDefaultColumnConfigForStatusToView(view.id, status.id);
     }
     return data;
   });
@@ -355,8 +361,8 @@ export function setViewStatusVisibility(viewId: ViewId, statusId: StatusId, visi
   logFnArgs('setViewStatusVisibility', { viewId, statusId, visibility });
   appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
-    if (view && view.statusConfigs[statusId]) {
-      view.statusConfigs[statusId].visible = visibility;
+    if (view && view.columnConfigs[statusId]) {
+      view.columnConfigs[statusId].visible = visibility;
     }
     return data;
   });
@@ -366,8 +372,8 @@ export function setViewStatusSortKey(viewId: ViewId, statusId: StatusId, sortKey
   logFnArgs('setViewStatusSortKey', { viewId, statusId, sortKey });
   appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
-    if (view && view.statusConfigs[statusId]) {
-      view.statusConfigs[statusId].sortKey = sortKey;
+    if (view && view.columnConfigs[statusId]) {
+      view.columnConfigs[statusId].sortKey = sortKey;
     }
     return data;
   });
@@ -377,8 +383,8 @@ export function setViewStatusSortDirection(viewId: ViewId, statusId: StatusId, s
   logFnArgs('setViewStatusSortDirection', { viewId, statusId, sortDirection });
   appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
-    if (view && view.statusConfigs[statusId]) {
-      view.statusConfigs[statusId].sortDirection = sortDirection;
+    if (view && view.columnConfigs[statusId]) {
+      view.columnConfigs[statusId].sortDirection = sortDirection;
     }
     return data;
   });
