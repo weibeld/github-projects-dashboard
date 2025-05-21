@@ -1,7 +1,7 @@
 <script>
   import { Archive } from 'lucide-svelte';
   import LoadingScreen from './LoadingScreen.svelte';
-  import { metadata, createMetaView } from '../lib/metadata';
+  import { metadata } from '../lib/metadata';
   import { tooltip } from '../lib/tooltip';  // Svelte action
   import Column from './Column.svelte';
 </script>

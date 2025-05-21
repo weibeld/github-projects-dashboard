@@ -13,8 +13,9 @@ import type {
 import { MetaSortKeyVals, MetaSortDirectionVals, MetaLabelColorVals } from './commonTypes';
 
 const DEFAULT_STATUS_ID: MetaStatusId = 0;
-const DEFAULT_STATUS_TITLE: string = 'Default';
+const DEFAULT_NEW_VIEW_TITLE: string = 'Untitled';
 
+/* Default column config for new statuses or views */
 function getDefaultColumnConfig(): MetaColumnConfig {
   return {
     visible: true,
@@ -23,12 +24,31 @@ function getDefaultColumnConfig(): MetaColumnConfig {
   };
 }
 
+/* Default value for 'metadata' store */
 function getDefaultMetadata(): Metadata {
+  const projects: MetaProjects = {};
+  const labels: MetaLabels = {};
+  const statuses: MetaStatuses = [
+    {
+      id: DEFAULT_STATUS_ID,
+      title: 'Default',
+    }
+  ];
+  const views: MetaViews = [
+    {
+      id: 1,
+      title: DEFAULT_NEW_VIEW_TITLE,
+      query: '',
+      columnConfigs: {
+        [DEFAULT_STATUS_ID]: getDefaultColumnConfig()
+      }
+    }
+  ]
   return {
-    projects: {},
-    statuses: [{ id: DEFAULT_STATUS_ID, title: DEFAULT_STATUS_TITLE }],
-    labels: [],
-    views: [],
+    projects: projects,
+    labels: labels,
+    statuses: statuses,
+    views: views,
   };
 }
 
@@ -63,7 +83,7 @@ function getNewViewId(): MetaViewId {
 //   3. If another view with title "Untitled X" exists, return "Untitled X+1"k
 function getNewViewTitle(): string {
   logFnArgs('getNewViewTitle', { });
-  const base = 'Untitled';
+  const base = DEFAULT_NEW_VIEW_TITLE;
   const existing = get(_metadata).views.map(v => v.title);
   if (!existing.includes(base)) {
     return logFnReturn('getNewViewTitle', base);

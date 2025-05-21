@@ -11,7 +11,7 @@
   import { setupAuth, login, logout,
     isLoggingOut, isLoggingInInit, isLoggingInAfterOAuth, isLoggedIn } from './lib/auth';
   import { loadProjectsFromGitHub } from './lib/github.ts';
-  import { metadata, createMetaView } from './lib/metadata';
+  import { metadata } from './lib/metadata';
 
   //let session = null;
   //let token = null;
@@ -89,7 +89,7 @@
     isLoggedIn.subscribe(async (value) => {
       if (value) {
         // TODO: hardcode default view in metadata default value
-        if (get(metadata).views.length === 0) createMetaView();
+        //if (get(metadata).views.length === 0) createMetaView();
         // TODO: implement loading indicator
         await loadProjectsFromGitHub();
       }

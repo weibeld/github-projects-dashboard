@@ -35,6 +35,9 @@ export const MetaLabelColorVals = {
 } as const;
 export type MetaLabelColor = (typeof MetaLabelColorVals)[keyof typeof MetaLabelColorVals];
 
+export type MetaLabelIds = Set<MetaLabelId>;
+export type ColumnConfigs = Record<MetaStatusId, MetaColumnConfig>;
+
 export type MetaColumnConfig = {
   visible: boolean;
   sortKey: MetaSortKey;
@@ -44,7 +47,7 @@ export type MetaColumnConfig = {
 export interface MetaProject {
   id: ProjectId;
   statusId: MetaStatusId;
-  labelIds: Set<MetaLabelId>;
+  labelIds: MetaLabelIds;
 }
 
 export interface MetaStatus {
@@ -62,7 +65,7 @@ export interface MetaView {
   id: MetaViewId;
   title: string;
   query: string;
-  columnConfigs: Record<MetaStatusId, MetaColumnConfig>;
+  columnConfigs: ColumnConfigs;
 }
 
 export type MetaProjects = Record<ProjectId, MetaProject>;
