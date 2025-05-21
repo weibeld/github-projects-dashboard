@@ -1,7 +1,7 @@
 <script>
   import { Archive } from 'lucide-svelte';
   import LoadingScreen from './LoadingScreen.svelte';
-  import { appData, createView } from '../lib/appDataStore';
+  import { appData, createView } from '../lib/appData';
   import { tooltip } from '../lib/tooltip';  // Svelte action
   import Column from './Column.svelte';
 </script>

@@ -66,13 +66,15 @@ export interface AppData {
  * Instance
  *----------------------------------------------------------------------------*/
 
-
+// TODO: make read-only
 export const appData = writable<AppData>({
   projects: {},
   statuses: [{ id: DEFAULT_STATUS_ID, title: DEFAULT_STATUS_TITLE }],
   labels: [],
   views: [],
 });
+
+// TODO: create function for getting a project, status, label or view by ID
 
 /*----------------------------------------------------------------------------*
  * Private helper functions

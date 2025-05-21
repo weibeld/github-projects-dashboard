@@ -1,5 +1,5 @@
 import { writable, readonly, get } from 'svelte/store';
-import { appData } from './appDataStore';
+import { appData } from './appData';
 import { logFn, logRaw, logErr, logStore } from './log';
 import { logout, githubUserInfo } from './auth';
 import type { ProjectID } from './commonTypes';

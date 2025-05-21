@@ -11,7 +11,7 @@
   import { setupAuth, login, logout,
     isLoggingOut, isLoggingInInit, isLoggingInAfterOAuth, isLoggedIn } from './lib/auth';
   import { loadProjectsFromGitHub } from './lib/github.ts';
-  import { appData, createView } from './lib/appDataStore';
+  import { appData, createView } from './lib/appData';
 
   //let session = null;
   //let token = null;
