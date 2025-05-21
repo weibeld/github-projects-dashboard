@@ -1,3 +1,4 @@
+import type { Readable } from 'svelte/store';
 import log from 'loglevel';
 
 if (import.meta.env.DEV) {
@@ -10,12 +11,14 @@ export function logRaw(...args: unknown[]): void {
   log.debug(...args);
 }
 
+/* Log a single name-value pair */
 export function logValue(name: string, value: any): void {
   log.debug(`${name}:`, value);
 }
 
-export function logStore(storeName: string, value: any): void {
-  logValue(`STORE ${storeName}`, value);
+/* Log any changes to the passed store by printing the new value of the store */
+export function logStore<T>(store: Readable<T>, storeName: string): void {
+  store.subscribe(val => { logValue(`STORE ${storeName}`, val); });
 }
 
 /* Log the name of a function and an optional message */

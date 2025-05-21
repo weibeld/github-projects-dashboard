@@ -39,23 +39,26 @@ type GitHubUserInfo = {
 const FLAG_IS_LOGGED_IN = 'is_logged_in';
 const GITHUB_USER_INFO = 'github_user_info';
 
+// Internal read-write
 const _isLoggedIn = writable(getPersistentValue(FLAG_IS_LOGGED_IN) !== null);
 const _isLoggingInInit = writable(false);
 const _isLoggingInAfterOAuth = writable(isRedirectFromOAuth());
 const _isLoggingOut = writable(false);
 const _githubUserInfo = writable<GitHubUserInfo>(getPersistentValue(GITHUB_USER_INFO, true));
 
+// External read-only
 export const isLoggedIn = readonly(_isLoggedIn);
 export const isLoggingInInit = readonly(_isLoggingInInit);
 export const isLoggingInAfterOAuth = readonly(_isLoggingInAfterOAuth);
 export const isLoggingOut = readonly(_isLoggingOut);
 export const githubUserInfo = readonly(_githubUserInfo);
 
-isLoggedIn.subscribe(val => { logStore('isLoggedIn', val); })
-isLoggingInInit.subscribe(val => { logStore('isLoggingInInit', val); })
-isLoggingInAfterOAuth.subscribe(val => { logStore('isLoggingInAfterOAuth', val); })
-isLoggingOut.subscribe(val => { logStore('isLoggingOut', val); })
-githubUserInfo.subscribe(val => { logStore('githubUserInfo', val); })
+// Logging store changes
+logStore(isLoggedIn, 'isLoggedIn');
+logStore(isLoggingInInit, 'isLoggingInInit');
+logStore(isLoggingInAfterOAuth, 'isLoggingInAfterOAuth');
+logStore(isLoggingOut, 'isLoggingOut');
+logStore(githubUserInfo, 'githubUserInfo');
 
 function setIsLoggingOut(state: boolean): void {
   _isLoggingOut.set(state);

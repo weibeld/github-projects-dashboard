@@ -1,5 +1,5 @@
-import { writable, get } from 'svelte/store';
-import { logFnArgs, logFnReturn } from './log';
+import { writable, get, readonly } from 'svelte/store';
+import { logFnArgs, logFnReturn, logStore } from './log';
 import type { ProjectID, SortKey, SortDirection, LabelColor } from './commonTypes';
 
 /*----------------------------------------------------------------------------*
@@ -75,8 +75,9 @@ export interface AppData {
  * Instance
  *----------------------------------------------------------------------------*/
 
-// TODO: make read-only
-export const appData = writable<AppData>(getAppDataDefault());
+const _appData = writable<AppData>(getAppDataDefault());
+export const appData = readonly(_appData);
+logStore(appData, 'appData');
 
 // TODO: create function for getting a project, status, label or view by ID
 
@@ -86,17 +87,17 @@ export const appData = writable<AppData>(getAppDataDefault());
 
 function getNewLabelId(): LabelId {
   logFnArgs('getNewLabelId', { });
-  return logFnReturn('getNewLabelId', Math.max(0, ...Object.keys(get(appData).labels).map(Number)) + 1);
-  //const data = get(appData);
+  return logFnReturn('getNewLabelId', Math.max(0, ...Object.keys(get(_appData).labels).map(Number)) + 1);
+  //const data = get(_appData);
   //return Math.max(0, ...data.statuses.map(s => s.id)) + 1;
 }
 function getNewStatusId(): StatusId {
   logFnArgs('getNewStatusId', { });
-  return logFnReturn('getNewStatusId', Math.max(0, ...get(appData).statuses.map(s => s.id)) + 1);
+  return logFnReturn('getNewStatusId', Math.max(0, ...get(_appData).statuses.map(s => s.id)) + 1);
 }
 function getNewViewId(): ViewId {
   logFnArgs('getNewViewId', { });
-  return logFnReturn('getNewViewId', Math.max(0, ...get(appData).views.map(v => v.id)) + 1);
+  return logFnReturn('getNewViewId', Math.max(0, ...get(_appData).views.map(v => v.id)) + 1);
 }
 
 // Return a title of the form "Untitled" or "Untitled X" as follows:
@@ -106,7 +107,7 @@ function getNewViewId(): ViewId {
 function getNewViewTitle(): string {
   logFnArgs('getNewViewTitle', { });
   const base = 'Untitled';
-  const existing = get(appData).views.map(v => v.title);
+  const existing = get(_appData).views.map(v => v.title);
   if (!existing.includes(base)) {
     return logFnReturn('getNewViewTitle', base);
   }
@@ -121,7 +122,7 @@ function getNewViewTitle(): string {
 // status config has visible: true, sortKey: 'updated', sortDirection: 'desc'.
 function addDefaultColumnConfigForStatusToView(viewId: ViewId, statusId: StatusId): void {
   logFnArgs('addDefaultColumnConfigForStatusToView', { viewId, statusId });
-  appData.update(data => {
+  _appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
     if (view) view.columnConfigs[statusId] = getColumnConfigDefault();
     return data;
@@ -134,17 +135,17 @@ function addDefaultColumnConfigForStatusToView(viewId: ViewId, statusId: StatusI
 
 export function isLabelTitleUnique(title: string) {
   logFnArgs('isLabelTitleUnique', { title });
-  return logFnReturn('isLabelTitleUnique', !Object.values(get(appData).labels).some(l => l.title === title));
+  return logFnReturn('isLabelTitleUnique', !Object.values(get(_appData).labels).some(l => l.title === title));
 }
 
 export function isStatusTitleUnique(title: string) {
   logFnArgs('isStatusTitleUnique', { title });
-  return logFnReturn('isStatusTitleUnique', !get(appData).statuses.some(s => s.title === title));
+  return logFnReturn('isStatusTitleUnique', !get(_appData).statuses.some(s => s.title === title));
 }
 
 export function isViewTitleUnique(title: string) {
   logFnArgs('isViewTitleUnique', { title });
-  return logFnReturn('isViewTitleUnique', !get(appData).views.some(v => v.title === title));
+  return logFnReturn('isViewTitleUnique', !get(_appData).views.some(v => v.title === title));
 }
 
 /*----------------------------------------------------------------------------*
@@ -154,7 +155,7 @@ export function isViewTitleUnique(title: string) {
 // 1. Assign Default status and empty set of labels to new projects
 export function createProject(projectId: ProjectId) {
   logFnArgs('createProject', { projectId });
-  appData.update(data => {
+  _appData.update(data => {
     data.projects[projectId] = { id: projectId, statusId: DEFAULT_STATUS_ID, labelIds: new Set() };
     return data;
   });
@@ -162,7 +163,7 @@ export function createProject(projectId: ProjectId) {
 
 export function setProjectStatus(projectId: ProjectId, statusId: StatusId) {
   logFnArgs('setProjectStatus', { projectId, statusId });
-  appData.update(data => {
+  _appData.update(data => {
     const project = data.projects[projectId];
     if (project) project.statusId = statusId;
     return data;
@@ -171,7 +172,7 @@ export function setProjectStatus(projectId: ProjectId, statusId: StatusId) {
 
 export function addProjectLabel(projectId: ProjectId, labelId: LabelId) {
   logFnArgs('addProjectLabel', { projectId, labelId });
-  appData.update(data => {
+  _appData.update(data => {
     data.projects[projectId].labelIds.add(labelId);
     // TODO: use below if no reactive update in UI
     /*const newLabelSet = new Set(data.projects[projectId].labelIds);
@@ -183,7 +184,7 @@ export function addProjectLabel(projectId: ProjectId, labelId: LabelId) {
 
 export function deleteProjectLabel(projectId: ProjectId, labelId: LabelId) {
   logFnArgs('deleteProjectLabel', { projectId, labelId });
-  appData.update(data => {
+  _appData.update(data => {
     data.projects[projectId].labelIds.delete(labelId);
     // TODO: use below if no reactive update in UI
     /*const newLabelSet = new Set(data.projects[projectId].labelIds);
@@ -195,7 +196,7 @@ export function deleteProjectLabel(projectId: ProjectId, labelId: LabelId) {
 
 export function deleteProject(projectId: ProjectId) {
   logFnArgs('deleteProject', { projectId });
-  appData.update(data => {
+  _appData.update(data => {
     delete data.projects[projectId];
     return data;
   });
@@ -203,7 +204,7 @@ export function deleteProject(projectId: ProjectId) {
 
 export function getProjectIds(): ProjectId[] {
   logFnArgs('getProjectIds', { });
-  return logFnReturn('getProjectIds', Object.keys(get(appData).projects));
+  return logFnReturn('getProjectIds', Object.keys(get(_appData).projects));
 }
 
 /*----------------------------------------------------------------------------*
@@ -213,7 +214,7 @@ export function getProjectIds(): ProjectId[] {
 // 1. Ensure that label title is unique
 export function createLabel(title: string, color: LabelColor) {
   logFnArgs('createLabel', { title, color });
-  appData.update(data => {
+  _appData.update(data => {
     if (Object.values(data.labels).some(l => l.title === title)) return data;
     const id = getNewLabelId();
     data.labels[id] = { id, title, color };
@@ -224,7 +225,7 @@ export function createLabel(title: string, color: LabelColor) {
 // 1. Ensure that label title is unique
 export function setLabelTitle(labelId: LabelId, title: string) {
   logFnArgs('setLabelTitle', { labelId, title });
-  appData.update(data => {
+  _appData.update(data => {
     if (Object.values(data.labels).some(l => l.title === title)) return data;
     const label = data.labels[labelId];
     if (label) label.title = title;
@@ -234,7 +235,7 @@ export function setLabelTitle(labelId: LabelId, title: string) {
 
 export function setLabelColor(labelId: LabelId, color: LabelColor) {
   logFnArgs('setLabelColor', { labelId, color });
-  appData.update(data => {
+  _appData.update(data => {
     const label = data.labels[labelId];
     if (label) label.color = color;
     return data;
@@ -244,7 +245,7 @@ export function setLabelColor(labelId: LabelId, color: LabelColor) {
 // 1. Call 'deleteProjectLabel()' for the deleted label on all projects that have this label
 export function deleteLabel(labelId: LabelId) {
   logFnArgs('deleteLabel', { labelId });
-  appData.update(data => {
+  _appData.update(data => {
     delete data.labels[labelId];
     for (const projectId in data.projects) {
       deleteProjectLabel(projectId, labelId);
@@ -262,7 +263,7 @@ export function deleteLabel(labelId: LabelId) {
 // 3. Call 'addViewStatusConfig()' for the created status on all views
 export function createStatus(title: string) {
   logFnArgs('createStatus', { title });
-  appData.update(data => {
+  _appData.update(data => {
     if (data.statuses.some(s => s.title === title)) return data;
     const statusId = getNewStatusId();
     data.statuses.push({ statusId, title });
@@ -276,7 +277,7 @@ export function createStatus(title: string) {
 // 1. Ensure that status title is unique
 export function setStatusTitle(statusId: StatusId, title: string) {
   logFnArgs('setStatusTitle', { statusId, title });
-  appData.update(data => {
+  _appData.update(data => {
     if (data.statuses.some(s => s.title === title)) return data;
     const status = data.statuses.find(s => s.id === statusId);
     if (status) status.title = title;
@@ -286,7 +287,7 @@ export function setStatusTitle(statusId: StatusId, title: string) {
 
 export function moveStatus(statusId: StatusId, index: number) {
   logFnArgs('moveStatus', { statusId, index });
-  appData.update(data => {
+  _appData.update(data => {
     const curIndex = data.statuses.findIndex(s => s.id === statusId);
     if (curIndex === -1 || index < 0 || index >= data.statuses.length) return data;
     // Remove element from array and save in 'statusToMove'
@@ -304,7 +305,7 @@ export function moveStatus(statusId: StatusId, index: number) {
 export function deleteStatus(statusId: StatusId) {
   logFnArgs('deleteStatus', { statusId });
   if (statusId === DEFAULT_STATUS_ID) return;
-  appData.update(data => {
+  _appData.update(data => {
     data.statuses = data.statuses.filter(s => s.id !== statusId);
     for (const projectId in data.projects) {
       if (data.projects[projectId].statusId === statusId) {
@@ -330,7 +331,7 @@ export function deleteStatus(statusId: StatusId) {
 // 4. Add default status configs to the view by calling 'addViewStatusConfig()' on the view for every status
 export function createView(query: string = '') {
   logFnArgs('createView', { query });
-  appData.update(data => {
+  _appData.update(data => {
     const id = getNewViewId();
     const title = getNewViewTitle();
     const view: View = { id, title, query, columnConfigs: {} };
@@ -345,7 +346,7 @@ export function createView(query: string = '') {
 // 1. Ensure that the view title is unique
 export function setViewTitle(viewId: ViewId, title: string) {
   logFnArgs('setViewTitle', { viewId, title });
-  appData.update(data => {
+  _appData.update(data => {
     if (data.views.some(v => v.title === title)) return data;
     const view = data.views.find(v => v.id === viewId);
     if (view) view.title = title;
@@ -356,7 +357,7 @@ export function setViewTitle(viewId: ViewId, title: string) {
 
 export function setViewQuery(viewId: ViewId, query: string) {
   logFnArgs('setViewQuery', { viewId, query });
-  appData.update(data => {
+  _appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
     if (view) view.query = query;
     return data;
@@ -365,7 +366,7 @@ export function setViewQuery(viewId: ViewId, query: string) {
 
 export function setViewStatusVisibility(viewId: ViewId, statusId: StatusId, visibility: boolean) {
   logFnArgs('setViewStatusVisibility', { viewId, statusId, visibility });
-  appData.update(data => {
+  _appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
     if (view && view.columnConfigs[statusId]) {
       view.columnConfigs[statusId].visible = visibility;
@@ -376,7 +377,7 @@ export function setViewStatusVisibility(viewId: ViewId, statusId: StatusId, visi
 
 export function setViewStatusSortKey(viewId: ViewId, statusId: StatusId, sortKey: SortKey) {
   logFnArgs('setViewStatusSortKey', { viewId, statusId, sortKey });
-  appData.update(data => {
+  _appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
     if (view && view.columnConfigs[statusId]) {
       view.columnConfigs[statusId].sortKey = sortKey;
@@ -387,7 +388,7 @@ export function setViewStatusSortKey(viewId: ViewId, statusId: StatusId, sortKey
 
 export function setViewStatusSortDirection(viewId: ViewId, statusId: StatusId, sortDirection: SortDirection) {
   logFnArgs('setViewStatusSortDirection', { viewId, statusId, sortDirection });
-  appData.update(data => {
+  _appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
     if (view && view.columnConfigs[statusId]) {
       view.columnConfigs[statusId].sortDirection = sortDirection;
@@ -398,7 +399,7 @@ export function setViewStatusSortDirection(viewId: ViewId, statusId: StatusId, s
 
 export function moveView(viewId: ViewId, index: number) {
   logFnArgs('moveView', { viewId, index });
-  appData.update(data => {
+  _appData.update(data => {
     const curIndex = data.views.findIndex(v => v.id === viewId);
     if (curIndex === -1 || index < 0 || index >= data.views.length) return data;
     // Remove element from array and save in 'viewToMove'
@@ -412,7 +413,7 @@ export function moveView(viewId: ViewId, index: number) {
 // 1. Prevent deletion if this is the last view
 export function deleteView(viewId: ViewId) {
   logFnArgs('deleteView', { viewId });
-  appData.update(data => {
+  _appData.update(data => {
     if (data.views.length <= 1) return data;
     data.views = data.views.filter(v => v.id !== viewId);
     return data;

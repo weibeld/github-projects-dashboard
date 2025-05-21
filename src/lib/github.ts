@@ -59,7 +59,7 @@ const graphQlQuery = `
 
 const _githubProjects = writable<Record<ProjectID, GitHubProject>>({});
 export const githubProjects = readonly(_githubProjects);
-githubProjects.subscribe(val => { logStore('githubProjects', val); })
+logStore(githubProjects, 'githubProjects');
 
 function setGitHubProjects(projects: GitHubApiData[] | null | undefined): void {
   const data: Record<ProjectID, GitHubProject> = {};
