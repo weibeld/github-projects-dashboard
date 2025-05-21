@@ -18,11 +18,20 @@ type ColumnConfig = {
   sortDirection: SortDirection;
 }
 
-function getDefaultColumnConfig(): ColumnConfig {
+function getColumnConfigDefault(): ColumnConfig {
   return {
     visible: true,
     sortKey: 'updatedAt',
     sortDirection: 'descending'
+  };
+}
+
+function getAppDataDefault(): AppData {
+  return {
+    projects: {},
+    statuses: [{ id: DEFAULT_STATUS_ID, title: DEFAULT_STATUS_TITLE }],
+    labels: [],
+    views: [],
   };
 }
 
@@ -67,12 +76,7 @@ export interface AppData {
  *----------------------------------------------------------------------------*/
 
 // TODO: make read-only
-export const appData = writable<AppData>({
-  projects: {},
-  statuses: [{ id: DEFAULT_STATUS_ID, title: DEFAULT_STATUS_TITLE }],
-  labels: [],
-  views: [],
-});
+export const appData = writable<AppData>(getAppDataDefault());
 
 // TODO: create function for getting a project, status, label or view by ID
 
@@ -119,7 +123,7 @@ function addDefaultColumnConfigForStatusToView(viewId: ViewId, statusId: StatusI
   logFnArgs('addDefaultColumnConfigForStatusToView', { viewId, statusId });
   appData.update(data => {
     const view = data.views.find(v => v.id === viewId);
-    if (view) view.columnConfigs[statusId] = getDefaultColumnConfig();
+    if (view) view.columnConfigs[statusId] = getColumnConfigDefault();
     return data;
   });
 }
