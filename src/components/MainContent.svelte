@@ -1,19 +1,19 @@
 <script>
   import { Archive } from 'lucide-svelte';
   import LoadingScreen from './LoadingScreen.svelte';
-  import { appData, createView } from '../lib/appData';
+  import { metadata, createMetaView } from '../lib/metadata';
   import { tooltip } from '../lib/tooltip';  // Svelte action
   import Column from './Column.svelte';
 </script>
 
 <!-- TODO: this should check for the completion of loadProjectsFromGitHub() -->
-{#if !$appData}
+{#if !$metadata}
   <LoadingScreen message="Loading projects" />
 {:else}
-  {#each $appData.views as view (view.id)}
+  {#each $metadata.views as view (view.id)}
     <!--{#if view.id === $activeViewId}-->
       <!--<div class="grid grid-cols-1 sm:grid-cols-2 w-full pt-4 pb-2 px-4 gap-4">-->
-        {#each $appData.statuses as status (status.id)}
+        {#each $metadata.statuses as status (status.id)}
           {#if view.columnConfigs[status.id]?.visible}
             <Column title={status.title} projects={[]} />
           {/if}
@@ -23,8 +23,8 @@
   {/each}
 
 
-  <!-- {#each $appData.statuses as statusId (statusId)}
-    {#if !$appData.views[$appData.activeViewId].statusVisibility[statusId]}
+  <!-- {#each $metadata.statuses as statusId (statusId)}
+    {#if !$metadata.views[$metadata.activeViewId].statusVisibility[statusId]}
       <Column
         title={statusId}
         projects={getFilteredProjects(statusId)}

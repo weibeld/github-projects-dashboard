@@ -18,8 +18,6 @@ function deletePersistentValue(name: string): void {
   localStorage.removeItem(name);
 }
 
-
-
 // Detect ongoing login on page load
 function isRedirectFromOAuth(): boolean {
   logFn('isRedirectFromOAuth');

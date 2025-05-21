@@ -1,32 +1,29 @@
 import { writable, get, readonly } from 'svelte/store';
 import { logFnArgs, logFnReturn, logStore } from './log';
-import type { ProjectID, SortKey, SortDirection, LabelColor } from './commonTypes';
+import type {
+  ProjectId,
+  MetaStatusId, MetaLabelId, MetaViewId,
+  MetaSortKey, MetaSortDirection, 
+  MetaLabelColor,
+  MetaColumnConfig,
+  MetaProject, MetaLabel, MetaStatus, MetaView,
+  MetaProjects, MetaLabels, MetaStatuses, MetaViews,
+  Metadata
+} from './commonTypes';
+import { MetaSortKeyVals, MetaSortDirectionVals, MetaLabelColorVals } from './commonTypes';
 
-/*----------------------------------------------------------------------------*
- * Types
- *----------------------------------------------------------------------------*/
+const DEFAULT_STATUS_ID: MetaStatusId = 0;
+const DEFAULT_STATUS_TITLE: string = 'Default';
 
-// TODO: also move to commonTypes.ts?
-type NumericId = number;
-export type StatusId = NumericId;
-export type LabelId = NumericId;
-export type ViewId = NumericId;
-
-type ColumnConfig = {
-  visible: boolean;
-  sortKey: SortKey;
-  sortDirection: SortDirection;
-}
-
-function getColumnConfigDefault(): ColumnConfig {
+function getDefaultColumnConfig(): MetaColumnConfig {
   return {
     visible: true,
-    sortKey: 'updatedAt',
-    sortDirection: 'descending'
+    sortKey: MetaSortKeyVals.UpdatedAt,
+    sortDirection: MetaSortDirectionVals.Desc
   };
 }
 
-function getAppDataDefault(): AppData {
+function getDefaultMetadata(): Metadata {
   return {
     projects: {},
     statuses: [{ id: DEFAULT_STATUS_ID, title: DEFAULT_STATUS_TITLE }],
@@ -35,49 +32,9 @@ function getAppDataDefault(): AppData {
   };
 }
 
-const DEFAULT_STATUS_ID: StatusId = 0;
-const DEFAULT_STATUS_TITLE: string = 'Default';
-
-export interface Project {
-  id: ProjectId;
-  statusId: number;
-  labelIds: Set<number>;
-}
-
-export interface Status {
-  id: StatusId;
-  title: string;
-}
-
-export interface Label {
-  id: LabelId;
-  title: string;
-  color: LabelColor;
-}
-
-export interface View {
-  id: ViewId;
-  title: string;
-  query: string;
-  columnConfigs: Record<StatusId, ColumnConfig>;
-}
-
-export interface AppData {
-  // Unordered data
-  projects: Record<ProjectId, Project>;
-  labels: Record<LabelId, Label>;
-  // Ordered data
-  statuses: Status[];
-  views: View[];
-}
-
-/*----------------------------------------------------------------------------*
- * Instance
- *----------------------------------------------------------------------------*/
-
-const _appData = writable<AppData>(getAppDataDefault());
-export const appData = readonly(_appData);
-logStore(appData, 'appData');
+const _metadata = writable<Metadata>(getDefaultMetadata());
+export const metadata = readonly(_metadata);
+logStore(metadata, 'metadata');
 
 // TODO: create function for getting a project, status, label or view by ID
 
@@ -85,19 +42,19 @@ logStore(appData, 'appData');
  * Private helper functions
  *----------------------------------------------------------------------------*/
 
-function getNewLabelId(): LabelId {
+function getNewLabelId(): MetaLabelId {
   logFnArgs('getNewLabelId', { });
-  return logFnReturn('getNewLabelId', Math.max(0, ...Object.keys(get(_appData).labels).map(Number)) + 1);
-  //const data = get(_appData);
+  return logFnReturn('getNewLabelId', Math.max(0, ...Object.keys(get(_metadata).labels).map(Number)) + 1);
+  //const data = get(_metadata);
   //return Math.max(0, ...data.statuses.map(s => s.id)) + 1;
 }
-function getNewStatusId(): StatusId {
+function getNewStatusId(): MetaStatusId {
   logFnArgs('getNewStatusId', { });
-  return logFnReturn('getNewStatusId', Math.max(0, ...get(_appData).statuses.map(s => s.id)) + 1);
+  return logFnReturn('getNewStatusId', Math.max(0, ...get(_metadata).statuses.map(s => s.id)) + 1);
 }
-function getNewViewId(): ViewId {
+function getNewViewId(): MetaViewId {
   logFnArgs('getNewViewId', { });
-  return logFnReturn('getNewViewId', Math.max(0, ...get(_appData).views.map(v => v.id)) + 1);
+  return logFnReturn('getNewViewId', Math.max(0, ...get(_metadata).views.map(v => v.id)) + 1);
 }
 
 // Return a title of the form "Untitled" or "Untitled X" as follows:
@@ -107,7 +64,7 @@ function getNewViewId(): ViewId {
 function getNewViewTitle(): string {
   logFnArgs('getNewViewTitle', { });
   const base = 'Untitled';
-  const existing = get(_appData).views.map(v => v.title);
+  const existing = get(_metadata).views.map(v => v.title);
   if (!existing.includes(base)) {
     return logFnReturn('getNewViewTitle', base);
   }
@@ -120,32 +77,25 @@ function getNewViewTitle(): string {
 
 // Add a default status config for a given status to a given view. The default
 // status config has visible: true, sortKey: 'updated', sortDirection: 'desc'.
-function addDefaultColumnConfigForStatusToView(viewId: ViewId, statusId: StatusId): void {
+function addDefaultColumnConfigForStatusToView(viewId: MetaViewId, statusId: MetaStatusId): void {
   logFnArgs('addDefaultColumnConfigForStatusToView', { viewId, statusId });
-  _appData.update(data => {
+  _metadata.update(data => {
     const view = data.views.find(v => v.id === viewId);
-    if (view) view.columnConfigs[statusId] = getColumnConfigDefault();
+    if (view) view.columnConfigs[statusId] = getDefaultColumnConfig();
     return data;
   });
 }
 
-/*----------------------------------------------------------------------------*
- * Query functions
- *----------------------------------------------------------------------------*/
-
-export function isLabelTitleUnique(title: string) {
-  logFnArgs('isLabelTitleUnique', { title });
-  return logFnReturn('isLabelTitleUnique', !Object.values(get(_appData).labels).some(l => l.title === title));
+function isLabelTitleUnique(title: string): boolean {
+  return !Object.values(get(_metadata).labels).some(l => l.title === title);
 }
 
-export function isStatusTitleUnique(title: string) {
-  logFnArgs('isStatusTitleUnique', { title });
-  return logFnReturn('isStatusTitleUnique', !get(_appData).statuses.some(s => s.title === title));
+function isStatusTitleUnique(title: string): boolean {
+  return !get(_metadata).statuses.some(s => s.title === title);
 }
 
-export function isViewTitleUnique(title: string) {
-  logFnArgs('isViewTitleUnique', { title });
-  return logFnReturn('isViewTitleUnique', !get(_appData).views.some(v => v.title === title));
+function isViewTitleUnique(title: string): boolean {
+  return !get(_metadata).views.some(v => v.title === title);
 }
 
 /*----------------------------------------------------------------------------*
@@ -153,26 +103,26 @@ export function isViewTitleUnique(title: string) {
  *----------------------------------------------------------------------------*/
 
 // 1. Assign Default status and empty set of labels to new projects
-export function createProject(projectId: ProjectId) {
-  logFnArgs('createProject', { projectId });
-  _appData.update(data => {
+export function createMetaProject(projectId: ProjectId) {
+  logFnArgs('createMetaProject', { projectId });
+  _metadata.update(data => {
     data.projects[projectId] = { id: projectId, statusId: DEFAULT_STATUS_ID, labelIds: new Set() };
     return data;
   });
 }
 
-export function setProjectStatus(projectId: ProjectId, statusId: StatusId) {
-  logFnArgs('setProjectStatus', { projectId, statusId });
-  _appData.update(data => {
+export function setMetaProjectStatus(projectId: ProjectId, statusId: MetaStatusId) {
+  logFnArgs('setMetaProjectStatus', { projectId, statusId });
+  _metadata.update(data => {
     const project = data.projects[projectId];
     if (project) project.statusId = statusId;
     return data;
   });
 }
 
-export function addProjectLabel(projectId: ProjectId, labelId: LabelId) {
-  logFnArgs('addProjectLabel', { projectId, labelId });
-  _appData.update(data => {
+export function addMetaProjectLabel(projectId: ProjectId, labelId: MetaLabelId) {
+  logFnArgs('addMetaProjectLabel', { projectId, labelId });
+  _metadata.update(data => {
     data.projects[projectId].labelIds.add(labelId);
     // TODO: use below if no reactive update in UI
     /*const newLabelSet = new Set(data.projects[projectId].labelIds);
@@ -182,9 +132,9 @@ export function addProjectLabel(projectId: ProjectId, labelId: LabelId) {
   });
 }
 
-export function deleteProjectLabel(projectId: ProjectId, labelId: LabelId) {
-  logFnArgs('deleteProjectLabel', { projectId, labelId });
-  _appData.update(data => {
+export function deleteMetaProjectLabel(projectId: ProjectId, labelId: MetaLabelId) {
+  logFnArgs('deleteMetaProjectLabel', { projectId, labelId });
+  _metadata.update(data => {
     data.projects[projectId].labelIds.delete(labelId);
     // TODO: use below if no reactive update in UI
     /*const newLabelSet = new Set(data.projects[projectId].labelIds);
@@ -194,17 +144,17 @@ export function deleteProjectLabel(projectId: ProjectId, labelId: LabelId) {
   });
 }
 
-export function deleteProject(projectId: ProjectId) {
-  logFnArgs('deleteProject', { projectId });
-  _appData.update(data => {
+export function deleteMetaProject(projectId: ProjectId) {
+  logFnArgs('deleteMetaProject', { projectId });
+  _metadata.update(data => {
     delete data.projects[projectId];
     return data;
   });
 }
 
-export function getProjectIds(): ProjectId[] {
-  logFnArgs('getProjectIds', { });
-  return logFnReturn('getProjectIds', Object.keys(get(_appData).projects));
+export function getMetaProjectIds(): ProjectId[] {
+  logFnArgs('getMetaProjectIds', { });
+  return logFnReturn('getMetaProjectIds', Object.keys(get(_metadata).projects));
 }
 
 /*----------------------------------------------------------------------------*
@@ -212,9 +162,9 @@ export function getProjectIds(): ProjectId[] {
  *----------------------------------------------------------------------------*/
 
 // 1. Ensure that label title is unique
-export function createLabel(title: string, color: LabelColor) {
-  logFnArgs('createLabel', { title, color });
-  _appData.update(data => {
+export function createMetaLabel(title: string, color: MetaLabelColor) {
+  logFnArgs('createMetaLabel', { title, color });
+  _metadata.update(data => {
     if (Object.values(data.labels).some(l => l.title === title)) return data;
     const id = getNewLabelId();
     data.labels[id] = { id, title, color };
@@ -223,9 +173,9 @@ export function createLabel(title: string, color: LabelColor) {
 }
 
 // 1. Ensure that label title is unique
-export function setLabelTitle(labelId: LabelId, title: string) {
-  logFnArgs('setLabelTitle', { labelId, title });
-  _appData.update(data => {
+export function setMetaLabelTitle(labelId: MetaLabelId, title: string) {
+  logFnArgs('setMetaLabelTitle', { labelId, title });
+  _metadata.update(data => {
     if (Object.values(data.labels).some(l => l.title === title)) return data;
     const label = data.labels[labelId];
     if (label) label.title = title;
@@ -233,22 +183,22 @@ export function setLabelTitle(labelId: LabelId, title: string) {
   });
 }
 
-export function setLabelColor(labelId: LabelId, color: LabelColor) {
-  logFnArgs('setLabelColor', { labelId, color });
-  _appData.update(data => {
+export function setMetaLabelColor(labelId: MetaLabelId, color: MetaLabelColor) {
+  logFnArgs('setMetaLabelColor', { labelId, color });
+  _metadata.update(data => {
     const label = data.labels[labelId];
     if (label) label.color = color;
     return data;
   });
 }
 
-// 1. Call 'deleteProjectLabel()' for the deleted label on all projects that have this label
-export function deleteLabel(labelId: LabelId) {
-  logFnArgs('deleteLabel', { labelId });
-  _appData.update(data => {
+// 1. Call 'deleteMetaProjectLabel()' for the deleted label on all projects that have this label
+export function deleteMetaLabel(labelId: MetaLabelId) {
+  logFnArgs('deleteMetaLabel', { labelId });
+  _metadata.update(data => {
     delete data.labels[labelId];
     for (const projectId in data.projects) {
-      deleteProjectLabel(projectId, labelId);
+      deleteMetaProjectLabel(projectId, labelId);
     }
     return data;
   });
@@ -261,9 +211,9 @@ export function deleteLabel(labelId: LabelId) {
 // 1. Ensure that status title is unique
 // 2. Add status to end of ordered status list
 // 3. Call 'addViewStatusConfig()' for the created status on all views
-export function createStatus(title: string) {
-  logFnArgs('createStatus', { title });
-  _appData.update(data => {
+export function createMetaStatus(title: string) {
+  logFnArgs('createMetaStatus', { title });
+  _metadata.update(data => {
     if (data.statuses.some(s => s.title === title)) return data;
     const statusId = getNewStatusId();
     data.statuses.push({ statusId, title });
@@ -275,9 +225,9 @@ export function createStatus(title: string) {
 }
 
 // 1. Ensure that status title is unique
-export function setStatusTitle(statusId: StatusId, title: string) {
-  logFnArgs('setStatusTitle', { statusId, title });
-  _appData.update(data => {
+export function setMetaStatusTitle(statusId: MetaStatusId, title: string) {
+  logFnArgs('setMetaStatusTitle', { statusId, title });
+  _metadata.update(data => {
     if (data.statuses.some(s => s.title === title)) return data;
     const status = data.statuses.find(s => s.id === statusId);
     if (status) status.title = title;
@@ -285,27 +235,27 @@ export function setStatusTitle(statusId: StatusId, title: string) {
   });
 }
 
-export function moveStatus(statusId: StatusId, index: number) {
-  logFnArgs('moveStatus', { statusId, index });
-  _appData.update(data => {
+export function reorderMetaStatus(statusId: MetaStatusId, newIndex: number) {
+  logFnArgs('reorderMetaStatus', { statusId, newIndex });
+  _metadata.update(data => {
     const curIndex = data.statuses.findIndex(s => s.id === statusId);
-    if (curIndex === -1 || index < 0 || index >= data.statuses.length) return data;
+    if (curIndex === -1 || newIndex < 0 || newIndex >= data.statuses.length) return data;
     // Remove element from array and save in 'statusToMove'
     const [statusToMove] = data.statuses.splice(curIndex, 1);
     // Insert element at desired index (shift other elements if necessary)
-    data.statuses.splice(index, 0, statusToMove);
+    data.statuses.splice(newIndex, 0, statusToMove);
     return data;
   });
 }
 
 // 1. Ensure that 'statusId' is not 0 (which is the "Default" status that can't be deleted)
 // 2. Recompact ordered status list
-// 3. Assign the "Default" status to all projects that have the deleted status by calling 'setProjectStatus(statusId = 0, ...)' for these projects
+// 3. Assign the "Default" status to all projects that have the deleted status by calling 'setMetaProjectStatus(statusId = 0, ...)' for these projects
 // 4. Call 'deleteViewStatusConfig()' for the deleted status on all views
-export function deleteStatus(statusId: StatusId) {
-  logFnArgs('deleteStatus', { statusId });
+export function deleteMetaStatus(statusId: MetaStatusId) {
+  logFnArgs('deleteMetaStatus', { statusId });
   if (statusId === DEFAULT_STATUS_ID) return;
-  _appData.update(data => {
+  _metadata.update(data => {
     data.statuses = data.statuses.filter(s => s.id !== statusId);
     for (const projectId in data.projects) {
       if (data.projects[projectId].statusId === statusId) {
@@ -329,12 +279,12 @@ export function deleteStatus(statusId: StatusId) {
 // 2. Create the view with an empty columnConfigs
 // 3. Add the new view to the back of the ordered list of views
 // 4. Add default status configs to the view by calling 'addViewStatusConfig()' on the view for every status
-export function createView(query: string = '') {
-  logFnArgs('createView', { query });
-  _appData.update(data => {
+export function createMetaView(query: string = '') {
+  logFnArgs('createMetaView', { query });
+  _metadata.update(data => {
     const id = getNewViewId();
     const title = getNewViewTitle();
-    const view: View = { id, title, query, columnConfigs: {} };
+    const view: MetaView = { id, title, query, columnConfigs: {} };
     data.views.push(view);
     for (const status of data.statuses) {
       addDefaultColumnConfigForStatusToView(view.id, status.id);
@@ -344,9 +294,9 @@ export function createView(query: string = '') {
 }
 
 // 1. Ensure that the view title is unique
-export function setViewTitle(viewId: ViewId, title: string) {
-  logFnArgs('setViewTitle', { viewId, title });
-  _appData.update(data => {
+export function setMetaViewTitle(viewId: MetaViewId, title: string) {
+  logFnArgs('setMetaViewTitle', { viewId, title });
+  _metadata.update(data => {
     if (data.views.some(v => v.title === title)) return data;
     const view = data.views.find(v => v.id === viewId);
     if (view) view.title = title;
@@ -355,18 +305,18 @@ export function setViewTitle(viewId: ViewId, title: string) {
 }
 
 
-export function setViewQuery(viewId: ViewId, query: string) {
-  logFnArgs('setViewQuery', { viewId, query });
-  _appData.update(data => {
+export function setMetaViewQuery(viewId: MetaViewId, query: string) {
+  logFnArgs('setMetaViewQuery', { viewId, query });
+  _metadata.update(data => {
     const view = data.views.find(v => v.id === viewId);
     if (view) view.query = query;
     return data;
   });
 }
 
-export function setViewStatusVisibility(viewId: ViewId, statusId: StatusId, visibility: boolean) {
-  logFnArgs('setViewStatusVisibility', { viewId, statusId, visibility });
-  _appData.update(data => {
+export function setColumnVisibility(viewId: MetaViewId, statusId: MetaStatusId, visibility: boolean) {
+  logFnArgs('setColumnVisibility', { viewId, statusId, visibility });
+  _metadata.update(data => {
     const view = data.views.find(v => v.id === viewId);
     if (view && view.columnConfigs[statusId]) {
       view.columnConfigs[statusId].visible = visibility;
@@ -375,9 +325,9 @@ export function setViewStatusVisibility(viewId: ViewId, statusId: StatusId, visi
   });
 }
 
-export function setViewStatusSortKey(viewId: ViewId, statusId: StatusId, sortKey: SortKey) {
-  logFnArgs('setViewStatusSortKey', { viewId, statusId, sortKey });
-  _appData.update(data => {
+export function setColumnSortKey(viewId: MetaViewId, statusId: MetaStatusId, sortKey: MetaSortKey) {
+  logFnArgs('setColumnSortKey', { viewId, statusId, sortKey });
+  _metadata.update(data => {
     const view = data.views.find(v => v.id === viewId);
     if (view && view.columnConfigs[statusId]) {
       view.columnConfigs[statusId].sortKey = sortKey;
@@ -386,9 +336,9 @@ export function setViewStatusSortKey(viewId: ViewId, statusId: StatusId, sortKey
   });
 }
 
-export function setViewStatusSortDirection(viewId: ViewId, statusId: StatusId, sortDirection: SortDirection) {
-  logFnArgs('setViewStatusSortDirection', { viewId, statusId, sortDirection });
-  _appData.update(data => {
+export function setColumnSortDirection(viewId: MetaViewId, statusId: MetaStatusId, sortDirection: MetaSortDirection) {
+  logFnArgs('setColumnSortDirection', { viewId, statusId, sortDirection });
+  _metadata.update(data => {
     const view = data.views.find(v => v.id === viewId);
     if (view && view.columnConfigs[statusId]) {
       view.columnConfigs[statusId].sortDirection = sortDirection;
@@ -397,9 +347,9 @@ export function setViewStatusSortDirection(viewId: ViewId, statusId: StatusId, s
   });
 }
 
-export function moveView(viewId: ViewId, index: number) {
-  logFnArgs('moveView', { viewId, index });
-  _appData.update(data => {
+export function reorderMetaView(viewId: MetaViewId, index: number) {
+  logFnArgs('reorderMetaView', { viewId, index });
+  _metadata.update(data => {
     const curIndex = data.views.findIndex(v => v.id === viewId);
     if (curIndex === -1 || index < 0 || index >= data.views.length) return data;
     // Remove element from array and save in 'viewToMove'
@@ -411,9 +361,9 @@ export function moveView(viewId: ViewId, index: number) {
 }
 
 // 1. Prevent deletion if this is the last view
-export function deleteView(viewId: ViewId) {
-  logFnArgs('deleteView', { viewId });
-  _appData.update(data => {
+export function deleteMetaView(viewId: MetaViewId) {
+  logFnArgs('deleteMetaView', { viewId });
+  _metadata.update(data => {
     if (data.views.length <= 1) return data;
     data.views = data.views.filter(v => v.id !== viewId);
     return data;

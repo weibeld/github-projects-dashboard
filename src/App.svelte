@@ -11,23 +11,23 @@
   import { setupAuth, login, logout,
     isLoggingOut, isLoggingInInit, isLoggingInAfterOAuth, isLoggedIn } from './lib/auth';
   import { loadProjectsFromGitHub } from './lib/github.ts';
-  import { appData, createView } from './lib/appData';
+  import { metadata, createMetaView } from './lib/metadata';
 
   //let session = null;
   //let token = null;
 
   // Subscribe to the store
-  /*let $appData;
-  appData.subscribe(value => {
-    $appData = value;
+  /*let $metadata;
+  metadata.subscribe(value => {
+    $metadata = value;
   });*/
 
   /*
   const getFilteredProjects = (statusId: string) =>
-    Object.values($appData.projects).filter(p => p.status === statusId && !$appData.views[$appData.activeViewId].statusVisibility[statusId]);
+    Object.values($metadata.projects).filter(p => p.status === statusId && !$metadata.views[$metadata.activeViewId].statusVisibility[statusId]);
 
   const getClosedProjects = () =>
-    Object.values($appData.projects).filter((p) => p.status === 'done');
+    Object.values($metadata.projects).filter((p) => p.status === 'done');
  */
 
   /*#############*/
@@ -72,7 +72,7 @@
     return (evt) => {
       const projectId = evt.item?.dataset?.id;
       if (projectId) {
-        appData.update(data => {
+        metadata.update(data => {
           const project = data.projects[projectId];
           if (project) {
             project.status = statusId;
@@ -88,8 +88,8 @@
     // Execute only after isLoggedIn has been set to true in INITIAL_SESSION
     isLoggedIn.subscribe(async (value) => {
       if (value) {
-        // TODO: hardcode default view in appData default value
-        if (get(appData).views.length === 0) createView();
+        // TODO: hardcode default view in metadata default value
+        if (get(metadata).views.length === 0) createMetaView();
         // TODO: implement loading indicator
         await loadProjectsFromGitHub();
       }
@@ -100,8 +100,8 @@
     handleLogin();
   }
   async function handleLogin() {
-    if (get(appData).views.length === 0) {
-      createView();
+    if (get(metadata).views.length === 0) {
+      createMetaView();
     }
     loadProjectsFromGitHub();
   }*/
@@ -110,7 +110,7 @@
       if (session) loadProjectsFromGitHub(getToken());
     });
     if (hasActiveSession()) {
-      if (get(appData).views.length === 0) createView();
+      if (get(metadata).views.length === 0) createMetaView();
       await loadProjectsFromGitHub(getToken());
     }
 
@@ -126,8 +126,8 @@
     if (session) {
       token = session.provider_token;
       console.log('session:', session);
-      if (get(appData).views.length === 0) createView();
-      console.log('appData: ', get(appData));
+      if (get(metadata).views.length === 0) createMetaView();
+      console.log('metadata: ', get(metadata));
       await loadProjectsFromGitHub(token);
     }
   });*/
