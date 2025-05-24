@@ -99,7 +99,7 @@ function getNewViewTitle(): string {
 function addDefaultColumnConfigForStatusToView(viewId: MetaViewId, statusId: MetaStatusId): void {
   logFnArgs('addDefaultColumnConfigForStatusToView', { viewId, statusId });
   _metadata.update(data => {
-    const view = data.views.find(v => v.id === viewId);
+    const view = getMetaView(viewId);
     if (view) view.columnConfigs[statusId] = getDefaultColumnConfig();
     return data;
   });
@@ -120,6 +120,10 @@ function isViewTitleUnique(title: string): boolean {
 /*----------------------------------------------------------------------------*
  * Project functions
  *----------------------------------------------------------------------------*/
+
+function getMetaProject(projectId: ProjectId): MetaProject {
+  return metaProjects.find(p => p.id === projectId);
+}
 
 // 1. Assign Default status and empty set of labels to new projects
 export function createMetaProject(projectId: ProjectId) {
@@ -180,6 +184,10 @@ export function getMetaProjectIds(): ProjectId[] {
  * Label manipulation functions
  *----------------------------------------------------------------------------*/
 
+function getMetaLabel(labelId: LabelId): MetaLabel {
+  return metaLabels.find(l => l.id === labelId);
+}
+
 // 1. Ensure that label title is unique
 export function createMetaLabel(title: string, color: MetaLabelColor) {
   logFnArgs('createMetaLabel', { title, color });
@@ -227,6 +235,10 @@ export function deleteMetaLabel(labelId: MetaLabelId) {
  * Status manipulation functions
  *----------------------------------------------------------------------------*/
 
+function getMetaStatus(statusId: StatusId): MetaStatus {
+  return metaStatuses.find(s => s.id === statusId);
+}
+
 // 1. Ensure that status title is unique
 // 2. Add status to end of ordered status list
 // 3. Call 'addViewStatusConfig()' for the created status on all views
@@ -248,7 +260,7 @@ export function setMetaStatusTitle(statusId: MetaStatusId, title: string) {
   logFnArgs('setMetaStatusTitle', { statusId, title });
   _metadata.update(data => {
     if (data.statuses.some(s => s.title === title)) return data;
-    const status = data.statuses.find(s => s.id === statusId);
+    const status = getMetaStatus(statusId);
     if (status) status.title = title;
     return data;
   });
@@ -257,7 +269,7 @@ export function setMetaStatusTitle(statusId: MetaStatusId, title: string) {
 export function reorderMetaStatus(statusId: MetaStatusId, newIndex: number) {
   logFnArgs('reorderMetaStatus', { statusId, newIndex });
   _metadata.update(data => {
-    const curIndex = data.statuses.findIndex(s => s.id === statusId);
+    const curIndex = metaStatuses.findIndex(s => s.id === statusId);
     if (curIndex === -1 || newIndex < 0 || newIndex >= data.statuses.length) return data;
     // Remove element from array and save in 'statusToMove'
     const [statusToMove] = data.statuses.splice(curIndex, 1);
@@ -294,6 +306,10 @@ export function deleteMetaStatus(statusId: MetaStatusId) {
  * View manipulation functions
  *----------------------------------------------------------------------------*/
 
+function getMetaView(viewId: ViewId): MetaView {
+  return get(metaViews).find(v => v.id === viewId);
+}
+
 // 1. Get a unique new view title by calling 'getNewViewTitle()'
 // 2. Create the view with an empty columnConfigs
 // 3. Add the new view to the back of the ordered list of views
@@ -317,7 +333,7 @@ export function setMetaViewTitle(viewId: MetaViewId, title: string) {
   logFnArgs('setMetaViewTitle', { viewId, title });
   _metadata.update(data => {
     if (data.views.some(v => v.title === title)) return data;
-    const view = data.views.find(v => v.id === viewId);
+    const view = getMetaView(viewId);
     if (view) view.title = title;
     return data;
   });
@@ -327,7 +343,7 @@ export function setMetaViewTitle(viewId: MetaViewId, title: string) {
 export function setMetaViewQuery(viewId: MetaViewId, query: string) {
   logFnArgs('setMetaViewQuery', { viewId, query });
   _metadata.update(data => {
-    const view = data.views.find(v => v.id === viewId);
+    const view = getMetaView(viewId);
     if (view) view.query = query;
     return data;
   });
@@ -336,7 +352,7 @@ export function setMetaViewQuery(viewId: MetaViewId, query: string) {
 export function setColumnVisibility(viewId: MetaViewId, statusId: MetaStatusId, visibility: boolean) {
   logFnArgs('setColumnVisibility', { viewId, statusId, visibility });
   _metadata.update(data => {
-    const view = data.views.find(v => v.id === viewId);
+    const view = getMetaView(viewId);
     if (view && view.columnConfigs[statusId]) {
       view.columnConfigs[statusId].visible = visibility;
     }
@@ -345,13 +361,13 @@ export function setColumnVisibility(viewId: MetaViewId, statusId: MetaStatusId, 
 }
 
 export function isColumnVisible(viewId: MetaViewId, statusId: MetaStatusId): boolean {
-  return get(_metadata).views.find(v => v.id === viewId).columnConfigs[statusId].visible;
+  return getMetaView(viewId).columnConfigs[statusId].visible;
 }
 
 export function setColumnSortKey(viewId: MetaViewId, statusId: MetaStatusId, sortKey: MetaSortKey) {
   logFnArgs('setColumnSortKey', { viewId, statusId, sortKey });
   _metadata.update(data => {
-    const view = data.views.find(v => v.id === viewId);
+    const view = getMetaView(viewId);
     if (view && view.columnConfigs[statusId]) {
       view.columnConfigs[statusId].sortKey = sortKey;
     }
@@ -362,7 +378,7 @@ export function setColumnSortKey(viewId: MetaViewId, statusId: MetaStatusId, sor
 export function setColumnSortDirection(viewId: MetaViewId, statusId: MetaStatusId, sortDirection: MetaSortDirection) {
   logFnArgs('setColumnSortDirection', { viewId, statusId, sortDirection });
   _metadata.update(data => {
-    const view = data.views.find(v => v.id === viewId);
+    const view = getMetaView(viewId);
     if (view && view.columnConfigs[statusId]) {
       view.columnConfigs[statusId].sortDirection = sortDirection;
     }
