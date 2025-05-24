@@ -1,4 +1,4 @@
-import { writable, get, readonly } from 'svelte/store';
+import { writable, get, readonly, derived } from 'svelte/store';
 import { logFnArgs, logFnReturn, logStore } from './log';
 import type {
   ProjectId,
@@ -54,7 +54,15 @@ function getDefaultMetadata(): Metadata {
 
 const _metadata = writable<Metadata>(getDefaultMetadata());
 export const metadata = readonly(_metadata);
-logStore(metadata, 'metadata');
+export const metaProjects = derived(metadata, data => data.projects);
+export const metaLabels = derived(metadata, data => data.labels);
+export const metaStatuses = derived(metadata, data => data.statuses);
+export const metaViews = derived(metadata, data => data.views);
+//logStore(metadata, 'metadata');
+logStore(metaProjects, 'metaProjects');
+logStore(metaLabels, 'metaLabels');
+logStore(metaStatuses, 'metaStatuses');
+logStore(metaViews, 'metaViews');
 
 // TODO: create function for getting a project, status, label or view by ID
 
@@ -63,24 +71,15 @@ logStore(metadata, 'metadata');
  *----------------------------------------------------------------------------*/
 
 function getNewLabelId(): MetaLabelId {
-  logFnArgs('getNewLabelId', { });
-  return logFnReturn('getNewLabelId', Math.max(0, ...Object.keys(get(_metadata).labels).map(Number)) + 1);
-  //const data = get(_metadata);
-  //return Math.max(0, ...data.statuses.map(s => s.id)) + 1;
+  Math.max(0, ...Object.keys(get(_metadata).labels).map(Number)) + 1;
 }
 function getNewStatusId(): MetaStatusId {
-  logFnArgs('getNewStatusId', { });
-  return logFnReturn('getNewStatusId', Math.max(0, ...get(_metadata).statuses.map(s => s.id)) + 1);
+  Math.max(0, ...get(_metadata).statuses.map(s => s.id)) + 1;
 }
 function getNewViewId(): MetaViewId {
-  logFnArgs('getNewViewId', { });
-  return logFnReturn('getNewViewId', Math.max(0, ...get(_metadata).views.map(v => v.id)) + 1);
+  Math.max(0, ...get(_metadata).views.map(v => v.id)) + 1;
 }
 
-// Return a title of the form "Untitled" or "Untitled X" as follows:
-//   1. If no other view with title "Untitled" exists, return "Untitled"
-//   2. If another view with title "Untitled" exists, return "Untitled 2"
-//   3. If another view with title "Untitled X" exists, return "Untitled X+1"k
 function getNewViewTitle(): string {
   logFnArgs('getNewViewTitle', { });
   const base = DEFAULT_NEW_VIEW_TITLE;
@@ -343,6 +342,10 @@ export function setColumnVisibility(viewId: MetaViewId, statusId: MetaStatusId, 
     }
     return data;
   });
+}
+
+export function isColumnVisible(viewId: MetaViewId, statusId: MetaStatusId): boolean {
+  return get(_metadata).views.find(v => v.id === viewId).columnConfigs[statusId].visible;
 }
 
 export function setColumnSortKey(viewId: MetaViewId, statusId: MetaStatusId, sortKey: MetaSortKey) {

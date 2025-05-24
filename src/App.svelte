@@ -11,7 +11,7 @@
   import { setupAuth, login, logout,
     isLoggingOut, isLoggingInInit, isLoggingInAfterOAuth, isLoggedIn } from './lib/auth';
   import { loadProjectsFromGitHub } from './lib/github.ts';
-  import { metadata } from './lib/metadata';
+  import { metaProjects, metaLabels, metaStatuses, metaViews } from './lib/metadata';
 
   //let session = null;
   //let token = null;
@@ -68,7 +68,7 @@
   };*/
 
 
-  function handleDrop(statusId: string) {
+  /*function handleDrop(statusId: string) {
     return (evt) => {
       const projectId = evt.item?.dataset?.id;
       if (projectId) {
@@ -81,7 +81,7 @@
         });
       }
     };
-  }
+  }*/
 
   onMount(async () => {
     setupAuth();

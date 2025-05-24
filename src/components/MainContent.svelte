@@ -1,7 +1,7 @@
 <script>
   import { Archive } from 'lucide-svelte';
   import LoadingScreen from './LoadingScreen.svelte';
-  import { metadata } from '../lib/metadata';
+  import { metadata, metaProjects, metaLabels, metaStatuses, metaViews, isColumnVisible } from '../lib/metadata';
   import { tooltip } from '../lib/tooltip';  // Svelte action
   import Column from './Column.svelte';
 </script>
@@ -10,11 +10,11 @@
 {#if !$metadata}
   <LoadingScreen message="Loading projects" />
 {:else}
-  {#each $metadata.views as view (view.id)}
+  {#each $metaViews as view (view.id)}
     <!--{#if view.id === $activeViewId}-->
       <!--<div class="grid grid-cols-1 sm:grid-cols-2 w-full pt-4 pb-2 px-4 gap-4">-->
-        {#each $metadata.statuses as status (status.id)}
-          {#if view.columnConfigs[status.id]?.visible}
+        {#each $metaStatuses as status (status.id)}
+          {#if isColumnVisible(view.id, status.id)}
             <Column title={status.title} projects={[]} />
           {/if}
         {/each}
