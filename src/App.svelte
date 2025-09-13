@@ -5,6 +5,7 @@
   import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, deleteStatus, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel } from './lib/database';
   import type { Status, Project, Label } from './lib/database';
   import type { GitHubProject } from './lib/github';
+  import { parse, filter } from 'liqe';
 
   let statuses: Status[] = [];
   let projects: Project[] = [];
@@ -21,13 +22,59 @@
   let creatingLabel = false;
   let draggedProject: Project | null = null;
   let dragOverColumn: string | null = null;
+  let searchQuery = '';
+  let filteredProjects: Project[] = [];
 
   // Subscribe to GitHub projects data
   $: githubProjectsData = $githubProjects;
 
-  // Reactive grouped projects - recomputed whenever projects or statuses change
+  // Apply search filtering using liqe
+  $: filteredProjects = (() => {
+    if (!searchQuery.trim()) {
+      return projects;
+    }
+
+    try {
+      // Parse the Lucene-style query
+      const query = parse(searchQuery);
+
+      // Transform projects to searchable format for liqe
+      // Naked terms will search across all text fields
+      // Explicit field syntax like "title:foo" or "label:bar" for precise targeting
+      const searchableProjects = projects.map(project => {
+        const githubProject = githubProjectsData[project.id];
+        const projectLabels = (project.labels || []).map(l => l.title);
+
+        return {
+          ...project,
+          // All searchable text fields (for naked terms and explicit field searches)
+          title: githubProject?.title || '',
+          description: githubProject?.shortDescription || '',
+          visibility: githubProject?.visibility || '',
+          // Concatenated labels string for label field searches
+          label: projectLabels.join(' ').toLowerCase(),
+          // Keep numeric and boolean fields for specific searches
+          number: githubProject?.number || 0,
+          items: githubProject?.items || 0,
+          isClosed: githubProject?.isClosed || false
+        };
+      });
+
+      // Filter using liqe
+      const filtered = filter(query, searchableProjects);
+
+      // Return original project objects
+      return filtered.map(p => projects.find(orig => orig.id === p.id)!);
+    } catch (error) {
+      // If query is invalid, show all projects
+      console.warn('Invalid search query:', searchQuery, error);
+      return projects;
+    }
+  })();
+
+  // Reactive grouped projects - recomputed whenever filteredProjects or statuses change
   $: groupedProjects = statuses.reduce((acc, status) => {
-    acc[status.id] = projects
+    acc[status.id] = filteredProjects
       .filter(p => p.status_id === status.id)
       .sort((a, b) => a.position - b.position);
     return acc;
@@ -499,6 +546,76 @@
               <p class="text-xs mt-1">Create labels to organize your projects</p>
             </div>
           {/if}
+        </div>
+
+        <!-- Search Bar -->
+        <div class="mb-6">
+          <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex items-center gap-3">
+              <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              </div>
+              <input
+                bind:value={searchQuery}
+                placeholder="Search projects... (e.g., &quot;app&quot;, &quot;title:dashboard&quot;, &quot;label:frontend&quot;, &quot;web -label:archived&quot;)"
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              {#if searchQuery}
+                <button
+                  on:click={() => searchQuery = ''}
+                  class="flex-shrink-0 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                  title="Clear search"
+                >
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                  </svg>
+                </button>
+              {/if}
+            </div>
+
+            <!-- Search Examples -->
+            <div class="mt-3 flex flex-wrap gap-2 text-sm">
+              <span class="text-gray-500">Examples:</span>
+              <button
+                on:click={() => searchQuery = 'app'}
+                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              >
+                app
+              </button>
+              <button
+                on:click={() => searchQuery = 'title:dashboard'}
+                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              >
+                title:dashboard
+              </button>
+              <button
+                on:click={() => searchQuery = 'label:frontend'}
+                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              >
+                label:frontend
+              </button>
+              <button
+                on:click={() => searchQuery = 'web -label:archived'}
+                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              >
+                web -label:archived
+              </button>
+            </div>
+
+            <!-- Results Summary -->
+            {#if searchQuery}
+              <div class="mt-3 text-sm text-gray-600">
+                Showing {filteredProjects.length} of {projects.length} projects
+                {#if filteredProjects.length !== projects.length}
+                  <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                    {projects.length - filteredProjects.length} hidden
+                  </span>
+                {/if}
+              </div>
+            {/if}
+          </div>
         </div>
 
         <!-- Project Dashboard -->

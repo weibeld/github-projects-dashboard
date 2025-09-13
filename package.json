@@ -19,6 +19,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
     "dayjs": "^1.11.13",
+    "liqe": "^3.8.3",
     "loglevel": "^1.9.2",
     "lucide-svelte": "^0.503.0",
     "sortablejs": "^1.15.6"
