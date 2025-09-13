@@ -11,7 +11,7 @@
   import { setupAuth, login, logout,
     isLoggingOut, isLoggingInInit, isLoggingInAfterOAuth, isLoggedIn } from './lib/auth';
   import { loadProjectsFromGitHub } from './lib/github.ts';
-  import { metaProjects, metaLabels, metaStatuses, metaViews } from './lib/metadata';
+  import { metaProjects, metaLabels, metaStatuses, metaViews, getMetaStatus, getMetaView } from './lib/metadata';
 
   //let session = null;
   //let token = null;
@@ -94,6 +94,8 @@
         await loadProjectsFromGitHub();
       }
     });
+    console.log(getMetaView(1));
+    console.log(getMetaStatus(0));
   });
 
   /*$: if ($session) {

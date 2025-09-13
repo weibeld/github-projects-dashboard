@@ -117,15 +117,26 @@ function isViewTitleUnique(title: string): boolean {
   return !get(_metadata).views.some(v => v.title === title);
 }
 
+export function getMetaProject(projectId: ProjectId): MetaProject | undefined {
+  return get(metaProjects)[projectId];
+}
+
+export function getMetaLabel(labelId: LabelId): MetaLabel | undefined {
+  return get(metaLabels)[labelId];
+}
+
+export function getMetaView(viewId: ViewId): MetaView | undefined {
+  return get(metaViews).find(v => v.id === viewId);
+}
+
+export function getMetaStatus(statusId: StatusId): MetaStatus | undefined {
+  return get(metaStatuses).find(s => s.id === statusId);
+}
+
 /*----------------------------------------------------------------------------*
  * Project functions
  *----------------------------------------------------------------------------*/
 
-function getMetaProject(projectId: ProjectId): MetaProject {
-  return metaProjects.find(p => p.id === projectId);
-}
-
-// 1. Assign Default status and empty set of labels to new projects
 export function createMetaProject(projectId: ProjectId) {
   logFnArgs('createMetaProject', { projectId });
   _metadata.update(data => {
@@ -184,10 +195,6 @@ export function getMetaProjectIds(): ProjectId[] {
  * Label manipulation functions
  *----------------------------------------------------------------------------*/
 
-function getMetaLabel(labelId: LabelId): MetaLabel {
-  return metaLabels.find(l => l.id === labelId);
-}
-
 // 1. Ensure that label title is unique
 export function createMetaLabel(title: string, color: MetaLabelColor) {
   logFnArgs('createMetaLabel', { title, color });
@@ -234,10 +241,6 @@ export function deleteMetaLabel(labelId: MetaLabelId) {
 /*----------------------------------------------------------------------------*
  * Status manipulation functions
  *----------------------------------------------------------------------------*/
-
-function getMetaStatus(statusId: StatusId): MetaStatus {
-  return metaStatuses.find(s => s.id === statusId);
-}
 
 // 1. Ensure that status title is unique
 // 2. Add status to end of ordered status list
@@ -305,10 +308,6 @@ export function deleteMetaStatus(statusId: MetaStatusId) {
 /*----------------------------------------------------------------------------*
  * View manipulation functions
  *----------------------------------------------------------------------------*/
-
-function getMetaView(viewId: ViewId): MetaView {
-  return get(metaViews).find(v => v.id === viewId);
-}
 
 // 1. Get a unique new view title by calling 'getNewViewTitle()'
 // 2. Create the view with an empty columnConfigs
