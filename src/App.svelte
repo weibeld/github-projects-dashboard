@@ -2,18 +2,36 @@
   import { onMount } from 'svelte';
   import { setupAuth, login, logout, isLoggedIn, isLoggingOut } from './lib/auth';
   import { loadProjectsFromGitHub, githubProjects } from './lib/github';
-  import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects } from './lib/database';
-  import type { Status, Project } from './lib/database';
+  import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, deleteStatus, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel } from './lib/database';
+  import type { Status, Project, Label } from './lib/database';
   import type { GitHubProject } from './lib/github';
 
   let statuses: Status[] = [];
   let projects: Project[] = [];
+  let labels: Label[] = [];
   let githubProjectsData: Record<string, GitHubProject> = {};
   let loading = false;
   let error = '';
+  let showAddStatus = false;
+  let newStatusTitle = '';
+  let creatingStatus = false;
+  let showAddLabel = false;
+  let newLabelTitle = '';
+  let newLabelColor = '#3b82f6';
+  let creatingLabel = false;
+  let draggedProject: Project | null = null;
+  let dragOverColumn: string | null = null;
 
   // Subscribe to GitHub projects data
   $: githubProjectsData = $githubProjects;
+
+  // Reactive grouped projects - recomputed whenever projects or statuses change
+  $: groupedProjects = statuses.reduce((acc, status) => {
+    acc[status.id] = projects
+      .filter(p => p.status_id === status.id)
+      .sort((a, b) => a.position - b.position);
+    return acc;
+  }, {} as Record<string, Project[]>);
 
   // Load data when user logs in
   async function loadDashboardData() {
@@ -38,9 +56,10 @@
       }
 
       // Fetch updated data
-      [statuses, projects] = await Promise.all([
+      [statuses, projects, labels] = await Promise.all([
         fetchStatuses(),
-        fetchProjects()
+        fetchProjects(),
+        fetchLabels()
       ]);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load data';
@@ -61,9 +80,251 @@
     });
   });
 
-  // Group projects by status
-  function getProjectsByStatus(statusId: string): Project[] {
-    return projects.filter(p => p.status_id === statusId).sort((a, b) => a.position - b.position);
+
+  // Create new status
+  async function handleCreateStatus() {
+    if (!newStatusTitle.trim() || creatingStatus) return;
+
+    creatingStatus = true;
+    try {
+      await createStatus(newStatusTitle.trim());
+
+      // Refresh statuses
+      const updatedStatuses = await fetchStatuses();
+      statuses = [...updatedStatuses];
+
+      // Reset form
+      newStatusTitle = '';
+      showAddStatus = false;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to create status';
+      console.error('Create status error:', err);
+    } finally {
+      creatingStatus = false;
+    }
+  }
+
+  // Delete status
+  async function handleDeleteStatus(status: Status) {
+    if (status.is_system) return; // Can't delete system statuses
+
+    if (!confirm(`Are you sure you want to delete "${status.title}"? All projects in this status will be moved to "No Status".`)) {
+      return;
+    }
+
+    try {
+      await deleteStatus(status.id);
+
+      // Refresh data
+      const [updatedStatuses, updatedProjects] = await Promise.all([
+        fetchStatuses(),
+        fetchProjects()
+      ]);
+      statuses = [...updatedStatuses];
+      projects = [...updatedProjects];
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to delete status';
+      console.error('Delete status error:', err);
+    }
+  }
+
+  // Handle keyboard events for new status input
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter') {
+      handleCreateStatus();
+    } else if (event.key === 'Escape') {
+      showAddStatus = false;
+      newStatusTitle = '';
+    }
+  }
+
+  // Create new label
+  async function handleCreateLabel() {
+    if (!newLabelTitle.trim() || creatingLabel) return;
+
+    creatingLabel = true;
+    try {
+      await createLabel(newLabelTitle.trim(), newLabelColor);
+
+      // Refresh labels
+      const updatedLabels = await fetchLabels();
+      labels = [...updatedLabels];
+
+      // Reset form
+      newLabelTitle = '';
+      newLabelColor = '#3b82f6';
+      showAddLabel = false;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to create label';
+      console.error('Create label error:', err);
+    } finally {
+      creatingLabel = false;
+    }
+  }
+
+  // Delete label
+  async function handleDeleteLabel(label: Label) {
+    if (!confirm(`Are you sure you want to delete "${label.title}"?`)) {
+      return;
+    }
+
+    try {
+      await deleteLabel(label.id);
+
+      // Refresh data
+      const [updatedLabels, updatedProjects] = await Promise.all([
+        fetchLabels(),
+        fetchProjects()
+      ]);
+      labels = [...updatedLabels];
+      projects = [...updatedProjects];
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to delete label';
+      console.error('Delete label error:', err);
+    }
+  }
+
+  // Handle keyboard events for new label input
+  function handleLabelKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter') {
+      handleCreateLabel();
+    } else if (event.key === 'Escape') {
+      showAddLabel = false;
+      newLabelTitle = '';
+      newLabelColor = '#3b82f6';
+    }
+  }
+
+  // Add label to project
+  async function handleAddProjectLabel(projectId: string, labelId: string) {
+    try {
+      await addProjectLabel(projectId, labelId);
+
+      // Refresh projects to show updated labels
+      const updatedProjects = await fetchProjects();
+      projects = [...updatedProjects];
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to add label';
+      console.error('Add project label error:', err);
+    }
+  }
+
+  // Remove label from project
+  async function handleRemoveProjectLabel(projectId: string, labelId: string) {
+    try {
+      await removeProjectLabel(projectId, labelId);
+
+      // Refresh projects to show updated labels
+      const updatedProjects = await fetchProjects();
+      projects = [...updatedProjects];
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to remove label';
+      console.error('Remove project label error:', err);
+    }
+  }
+
+  // Drag and drop handlers
+  function handleDragStart(event: DragEvent, project: Project) {
+    draggedProject = project;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', project.id);
+    }
+  }
+
+  function handleDragEnd() {
+    draggedProject = null;
+    dragOverColumn = null;
+  }
+
+  function handleDragOver(event: DragEvent, statusId: string) {
+    event.preventDefault();
+    dragOverColumn = statusId;
+
+    // Don't allow drops into Closed column (assuming it's a system status)
+    const targetStatus = statuses.find(s => s.id === statusId);
+    if (targetStatus?.title === 'Closed') {
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'none';
+      }
+      return;
+    }
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  function handleDragLeave(event: DragEvent, statusId: string) {
+    // Only clear if we're actually leaving the drop zone
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = event.clientX;
+    const y = event.clientY;
+
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      if (dragOverColumn === statusId) {
+        dragOverColumn = null;
+      }
+    }
+  }
+
+  async function handleDrop(event: DragEvent, targetStatusId: string) {
+    event.preventDefault();
+    dragOverColumn = null;
+
+    if (!draggedProject) {
+      return;
+    }
+
+    // Don't allow drops into Closed column
+    const targetStatus = statuses.find(s => s.id === targetStatusId);
+    if (targetStatus?.title === 'Closed') {
+      draggedProject = null;
+      return;
+    }
+
+    // Don't process if dropping in same column
+    if (draggedProject.status_id === targetStatusId) {
+      draggedProject = null;
+      return;
+    }
+
+    try {
+      // Calculate new position (add to end of target column)
+      const targetProjects = groupedProjects[targetStatusId] || [];
+      const newPosition = targetProjects.length;
+
+
+      // Update local state immediately (optimistic update)
+      const updatedProjects = projects.map(p =>
+        p.id === draggedProject.id
+          ? { ...p, status_id: targetStatusId, position: newPosition }
+          : p
+      );
+      projects = updatedProjects;
+
+      // Update in database
+      await updateProjectStatus(draggedProject.id, targetStatusId, newPosition);
+
+      // Optionally refresh from database to ensure consistency
+      // (comment this out if immediate updates work well)
+      // const dbProjects = await fetchProjects();
+      // projects = [...dbProjects];
+
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to move project';
+      console.error('Drop error:', err);
+
+      // On error, refresh from database to revert optimistic update
+      try {
+        const dbProjects = await fetchProjects();
+        projects = [...dbProjects];
+      } catch (fetchErr) {
+        console.error('Failed to refresh projects after error:', fetchErr);
+      }
+    } finally {
+      draggedProject = null;
+    }
   }
 </script>
 
@@ -85,9 +346,347 @@
 
     <!-- Main Content -->
     {#if $isLoggedIn}
-      <div class="bg-white rounded-lg shadow p-6">
-        <p class="text-gray-600">You are logged in! Ready to fetch GitHub Projects.</p>
-      </div>
+      {#if loading}
+        <div class="flex items-center justify-center min-h-[400px]">
+          <div class="text-center">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+            <p class="text-gray-600">Loading your GitHub Projects...</p>
+          </div>
+        </div>
+      {:else if error}
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+          <p class="text-red-700">Error: {error}</p>
+          <button
+            on:click={loadDashboardData}
+            class="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
+        </div>
+      {:else}
+        <!-- Status Management -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Project Statuses</h2>
+            {#if !showAddStatus}
+              <button
+                on:click={() => showAddStatus = true}
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Add Status
+              </button>
+            {/if}
+          </div>
+
+          {#if showAddStatus}
+            <div class="bg-white rounded-lg shadow p-4 mb-4">
+              <div class="flex items-center gap-3">
+                <input
+                  bind:value={newStatusTitle}
+                  on:keydown={handleKeydown}
+                  placeholder="Enter status name..."
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={creatingStatus}
+                />
+                <button
+                  on:click={handleCreateStatus}
+                  disabled={!newStatusTitle.trim() || creatingStatus}
+                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {#if creatingStatus}
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Creating...
+                  {:else}
+                    Create
+                  {/if}
+                </button>
+                <button
+                  on:click={() => { showAddStatus = false; newStatusTitle = ''; }}
+                  class="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  disabled={creatingStatus}
+                >
+                  Cancel
+                </button>
+              </div>
+              <p class="text-sm text-gray-500 mt-2">Press Enter to create, Escape to cancel</p>
+            </div>
+          {/if}
+        </div>
+
+        <!-- Labels Management -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Labels</h2>
+            {#if !showAddLabel}
+              <button
+                on:click={() => showAddLabel = true}
+                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                </svg>
+                Add Label
+              </button>
+            {/if}
+          </div>
+
+          {#if showAddLabel}
+            <div class="bg-white rounded-lg shadow p-4 mb-4">
+              <div class="flex items-center gap-3 mb-3">
+                <input
+                  bind:value={newLabelTitle}
+                  on:keydown={handleLabelKeydown}
+                  placeholder="Enter label name..."
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  disabled={creatingLabel}
+                />
+                <input
+                  type="color"
+                  bind:value={newLabelColor}
+                  class="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer"
+                  disabled={creatingLabel}
+                />
+                <button
+                  on:click={handleCreateLabel}
+                  disabled={!newLabelTitle.trim() || creatingLabel}
+                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {#if creatingLabel}
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Creating...
+                  {:else}
+                    Create
+                  {/if}
+                </button>
+                <button
+                  on:click={() => { showAddLabel = false; newLabelTitle = ''; newLabelColor = '#3b82f6'; }}
+                  class="px-4 py-2 text-gray-600 hover:text-gray-800"
+                  disabled={creatingLabel}
+                >
+                  Cancel
+                </button>
+              </div>
+              <p class="text-sm text-gray-500">Press Enter to create, Escape to cancel</p>
+            </div>
+          {/if}
+
+          <!-- Labels List -->
+          {#if labels.length > 0}
+            <div class="bg-white rounded-lg shadow p-4">
+              <div class="flex flex-wrap gap-2">
+                {#each labels as label}
+                  <div class="flex items-center gap-2 px-3 py-1 rounded-full text-white text-sm" style="background-color: {label.color}">
+                    <span>{label.title}</span>
+                    <button
+                      on:click={() => handleDeleteLabel(label)}
+                      class="hover:bg-black/20 rounded-full p-1 transition-colors"
+                      title="Delete label {label.title}"
+                    >
+                      <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                      </svg>
+                    </button>
+                  </div>
+                {/each}
+              </div>
+            </div>
+          {:else}
+            <div class="bg-white rounded-lg shadow p-4 text-center text-gray-500">
+              <p>No labels created yet</p>
+              <p class="text-xs mt-1">Create labels to organize your projects</p>
+            </div>
+          {/if}
+        </div>
+
+        <!-- Project Dashboard -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {#each statuses as status}
+            <div class="bg-white rounded-lg shadow">
+              <!-- Column Header -->
+              <div class="px-4 py-3 border-b border-gray-200">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h3 class="font-semibold text-gray-900">{status.title}</h3>
+                    <p class="text-sm text-gray-500">
+                      {(groupedProjects[status.id] || []).length} projects
+                    </p>
+                  </div>
+                  {#if !status.is_system}
+                    <button
+                      on:click={() => handleDeleteStatus(status)}
+                      class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                      title="Delete this status"
+                      aria-label="Delete status {status.title}"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                      </svg>
+                    </button>
+                  {/if}
+                </div>
+              </div>
+
+              <!-- Project Cards -->
+              <div
+                class="p-4 space-y-3 min-h-[200px] transition-all duration-200 {
+                  dragOverColumn === status.id
+                    ? status.title === 'Closed'
+                      ? 'bg-red-50 border-2 border-dashed border-red-300'
+                      : 'bg-blue-50 border-2 border-dashed border-blue-300'
+                    : ''
+                }"
+                role="region"
+                aria-label="Drop zone for {status.title} status"
+                on:dragover={(e) => handleDragOver(e, status.id)}
+                on:dragleave={(e) => handleDragLeave(e, status.id)}
+                on:drop={(e) => handleDrop(e, status.id)}
+              >
+                {#each (groupedProjects[status.id] || []) as project}
+                  {@const githubProject = githubProjectsData[project.id]}
+                  {@const isDragging = draggedProject?.id === project.id}
+                  {@const isClosedColumn = status.title === 'Closed'}
+                  {#if githubProject}
+                    <div
+                      class="bg-gray-50 rounded-lg p-3 transition-all duration-200 {isDragging ? 'opacity-50 scale-95' : 'hover:bg-gray-100 hover:shadow-md'} {!isClosedColumn ? 'cursor-move' : ''}"
+                      draggable={!isClosedColumn}
+                      role={!isClosedColumn ? "button" : undefined}
+                      aria-label={!isClosedColumn ? `Drag ${githubProject.title} to another status` : undefined}
+                      tabindex={!isClosedColumn ? "0" : undefined}
+                      on:dragstart={(e) => !isClosedColumn && handleDragStart(e, project)}
+                      on:dragend={handleDragEnd}
+                    >
+                      <!-- Drag Handle and Project Title -->
+                      <div class="flex items-start gap-2">
+                        {#if !isClosedColumn}
+                          <div class="flex-shrink-0 mt-1 text-gray-400 hover:text-gray-600">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"></path>
+                            </svg>
+                          </div>
+                        {/if}
+                        <div class="flex-1 min-w-0">
+                      <h4 class="font-medium text-gray-900 mb-1">
+                        <a
+                          href={githubProject.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="hover:text-blue-600"
+                          on:mousedown|stopPropagation
+                          on:dragstart|preventDefault
+                        >
+                          {githubProject.title}
+                        </a>
+                      </h4>
+
+                      <!-- Project Info -->
+                      <div class="text-sm text-gray-600 mb-2">
+                        {#if githubProject.shortDescription}
+                          <p class="mb-1">{githubProject.shortDescription}</p>
+                        {/if}
+                        <div class="flex items-center gap-2">
+                          <span>#{githubProject.number}</span>
+                          <span>•</span>
+                          <span>{githubProject.items} items</span>
+                          {#if githubProject.isClosed}
+                            <span class="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">
+                              Closed
+                            </span>
+                          {:else}
+                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                              Open
+                            </span>
+                          {/if}
+                        </div>
+                      </div>
+
+                          <!-- Labels -->
+                          <div class="mt-2">
+                            <!-- Current Labels -->
+                            {#if project.labels && project.labels.length > 0}
+                              <div class="flex flex-wrap gap-1 mb-2">
+                                {#each project.labels as label}
+                                  <div class="flex items-center gap-1 px-2 py-1 text-xs rounded-full text-white" style="background-color: {label.color}">
+                                    <span>{label.title}</span>
+                                    <button
+                                      on:click|stopPropagation={() => handleRemoveProjectLabel(project.id, label.id)}
+                                      class="hover:bg-black/20 rounded-full p-0.5 transition-colors"
+                                      title="Remove {label.title} label"
+                                    >
+                                      <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                      </svg>
+                                    </button>
+                                  </div>
+                                {/each}
+                              </div>
+                            {/if}
+
+                            <!-- Add Label Dropdown -->
+                            {#if labels.length > 0}
+                              {@const projectLabelIds = new Set(project.labels?.map(l => l.id) || [])}
+                              {@const availableLabels = labels.filter(l => !projectLabelIds.has(l.id))}
+                              {#if availableLabels.length > 0}
+                                <select
+                                  class="text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-700"
+                                  on:change={(e) => {
+                                    const labelId = e.target.value;
+                                    if (labelId) {
+                                      handleAddProjectLabel(project.id, labelId);
+                                      e.target.value = ''; // Reset selection
+                                    }
+                                  }}
+                                  on:click|stopPropagation
+                                >
+                                  <option value="">+ Add label</option>
+                                  {#each availableLabels as label}
+                                    <option value={label.id}>{label.title}</option>
+                                  {/each}
+                                </select>
+                              {:else}
+                                <div class="text-xs text-gray-500">All labels assigned</div>
+                              {/if}
+                            {:else}
+                              <div class="text-xs text-gray-500">No labels available</div>
+                            {/if}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  {/if}
+                {/each}
+
+                <!-- Empty state -->
+                {#if (groupedProjects[status.id] || []).length === 0}
+                  <div class="text-center py-8 text-gray-500">
+                    <p>No projects</p>
+                    {#if status.title !== 'Closed'}
+                      <p class="text-xs mt-1">Drag projects here</p>
+                    {:else}
+                      <p class="text-xs mt-1">Closed projects only</p>
+                    {/if}
+                  </div>
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+
+        <!-- Empty state for no statuses -->
+        {#if statuses.length === 0}
+          <div class="text-center py-12">
+            <p class="text-gray-500 mb-4">No project statuses found</p>
+            <button
+              on:click={loadDashboardData}
+              class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Reload
+            </button>
+          </div>
+        {/if}
+      {/if}
     {:else}
       <div class="flex items-center justify-center min-h-[400px]">
         <div class="text-center">

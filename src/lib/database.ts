@@ -98,12 +98,37 @@ export async function createStatus(title: string): Promise<Status> {
 
 // Delete a status (only non-system statuses)
 export async function deleteStatus(statusId: string) {
-  const { error } = await supabase
+  const userId = getUserId();
+  if (!userId) throw new Error('User not authenticated');
+
+  // First, move all projects from this status to "No Status"
+  const { data: noStatusData } = await supabase
+    .from('statuses')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('title', 'No Status')
+    .single();
+
+  if (!noStatusData) {
+    throw new Error('No Status column not found');
+  }
+
+  // Move projects to "No Status"
+  const { error: updateError } = await supabase
+    .from('projects')
+    .update({ status_id: noStatusData.id })
+    .eq('status_id', statusId)
+    .eq('user_id', userId);
+
+  if (updateError) throw updateError;
+
+  // Now delete the status
+  const { error: deleteError } = await supabase
     .from('statuses')
     .delete()
     .eq('id', statusId);
 
-  if (error) throw error;
+  if (deleteError) throw deleteError;
 }
 
 // Fetch all labels for the current user
