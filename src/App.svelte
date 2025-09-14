@@ -6,6 +6,8 @@
   import type { Status, Project, Label } from './lib/database';
   import type { GitHubProject } from './lib/github';
   import { parse, filter } from 'liqe';
+  import dayjs from 'dayjs';
+  import relativeTime from 'dayjs/plugin/relativeTime';
 
   let statuses: Status[] = [];
   let projects: Project[] = [];
@@ -25,8 +27,37 @@
   let searchQuery = '';
   let filteredProjects: Project[] = [];
 
+  // Initialize dayjs with relative time plugin
+  dayjs.extend(relativeTime);
+
   // Subscribe to GitHub projects data
   $: githubProjectsData = $githubProjects;
+
+  // Function to preprocess relative dates in search queries
+  function preprocessRelativeDates(query: string): string {
+    // Regular expression to match relative date patterns like:
+    // "updated:>1 month ago", "created:<2 weeks ago", "closed:>=3 days ago"
+    const relativeDateRegex = /(\w+):(>|<|>=|<=|=)(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago/gi;
+
+    return query.replace(relativeDateRegex, (match, field, operator, amount, unit) => {
+      // Convert relative date to Unix timestamp
+      // Normalize unit (remove 's' if plural) and ensure it's a valid dayjs unit
+      const normalizedUnit = unit.toLowerCase().replace(/s$/, '') as 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
+      const timestamp = Math.floor(dayjs().subtract(parseInt(amount), normalizedUnit).valueOf() / 1000);
+
+      // Reverse the operator logic for intuitive behavior:
+      // "created:<1 week ago" should mean "created less than 1 week ago" (more recent)
+      // So we need to search for timestamps greater than the calculated timestamp
+      let reversedOperator = operator;
+      if (operator === '<') reversedOperator = '>';
+      else if (operator === '>') reversedOperator = '<';
+      else if (operator === '<=') reversedOperator = '>=';
+      else if (operator === '>=') reversedOperator = '<=';
+      // '=' stays the same
+
+      return `${field}:${reversedOperator}${timestamp}`;
+    });
+  }
 
   // Apply search filtering using liqe
   $: filteredProjects = (() => {
@@ -35,8 +66,11 @@
     }
 
     try {
+      // Pre-process query to convert relative dates to timestamps
+      const processedQuery = preprocessRelativeDates(searchQuery);
+
       // Parse the Lucene-style query
-      const query = parse(searchQuery);
+      const query = parse(processedQuery);
 
       // Transform projects to searchable format for liqe
       // Naked terms will search across all text fields
@@ -56,7 +90,15 @@
           // Keep numeric and boolean fields for specific searches
           number: githubProject?.number || 0,
           items: githubProject?.items || 0,
-          isClosed: githubProject?.isClosed || false
+          isClosed: githubProject?.isClosed || false,
+          // Date fields for temporal searches
+          createdAt: githubProject?.createdAt?.toISOString() || '',
+          updatedAt: githubProject?.updatedAt?.toISOString() || '',
+          closedAt: githubProject?.closedAt?.toISOString() || '',
+          // Helper fields for easier date searching
+          created: Math.floor((githubProject?.createdAt?.getTime() || 0) / 1000), // Unix timestamp
+          updated: Math.floor((githubProject?.updatedAt?.getTime() || 0) / 1000),
+          closed: Math.floor((githubProject?.closedAt?.getTime() || 0) / 1000)
         };
       });
 
@@ -559,7 +601,7 @@
               </div>
               <input
                 bind:value={searchQuery}
-                placeholder="Search projects... (e.g., &quot;app&quot;, &quot;title:dashboard&quot;, &quot;label:frontend&quot;, &quot;web -label:archived&quot;)"
+                placeholder="Search projects... (e.g., &quot;app&quot;, &quot;label:frontend&quot;, &quot;updated:>1 month ago&quot;)"
                 class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               {#if searchQuery}
@@ -585,22 +627,28 @@
                 app
               </button>
               <button
-                on:click={() => searchQuery = 'title:dashboard'}
-                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-              >
-                title:dashboard
-              </button>
-              <button
                 on:click={() => searchQuery = 'label:frontend'}
                 class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
               >
                 label:frontend
               </button>
               <button
-                on:click={() => searchQuery = 'web -label:archived'}
+                on:click={() => searchQuery = 'updated:>1 month ago'}
                 class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
               >
-                web -label:archived
+                updated:&gt;1 month ago
+              </button>
+              <button
+                on:click={() => searchQuery = 'created:<1 week ago'}
+                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              >
+                created:&lt;1 week ago
+              </button>
+              <button
+                on:click={() => searchQuery = 'isClosed:false'}
+                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              >
+                open projects
               </button>
             </div>
 
@@ -716,6 +764,31 @@
                               Open
                             </span>
                           {/if}
+                        </div>
+
+                        <!-- Timestamp Information -->
+                        <div class="mt-1 text-xs text-gray-500 space-y-0.5">
+                          {#if githubProject.isClosed && githubProject.closedAt}
+                            <div
+                              title={dayjs(githubProject.closedAt).format('MMMM D, YYYY [at] h:mm A')}
+                              class="cursor-help"
+                            >
+                              Closed: {dayjs(githubProject.closedAt).fromNow()}
+                            </div>
+                          {:else if githubProject.updatedAt}
+                            <div
+                              title={dayjs(githubProject.updatedAt).format('MMMM D, YYYY [at] h:mm A')}
+                              class="cursor-help"
+                            >
+                              Last updated: {dayjs(githubProject.updatedAt).fromNow()}
+                            </div>
+                          {/if}
+                          <div
+                            title={dayjs(githubProject.createdAt).format('MMMM D, YYYY [at] h:mm A')}
+                            class="cursor-help"
+                          >
+                            Created: {dayjs(githubProject.createdAt).fromNow()}
+                          </div>
                         </div>
                       </div>
 
