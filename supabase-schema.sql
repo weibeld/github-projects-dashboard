@@ -11,9 +11,13 @@ CREATE TABLE IF NOT EXISTS statuses (
   title TEXT NOT NULL,
   position INTEGER NOT NULL,
   is_system BOOLEAN DEFAULT false, -- For 'No Status' and 'Closed' which can't be deleted
+  sort_field TEXT DEFAULT 'number', -- Sorting field: title, number, items, updated, closed, created
+  sort_direction TEXT DEFAULT 'desc', -- Sorting direction: asc, desc
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(user_id, title)
+  UNIQUE(user_id, title),
+  CHECK (sort_field IN ('title', 'number', 'items', 'updated', 'closed', 'created')),
+  CHECK (sort_direction IN ('asc', 'desc'))
 );
 
 -- Create labels table
@@ -147,13 +151,13 @@ BEGIN
   END IF;
 
   -- Create 'No Status' status
-  INSERT INTO statuses (user_id, title, position, is_system)
-  VALUES (p_user_id, 'No Status', 0, true)
+  INSERT INTO statuses (user_id, title, position, is_system, sort_field, sort_direction)
+  VALUES (p_user_id, 'No Status', 0, true, 'number', 'desc')
   RETURNING id INTO no_status_id;
 
   -- Create 'Closed' status
-  INSERT INTO statuses (user_id, title, position, is_system)
-  VALUES (p_user_id, 'Closed', 1, true)
+  INSERT INTO statuses (user_id, title, position, is_system, sort_field, sort_direction)
+  VALUES (p_user_id, 'Closed', 1, true, 'number', 'desc')
   RETURNING id INTO closed_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

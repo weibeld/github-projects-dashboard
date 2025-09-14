@@ -2,8 +2,8 @@
   import { onMount } from 'svelte';
   import { setupAuth, login, logout, isLoggedIn, isLoggingOut } from './lib/auth';
   import { loadProjectsFromGitHub, githubProjects } from './lib/github';
-  import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, deleteStatus, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel } from './lib/database';
-  import type { Status, Project, Label } from './lib/database';
+  import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, deleteStatus, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel, updateStatusSorting, sortProjects } from './lib/database';
+  import type { Status, Project, Label, SortField, SortDirection } from './lib/database';
   import type { GitHubProject } from './lib/github';
   import { parse, filter } from 'liqe';
   import dayjs from 'dayjs';
@@ -309,6 +309,20 @@
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to remove label';
       console.error('Remove project label error:', err);
+    }
+  }
+
+  // Handle sorting change
+  async function handleSortingChange(statusId: string, sortField: SortField, sortDirection: SortDirection) {
+    try {
+      await updateStatusSorting(statusId, sortField, sortDirection);
+
+      // Refresh statuses to show updated sorting preferences
+      const updatedStatuses = await fetchStatuses();
+      statuses = [...updatedStatuses];
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to update sorting';
+      console.error('Update sorting error:', err);
     }
   }
 
@@ -679,7 +693,54 @@
                       {(groupedProjects[status.id] || []).length} projects
                     </p>
                   </div>
-                  {#if !status.is_system}
+                  <div class="flex items-center gap-1">
+                    <!-- Sorting controls -->
+                    <div class="flex items-center gap-1">
+                      <!-- Sort Field dropdown -->
+                      <select
+                        on:change={(e) => {
+                          const field = e.currentTarget.value as SortField;
+                          handleSortingChange(status.id, field, status.sort_direction || 'desc');
+                        }}
+                        value="{(() => {
+                          const currentField = status.sort_field || 'number';
+                          // Context-aware field validation for UI
+                          if (status.title === 'Closed' && currentField === 'updated') {
+                            return 'closed';
+                          } else if (status.title !== 'Closed' && currentField === 'closed') {
+                            return 'updated';
+                          }
+                          return currentField;
+                        })()}"
+                        class="text-xs px-2 py-1 border border-gray-200 rounded bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                        title="Sort field"
+                      >
+                        <option value="title">Title</option>
+                        <option value="number">Project #</option>
+                        <option value="items">Items</option>
+                        {#if status.title === 'Closed'}
+                          <option value="closed">Closed</option>
+                        {:else}
+                          <option value="updated">Updated</option>
+                        {/if}
+                        <option value="created">Created</option>
+                      </select>
+
+                      <!-- Sort Direction dropdown -->
+                      <select
+                        on:change={(e) => {
+                          const direction = e.currentTarget.value as SortDirection;
+                          handleSortingChange(status.id, status.sort_field || 'created', direction);
+                        }}
+                        value="{status.sort_direction || 'desc'}"
+                        class="text-xs px-2 py-1 border border-gray-200 rounded bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                        title="Sort direction"
+                      >
+                        <option value="asc">↑ Asc</option>
+                        <option value="desc">↓ Desc</option>
+                      </select>
+                    </div>
+                    {#if !status.is_system}
                     <button
                       on:click={() => handleDeleteStatus(status)}
                       class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
@@ -689,8 +750,9 @@
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                       </svg>
-                    </button>
-                  {/if}
+                      </button>
+                    {/if}
+                  </div>
                 </div>
               </div>
 
@@ -709,7 +771,7 @@
                 on:dragleave={(e) => handleDragLeave(e, status.id)}
                 on:drop={(e) => handleDrop(e, status.id)}
               >
-                {#each (groupedProjects[status.id] || []) as project}
+                {#each sortProjects(groupedProjects[status.id] || [], githubProjectsData, status) as project}
                   {@const githubProject = githubProjectsData[project.id]}
                   {@const isDragging = draggedProject?.id === project.id}
                   {@const isClosedColumn = status.title === 'Closed'}

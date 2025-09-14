@@ -4,12 +4,17 @@ import { githubUserInfo } from './auth';
 import type { GitHubProject } from './github';
 
 // Database types
+export type SortField = 'title' | 'number' | 'items' | 'updated' | 'closed' | 'created';
+export type SortDirection = 'asc' | 'desc';
+
 export interface Status {
   id: string;
   user_id: string;
   title: string;
   position: number;
   is_system: boolean;
+  sort_field?: SortField;
+  sort_direction?: SortDirection;
   created_at?: string;
   updated_at?: string;
 }
@@ -66,6 +71,96 @@ export async function fetchStatuses(): Promise<Status[]> {
   return data || [];
 }
 
+// Update sorting preferences for a status
+export async function updateStatusSorting(statusId: string, sortField: SortField, sortDirection: SortDirection): Promise<void> {
+  const userId = getUserId();
+  if (!userId) throw new Error('User not authenticated');
+
+  const { error } = await supabase
+    .from('statuses')
+    .update({
+      sort_field: sortField,
+      sort_direction: sortDirection,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', statusId)
+    .eq('user_id', userId);
+
+  if (error) throw error;
+}
+
+// Sort projects based on status sorting preferences
+export function sortProjects(projects: Project[], githubProjects: Record<string, GitHubProject>, status: Status): Project[] {
+  if (!projects || projects.length === 0) return projects;
+
+  // Context-aware sort field validation and defaults
+  let sortField = status.sort_field || 'number';
+  const sortDirection = status.sort_direction || 'desc';
+
+  // Validate sort field is appropriate for this column type
+  if (status.title === 'Closed') {
+    // For closed columns, if using 'updated', switch to 'closed'
+    if (sortField === 'updated') {
+      sortField = 'closed';
+    }
+  } else {
+    // For non-closed columns, if using 'closed', switch to 'updated'
+    if (sortField === 'closed') {
+      sortField = 'updated';
+    }
+  }
+
+  return [...projects].sort((a, b) => {
+    const githubA = githubProjects[a.id];
+    const githubB = githubProjects[b.id];
+
+    let valueA: any;
+    let valueB: any;
+
+    switch (sortField) {
+      case 'title':
+        valueA = githubA?.title?.toLowerCase() || '';
+        valueB = githubB?.title?.toLowerCase() || '';
+        break;
+      case 'number':
+        valueA = githubA?.number || 0;
+        valueB = githubB?.number || 0;
+        break;
+      case 'items':
+        valueA = githubA?.items || 0;
+        valueB = githubB?.items || 0;
+        break;
+      case 'updated':
+        valueA = githubA?.updatedAt?.getTime() || 0;
+        valueB = githubB?.updatedAt?.getTime() || 0;
+        break;
+      case 'closed':
+        valueA = githubA?.closedAt?.getTime() || 0;
+        valueB = githubB?.closedAt?.getTime() || 0;
+        break;
+      case 'created':
+        valueA = githubA?.createdAt?.getTime() || 0;
+        valueB = githubB?.createdAt?.getTime() || 0;
+        break;
+      default:
+        return 0;
+    }
+
+    // Handle string comparison
+    if (typeof valueA === 'string' && typeof valueB === 'string') {
+      const comparison = valueA.localeCompare(valueB);
+      return sortDirection === 'asc' ? comparison : -comparison;
+    }
+
+    // Handle numeric comparison
+    if (sortDirection === 'asc') {
+      return valueA - valueB;
+    } else {
+      return valueB - valueA;
+    }
+  });
+}
+
 // Create a new status
 export async function createStatus(title: string): Promise<Status> {
   const userId = getUserId();
@@ -108,7 +203,9 @@ export async function createStatus(title: string): Promise<Status> {
       user_id: userId,
       title,
       position: newPosition,
-      is_system: false
+      is_system: false,
+      sort_field: 'number',
+      sort_direction: 'desc'
     })
     .select()
     .single();
