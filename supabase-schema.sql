@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS labels (
   user_id TEXT NOT NULL,
   title TEXT NOT NULL,
   color TEXT NOT NULL,
+  text_color TEXT DEFAULT 'white' CHECK (text_color IN ('white', 'black')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, title)

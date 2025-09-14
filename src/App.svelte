@@ -4,12 +4,14 @@
   import { setupAuth, login, logout, isLoggedIn, isLoggingOut } from './lib/auth';
   import { loadProjectsFromGitHub, githubProjects } from './lib/github';
   import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, deleteStatus, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel, updateStatusSorting, sortProjects } from './lib/database';
+  import { supabase } from './lib/supabase';
   import type { Status, Project, Label, SortField, SortDirection } from './lib/database';
   import type { GitHubProject } from './lib/github';
   import { parse, filter } from 'liqe';
   import dayjs from 'dayjs';
   import relativeTime from 'dayjs/plugin/relativeTime';
   import customParseFormat from 'dayjs/plugin/customParseFormat';
+  import Modal from './lib/components/Modal.svelte';
 
   let statuses: Status[] = [];
   let projects: Project[] = [];
@@ -20,10 +22,128 @@
   let showAddStatus = false;
   let newStatusTitle = '';
   let creatingStatus = false;
-  let showAddLabel = false;
-  let newLabelTitle = '';
-  let newLabelColor = '#3b82f6';
-  let creatingLabel = false;
+  // Label dropdown management
+  let activeDropdownProjectId: string | null = null;
+  let labelSearchQuery = '';
+  let newLabelFromSearch = '';
+  let creatingLabelFromSearch = false;
+
+  // Keyboard navigation for dropdown
+  let selectedLabelIndex = -1;
+
+  // Confirmation modal state
+  let showDeleteConfirmation = false;
+  let labelToDelete: Label | null = null;
+  let labelProjectCount = 0;
+
+  // Edit label modal state (also used for creating new labels)
+  let showEditLabel = false;
+  let labelToEdit: Label | null = null; // null when creating new label
+  let editLabelTitle = '';
+  let editLabelColor = '';
+  let editLabelTextColor: 'white' | 'black' = 'white';
+  let editingLabel = false;
+  let projectIdForNewLabel: string | null = null; // Track which project to add new label to
+
+  // Collapsible section state
+  let addedSectionCollapsed = true;
+  let availableSectionCollapsed = false;
+
+  // Reactive filtered labels for the active dropdown (explicitly depends on labelSearchQuery)
+  $: filteredLabelsForActiveProject = (() => {
+    if (!activeDropdownProjectId || !labels || !projects) return [];
+
+    const projectLabelIds = new Set(projects.find(p => p.id === activeDropdownProjectId)?.labels?.map(l => l.id) || []);
+    let availableLabels = labels.filter(l => !projectLabelIds.has(l.id));
+
+    if (labelSearchQuery.trim()) {
+      availableLabels = availableLabels.filter(l =>
+        l.title.toLowerCase().includes(labelSearchQuery.toLowerCase())
+      );
+    }
+
+    return availableLabels;
+  })();
+
+  // Reactive added labels for the active dropdown (filtered by search)
+  $: addedLabelsForActiveProject = (() => {
+    if (!activeDropdownProjectId || !labels || !projects) return [];
+
+    const project = projects.find(p => p.id === activeDropdownProjectId);
+    if (!project || !project.labels) return [];
+
+    let addedLabels = project.labels;
+
+    if (labelSearchQuery.trim()) {
+      addedLabels = addedLabels.filter(l =>
+        l.title.toLowerCase().includes(labelSearchQuery.toLowerCase())
+      );
+    }
+
+    return addedLabels;
+  })();
+
+  // Check if we should show search results (when there's a search query)
+  $: showSearchResults = labelSearchQuery.trim().length > 0;
+
+  // Update newLabelFromSearch based on search query and filtered results
+  $: {
+    if (activeDropdownProjectId && labelSearchQuery.trim()) {
+      const query = labelSearchQuery.trim();
+      const allMatchingLabels = [...filteredLabelsForActiveProject, ...addedLabelsForActiveProject];
+
+      // If query doesn't match any existing labels (available or added), set it as potential new label
+      if (!allMatchingLabels.some(l => l.title.toLowerCase() === query.toLowerCase())) {
+        newLabelFromSearch = query;
+      } else {
+        newLabelFromSearch = '';
+      }
+    } else {
+      newLabelFromSearch = '';
+    }
+
+    // Auto-select first item when search query changes (but not when empty)
+    if (activeDropdownProjectId && labelSearchQuery.trim()) {
+      if (filteredLabelsForActiveProject.length > 0) {
+        // Focus on first available label
+        selectedLabelIndex = 0;
+      } else {
+        // No labels available, focus on "Create new label" button
+        selectedLabelIndex = 0; // This will be the "Create new label" button index
+      }
+    } else {
+      selectedLabelIndex = -1;
+    }
+  }
+
+  // Label name duplicate validation
+  $: isDuplicateLabelName = (() => {
+    if (!editLabelTitle.trim()) return false;
+
+    const trimmedTitle = editLabelTitle.trim();
+    return labels.some(label => {
+      // When editing, exclude the current label from duplicate check
+      if (labelToEdit && label.id === labelToEdit.id) return false;
+      return label.title.toLowerCase() === trimmedTitle.toLowerCase();
+    });
+  })();
+
+  $: labelNameError = isDuplicateLabelName ? 'A label with this name already exists' : '';
+
+  // Track when we just opened edit modal for existing label (to preserve their text color choice)
+  let justOpenedEditModal = false;
+
+  // Always automatically calculate optimal text color when background color changes
+  // Exception: preserve existing text color when initially opening Edit Label modal
+  $: if (editLabelColor && !justOpenedEditModal) {
+    editLabelTextColor = getOptimalTextColor(editLabelColor);
+  }
+
+  // Handle manual text color changes
+  function handleTextColorChange(color: 'white' | 'black') {
+    editLabelTextColor = color;
+  }
+
   let draggedProject: Project | null = null;
   let dragOverColumn: string | null = null;
   let searchQuery = '';
@@ -60,6 +180,27 @@
   function formatTooltip(date: Date | null): string {
     if (!date) return '';
     return dayjs(date).format('ddd, D MMM YYYY, HH:mm'); // e.g., "Sun, 1 Oct 2024, 14:24"
+  }
+
+  // Calculate optimal text color based on background color luminance
+  function getOptimalTextColor(backgroundColor: string): 'white' | 'black' {
+    // Convert hex to RGB
+    const hex = backgroundColor.replace('#', '');
+    const r = parseInt(hex.substr(0, 2), 16);
+    const g = parseInt(hex.substr(2, 2), 16);
+    const b = parseInt(hex.substr(4, 2), 16);
+
+    // Calculate relative luminance using sRGB color space
+    // Formula from WCAG 2.1 guidelines
+    const sRGB = (color: number) => {
+      const c = color / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    };
+
+    const luminance = 0.2126 * sRGB(r) + 0.7152 * sRGB(g) + 0.0722 * sRGB(b);
+
+    // If luminance is greater than 0.5, use black text, otherwise use white
+    return luminance > 0.5 ? 'black' : 'white';
   }
 
   // Tooltip state management
@@ -269,6 +410,31 @@
         await loadDashboardData();
       }
     });
+
+    // Handle click outside to close label dropdown
+    const handleClickOutside = (event: MouseEvent) => {
+      if (activeDropdownProjectId && !(event.target as Element)?.closest('.relative')) {
+        closeLabelDropdown();
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+
+    // Handle keyboard events for modals
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        if (showDeleteConfirmation) {
+          cancelDeleteLabel();
+        } else if (showEditLabel) {
+          cancelEditLabel();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeydown);
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('keydown', handleKeydown);
+    };
   });
 
 
@@ -329,27 +495,299 @@
     }
   }
 
-  // Create new label
-  async function handleCreateLabel() {
-    if (!newLabelTitle.trim() || creatingLabel) return;
+  // New label dropdown functions
+  function toggleLabelDropdown(projectId: string) {
+    if (activeDropdownProjectId === projectId) {
+      // Close dropdown
+      activeDropdownProjectId = null;
+      labelSearchQuery = '';
+      newLabelFromSearch = '';
+      selectedLabelIndex = -1;
+    } else {
+      // Open dropdown for this project
+      activeDropdownProjectId = projectId;
+      labelSearchQuery = '';
+      newLabelFromSearch = '';
+      selectedLabelIndex = -1;
 
-    creatingLabel = true;
+      // Focus the search input after the dropdown renders
+      setTimeout(() => {
+        const searchInput = document.querySelector(`input[placeholder="Filter labels..."]`) as HTMLInputElement;
+        if (searchInput) {
+          searchInput.focus();
+        }
+      }, 0);
+    }
+  }
+
+  function closeLabelDropdown() {
+    activeDropdownProjectId = null;
+    labelSearchQuery = '';
+    newLabelFromSearch = '';
+    selectedLabelIndex = -1;
+  }
+
+  // Keyboard navigation functions
+  function handleDropdownKeydown(event: KeyboardEvent) {
+    const availableLabels = filteredLabelsForActiveProject;
+    const maxIndex = availableLabels.length; // availableLabels.length = "Create new label" button index
+
+    switch (event.key) {
+      case 'ArrowDown':
+      case 'Tab':
+        event.preventDefault();
+        if (event.shiftKey && event.key === 'Tab') {
+          // Shift+Tab = move up (like ArrowUp)
+          selectedLabelIndex = Math.max(selectedLabelIndex - 1, -1);
+        } else {
+          // Tab or ArrowDown = move down
+          selectedLabelIndex = Math.min(selectedLabelIndex + 1, maxIndex);
+        }
+        scrollToSelectedLabel();
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        selectedLabelIndex = Math.max(selectedLabelIndex - 1, -1);
+        scrollToSelectedLabel();
+        break;
+      case 'Enter':
+        event.preventDefault();
+        if (selectedLabelIndex >= 0 && selectedLabelIndex < availableLabels.length) {
+          // Selected a label
+          const selectedLabel = availableLabels[selectedLabelIndex];
+          handleAddLabelToProject(activeDropdownProjectId, selectedLabel.id);
+        } else if (selectedLabelIndex === availableLabels.length) {
+          // Selected "Create new label" button
+          createLabelFromSearch();
+        }
+        break;
+      case 'Escape':
+        event.preventDefault();
+        closeLabelDropdown();
+        break;
+    }
+  }
+
+  // Scroll to selected label to ensure it's visible
+  function scrollToSelectedLabel() {
+    if (selectedLabelIndex === -1) return;
+
+    setTimeout(() => {
+      // Try to find label element first
+      let selectedElement = document.querySelector(`[data-label-index="${selectedLabelIndex}"]`) as HTMLElement;
+
+      // If not found, check if it's the "Create new label" button
+      if (!selectedElement && selectedLabelIndex === filteredLabelsForActiveProject.length) {
+        selectedElement = document.querySelector('[data-create-label-button="true"]') as HTMLElement;
+      }
+
+      if (selectedElement) {
+        selectedElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest'
+        });
+      }
+    }, 0);
+  }
+
+  // Create new label from search - now opens dialog
+  function createLabelFromSearch() {
+    // Open edit dialog in create mode
+    labelToEdit = null; // null indicates creating new label
+    editLabelTitle = labelSearchQuery.trim(); // Use search query as default title
+    editLabelColor = '#ff3232'; // Default red color (RGB 255, 50, 50)
+    editLabelTextColor = 'white'; // Will be auto-updated by reactive statement
+    projectIdForNewLabel = activeDropdownProjectId; // Remember which project to add to
+    showEditLabel = true;
+  }
+
+  // Get filtered labels based on search query and available labels for a project
+  function getFilteredLabels(projectId: string) {
+    const projectLabelIds = new Set(projects.find(p => p.id === projectId)?.labels?.map(l => l.id) || []);
+    let availableLabels = labels.filter(l => !projectLabelIds.has(l.id));
+
+    if (labelSearchQuery.trim()) {
+      availableLabels = availableLabels.filter(l =>
+        l.title.toLowerCase().includes(labelSearchQuery.toLowerCase())
+      );
+    }
+
+    return availableLabels;
+  }
+
+  // Handle adding label to project from dropdown
+  async function handleAddLabelToProject(projectId: string, labelId: string) {
     try {
-      await createLabel(newLabelTitle.trim(), newLabelColor);
+      await addProjectLabel(projectId, labelId);
 
-      // Refresh labels
-      const updatedLabels = await fetchLabels();
-      labels = [...updatedLabels];
+      // Refresh projects data
+      const updatedProjects = await fetchProjects();
+      projects = [...updatedProjects];
 
-      // Reset form
-      newLabelTitle = '';
-      newLabelColor = '#3b82f6';
-      showAddLabel = false;
+      // Close dropdown
+      closeLabelDropdown();
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to create label';
-      console.error('Create label error:', err);
+      error = err instanceof Error ? err.message : 'Failed to add label';
+      console.error('Add label error:', err);
+    }
+  }
+
+  // Check if a label is used by any projects
+  function isLabelUsedByProjects(labelId: string): boolean {
+    return projects.some(project =>
+      project.labels && project.labels.some(label => label.id === labelId)
+    );
+  }
+
+  // Get count of projects using a label
+  function getProjectCountForLabel(labelId: string): number {
+    return projects.filter(project =>
+      project.labels && project.labels.some(label => label.id === labelId)
+    ).length;
+  }
+
+  // Handle label deletion from dropdown (entire label deletion)
+  async function handleDeleteLabelFromDropdown(label: Label) {
+    const projectCount = getProjectCountForLabel(label.id);
+
+    if (projectCount === 0) {
+      // No projects using this label - delete directly without confirmation
+      await deleteLabelDirectly(label);
+    } else {
+      // Label is used - show confirmation modal
+      labelToDelete = label;
+      labelProjectCount = projectCount;
+      showDeleteConfirmation = true;
+    }
+  }
+
+  // Delete label directly (no confirmation needed)
+  async function deleteLabelDirectly(label: Label) {
+    try {
+      await deleteLabel(label.id);
+
+      // Refresh data to reflect the deletion
+      const [updatedLabels, updatedProjects] = await Promise.all([
+        fetchLabels(),
+        fetchProjects()
+      ]);
+      labels = [...updatedLabels];
+      projects = [...updatedProjects];
+
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to delete label';
+      console.error('Delete label error:', err);
+    }
+  }
+
+  // Confirm and delete label from modal
+  async function confirmDeleteLabel() {
+    if (!labelToDelete) return;
+
+    await deleteLabelDirectly(labelToDelete);
+
+    // Close modal
+    showDeleteConfirmation = false;
+    labelToDelete = null;
+    labelProjectCount = 0;
+  }
+
+  // Cancel label deletion
+  function cancelDeleteLabel() {
+    showDeleteConfirmation = false;
+    labelToDelete = null;
+    labelProjectCount = 0;
+  }
+
+  // Handle opening label edit modal
+  function handleEditLabel(label: Label) {
+    labelToEdit = label;
+    editLabelTitle = label.title;
+    editLabelColor = label.color;
+    editLabelTextColor = label.text_color || 'white'; // Use saved text color from database
+    justOpenedEditModal = true; // Prevent auto-calculation on initial load
+    showEditLabel = true;
+  }
+
+  // Cancel label editing
+  function cancelEditLabel() {
+    showEditLabel = false;
+    labelToEdit = null;
+    editLabelTitle = '';
+    editLabelColor = '';
+    editLabelTextColor = 'white';
+    editingLabel = false;
+    projectIdForNewLabel = null;
+    justOpenedEditModal = false;
+  }
+
+  // Toggle section collapse state
+  function toggleAddedSection() {
+    addedSectionCollapsed = !addedSectionCollapsed;
+  }
+
+  function toggleAvailableSection() {
+    availableSectionCollapsed = !availableSectionCollapsed;
+  }
+
+  // Save label edits or create new label
+  async function saveEditLabel() {
+    if (!editLabelTitle.trim() || editingLabel || isDuplicateLabelName) return;
+
+    editingLabel = true;
+    try {
+      if (labelToEdit) {
+        // Editing existing label
+        const { error: updateError } = await supabase
+          .from('labels')
+          .update({
+            title: editLabelTitle.trim(),
+            color: editLabelColor,
+            text_color: editLabelTextColor,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', labelToEdit.id);
+
+        if (updateError) throw updateError;
+      } else {
+        // Creating new label
+        const newLabel = await createLabel(editLabelTitle.trim(), editLabelColor, editLabelTextColor);
+
+        // If we have a project ID, automatically add the new label to that project
+        if (projectIdForNewLabel) {
+          await addProjectLabel(projectIdForNewLabel, newLabel.id);
+
+          // Close the dropdown after successful creation and addition
+          activeDropdownProjectId = null;
+          labelSearchQuery = '';
+          newLabelFromSearch = '';
+        } else {
+          // Update search query to match the new label title so it appears in the filtered results
+          labelSearchQuery = newLabel.title;
+        }
+      }
+
+      // Refresh all data to reflect the changes
+      const [updatedLabels, updatedProjects] = await Promise.all([
+        fetchLabels(),
+        fetchProjects()
+      ]);
+      labels = [...updatedLabels];
+      projects = [...updatedProjects];
+
+      // Close modal and reset state
+      showEditLabel = false;
+      labelToEdit = null;
+      editLabelTitle = '';
+      editLabelColor = '';
+      editLabelTextColor = 'white';
+      projectIdForNewLabel = null;
+      justOpenedEditModal = false;
+    } catch (err) {
+      error = err instanceof Error ? err.message : (labelToEdit ? 'Failed to update label' : 'Failed to create label');
+      console.error('Save label error:', err);
     } finally {
-      creatingLabel = false;
+      editingLabel = false;
     }
   }
 
@@ -375,16 +813,6 @@
     }
   }
 
-  // Handle keyboard events for new label input
-  function handleLabelKeydown(event: KeyboardEvent) {
-    if (event.key === 'Enter') {
-      handleCreateLabel();
-    } else if (event.key === 'Escape') {
-      showAddLabel = false;
-      newLabelTitle = '';
-      newLabelColor = '#3b82f6';
-    }
-  }
 
   // Add label to project
   async function handleAddProjectLabel(projectId: string, labelId: string) {
@@ -621,90 +1049,6 @@
           {/if}
         </div>
 
-        <!-- Labels Management -->
-        <div class="mb-6">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">Labels</h2>
-            {#if !showAddLabel}
-              <button
-                on:click={() => showAddLabel = true}
-                class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center gap-2"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
-                </svg>
-                Add Label
-              </button>
-            {/if}
-          </div>
-
-          {#if showAddLabel}
-            <div class="bg-white rounded-lg shadow p-4 mb-4">
-              <div class="flex items-center gap-3 mb-3">
-                <input
-                  bind:value={newLabelTitle}
-                  on:keydown={handleLabelKeydown}
-                  placeholder="Enter label name..."
-                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  disabled={creatingLabel}
-                />
-                <input
-                  type="color"
-                  bind:value={newLabelColor}
-                  class="w-12 h-10 border border-gray-300 rounded-lg cursor-pointer"
-                  disabled={creatingLabel}
-                />
-                <button
-                  on:click={handleCreateLabel}
-                  disabled={!newLabelTitle.trim() || creatingLabel}
-                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {#if creatingLabel}
-                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Creating...
-                  {:else}
-                    Create
-                  {/if}
-                </button>
-                <button
-                  on:click={() => { showAddLabel = false; newLabelTitle = ''; newLabelColor = '#3b82f6'; }}
-                  class="px-4 py-2 text-gray-600 hover:text-gray-800"
-                  disabled={creatingLabel}
-                >
-                  Cancel
-                </button>
-              </div>
-              <p class="text-sm text-gray-500">Press Enter to create, Escape to cancel</p>
-            </div>
-          {/if}
-
-          <!-- Labels List -->
-          {#if labels.length > 0}
-            <div class="bg-white rounded-lg shadow p-4">
-              <div class="flex flex-wrap gap-2">
-                {#each labels as label}
-                  <div class="flex items-center gap-2 px-3 py-1 rounded-full text-white text-sm" style="background-color: {label.color}">
-                    <span>{label.title}</span>
-                    <button
-                      on:click={() => handleDeleteLabel(label)}
-                      class="hover:bg-black/20 rounded-full p-1 transition-colors"
-                      title="Delete label {label.title}"
-                    >
-                      <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                      </svg>
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            </div>
-          {:else}
-            <div class="bg-white rounded-lg shadow p-4 text-center text-gray-500">
-              <p>No labels created yet</p>
-              <p class="text-xs mt-1">Create labels to organize your projects</p>
-            </div>
-          {/if}
-        </div>
 
         <!-- Search Bar -->
         <div class="mb-6">
@@ -895,9 +1239,10 @@
                   {@const githubProject = githubProjectsData[project.id]}
                   {@const isDragging = draggedProject?.id === project.id}
                   {@const isClosedColumn = status.title === 'Closed'}
+                  {@const isDropdownOpen = activeDropdownProjectId === project.id}
                     <div
-                      class="bg-gray-200 rounded-lg p-3 transition-all duration-200 {isDragging ? 'opacity-50 scale-95' : 'hover:bg-gray-200 hover:shadow-md'} {!isClosedColumn ? 'cursor-grab active:cursor-grabbing' : ''}"
-                      draggable={!isClosedColumn}
+                      class="bg-gray-200 rounded-lg p-3 transition-all duration-200 {isDragging ? 'opacity-50 scale-95' : 'hover:bg-gray-200 hover:shadow-md'} {!isClosedColumn && !isDropdownOpen ? 'cursor-grab active:cursor-grabbing' : ''}"
+                      draggable={!isClosedColumn && !isDropdownOpen}
                       role={!isClosedColumn ? "button" : undefined}
                       aria-label={!isClosedColumn ? `Drag ${githubProject.title} to another status` : undefined}
                       tabindex={!isClosedColumn ? "0" : undefined}
@@ -958,12 +1303,19 @@
 
                           <!-- Labels -->
                           <div class="mt-2">
-                            <!-- Current Labels -->
-                            {#if project.labels && project.labels.length > 0}
-                              <div class="flex flex-wrap gap-1 mb-2">
-                                {#each project.labels as label}
-                                  <div class="flex items-center gap-1 px-2 py-1 text-xs rounded-full text-white" style="background-color: {label.color}">
-                                    <span>{label.title}</span>
+                            <!-- Labels with inline Add Button -->
+                            <div class="flex flex-wrap gap-1">
+                              <!-- Current Labels -->
+                              {#if project.labels && project.labels.length > 0}
+                                {#each project.labels.sort((a, b) => a.title.localeCompare(b.title)) as label}
+                                  <div class="flex items-center gap-1 px-2 py-1 text-xs rounded-full" style="background-color: {label.color}; color: {label.text_color || 'white'}">
+                                    <button
+                                      on:click|stopPropagation={() => handleEditLabel(label)}
+                                      class="flex-1 text-left hover:opacity-80 transition-opacity cursor-pointer"
+                                      title="Edit {label.title} label"
+                                    >
+                                      <span>{label.title}</span>
+                                    </button>
                                     <button
                                       on:click|stopPropagation={() => handleRemoveProjectLabel(project.id, label.id)}
                                       class="hover:bg-black/20 rounded-full p-0.5 transition-colors"
@@ -975,36 +1327,286 @@
                                     </button>
                                   </div>
                                 {/each}
-                              </div>
-                            {/if}
-
-                            <!-- Add Label Dropdown -->
-                            {#if labels.length > 0}
-                              {@const projectLabelIds = new Set(project.labels?.map(l => l.id) || [])}
-                              {@const availableLabels = labels.filter(l => !projectLabelIds.has(l.id))}
-                              {#if availableLabels.length > 0}
-                                <select
-                                  class="text-xs border border-gray-300 rounded px-2 py-1 bg-white text-gray-700"
-                                  on:change={(e) => {
-                                    const labelId = e.target.value;
-                                    if (labelId) {
-                                      handleAddProjectLabel(project.id, labelId);
-                                      e.target.value = ''; // Reset selection
-                                    }
-                                  }}
-                                  on:click|stopPropagation
-                                >
-                                  <option value="">+ Add label</option>
-                                  {#each availableLabels as label}
-                                    <option value={label.id}>{label.title}</option>
-                                  {/each}
-                                </select>
-                              {:else}
-                                <div class="text-xs text-gray-500">All labels assigned</div>
                               {/if}
-                            {:else}
-                              <div class="text-xs text-gray-500">No labels available</div>
-                            {/if}
+
+                              <!-- Add Label Button and Dropdown -->
+                              <div class="relative inline-block">
+                                <!-- Add Label Button -->
+                                <button
+                                  on:click|stopPropagation={() => toggleLabelDropdown(project.id)}
+                                  class="px-2 py-1 text-xs rounded-full border border-dashed border-gray-400 text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors bg-transparent"
+                                >
+                                  + Add label
+                                </button>
+
+                              <!-- Dropdown -->
+                              {#if activeDropdownProjectId === project.id}
+                                <div class="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 cursor-default">
+                                  <!-- Search Input -->
+                                  <div class="p-2 border-b border-gray-100">
+                                    <input
+                                      bind:value={labelSearchQuery}
+                                      placeholder="Filter labels..."
+                                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                      autofocus
+                                      on:keydown={handleDropdownKeydown}
+                                    />
+                                  </div>
+
+                                  <!-- Labels Container -->
+                                  <div class="flex flex-col max-h-48">
+                                    <!-- Scrollable Labels List -->
+                                    <div class="overflow-y-auto flex-1">
+                                    {#if showSearchResults}
+                                      <!-- Search Results Mode with section headers -->
+
+                                      <!-- ADDED Section in Search -->
+                                      {#if addedLabelsForActiveProject.length > 0}
+                                        <button
+                                          on:click={toggleAddedSection}
+                                          class="w-full px-3 py-1 text-xs font-normal text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors"
+                                        >
+                                          <svg class="w-3 h-3 transition-transform duration-200 {addedSectionCollapsed ? '' : 'rotate-90'}" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                          </svg>
+                                          <span>ADDED</span>
+                                          <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{addedLabelsForActiveProject.length}</span>
+                                        </button>
+                                        {#if !addedSectionCollapsed}
+                                          {#each addedLabelsForActiveProject as label}
+                                          {@const projectCount = getProjectCountForLabel(label.id)}
+                                          <div class="flex items-center group">
+                                            <div class="flex-1 px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-500">
+                                              <div class="w-3 h-3 rounded-full" style="background-color: {label.color}"></div>
+                                              <span>{label.title}</span>
+                                            </div>
+                                            <div class="flex items-center px-2">
+                                              <span class="text-gray-500" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
+                                              <button
+                                                on:click|stopPropagation={() => handleEditLabel(label)}
+                                                class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                title="Edit label"
+                                              >
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                </svg>
+                                              </button>
+                                              <button
+                                                on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
+                                                class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                title="Delete label"
+                                              >
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                              </button>
+                                            </div>
+                                          </div>
+                                          {/each}
+                                        {/if}
+                                      {/if}
+
+                                      <!-- AVAILABLE Section in Search -->
+                                      {#if filteredLabelsForActiveProject.length > 0}
+                                        <button
+                                          on:click={toggleAvailableSection}
+                                          class="w-full px-3 py-1 text-xs font-normal text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors"
+                                        >
+                                          <svg class="w-3 h-3 transition-transform duration-200 {availableSectionCollapsed ? '' : 'rotate-90'}" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                          </svg>
+                                          <span>AVAILABLE</span>
+                                          <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{filteredLabelsForActiveProject.length}</span>
+                                        </button>
+                                        {#if !availableSectionCollapsed}
+                                          {#each filteredLabelsForActiveProject as label, index}
+                                          {@const projectCount = getProjectCountForLabel(label.id)}
+                                          {@const isSelected = selectedLabelIndex === index}
+                                          <div
+                                            class="flex items-center group {isSelected ? 'bg-gray-200' : 'hover:bg-gray-200'}"
+                                            on:mouseenter={() => selectedLabelIndex = -1}
+                                            data-label-index={index}
+                                          >
+                                            <button
+                                              on:click|stopPropagation={() => handleAddLabelToProject(project.id, label.id)}
+                                              class="flex-1 px-3 py-2 text-left text-sm flex items-center gap-2"
+                                            >
+                                              <div class="w-3 h-3 rounded-full" style="background-color: {label.color}"></div>
+                                              <span>{label.title}</span>
+                                            </button>
+                                            <div class="flex items-center px-2">
+                                              <span class="text-gray-500" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
+                                              <button
+                                                on:click|stopPropagation={() => handleEditLabel(label)}
+                                                class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                title="Edit label"
+                                              >
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                </svg>
+                                              </button>
+                                              <button
+                                                on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
+                                                class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                title="Delete label"
+                                              >
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                              </button>
+                                            </div>
+                                          </div>
+                                          {/each}
+                                        {/if}
+                                      {/if}
+
+
+                                      <!-- Search Empty State -->
+                                      {#if addedLabelsForActiveProject.length === 0 && filteredLabelsForActiveProject.length === 0 && !newLabelFromSearch}
+                                        <div class="px-3 py-4 text-sm text-gray-500 text-center">
+                                          No labels found matching "{labelSearchQuery}"
+                                        </div>
+                                      {/if}
+                                    {:else}
+                                      <!-- Sectioned Mode - Show ADDED and AVAILABLE sections -->
+
+                                      <!-- ADDED Section -->
+                                      {#if addedLabelsForActiveProject.length > 0}
+                                        <button
+                                          on:click={toggleAddedSection}
+                                          class="w-full px-3 py-1 text-xs font-normal text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors"
+                                        >
+                                          <svg class="w-3 h-3 transition-transform duration-200 {addedSectionCollapsed ? '' : 'rotate-90'}" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                          </svg>
+                                          <span>ADDED</span>
+                                          <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{addedLabelsForActiveProject.length}</span>
+                                        </button>
+                                        {#if !addedSectionCollapsed}
+                                          {#each addedLabelsForActiveProject as label}
+                                          {@const projectCount = getProjectCountForLabel(label.id)}
+                                          <div class="flex items-center group">
+                                            <div class="flex-1 px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-500">
+                                              <div class="w-3 h-3 rounded-full" style="background-color: {label.color}"></div>
+                                              <span>{label.title}</span>
+                                            </div>
+                                            <div class="flex items-center px-2">
+                                              <span class="text-gray-500" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
+                                              <button
+                                                on:click|stopPropagation={() => handleEditLabel(label)}
+                                                class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                title="Edit label"
+                                              >
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                </svg>
+                                              </button>
+                                              <button
+                                                on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
+                                                class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                title="Delete label"
+                                              >
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                              </button>
+                                            </div>
+                                          </div>
+                                          {/each}
+                                        {/if}
+                                      {/if}
+
+                                      <!-- AVAILABLE Section -->
+                                      {#if filteredLabelsForActiveProject.length > 0}
+                                        <button
+                                          on:click={toggleAvailableSection}
+                                          class="w-full px-3 py-1 text-xs font-normal text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors"
+                                        >
+                                          <svg class="w-3 h-3 transition-transform duration-200 {availableSectionCollapsed ? '' : 'rotate-90'}" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                          </svg>
+                                          <span>AVAILABLE</span>
+                                          <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{filteredLabelsForActiveProject.length}</span>
+                                        </button>
+                                        {#if !availableSectionCollapsed}
+                                          {#each filteredLabelsForActiveProject as label, index}
+                                          {@const projectCount = getProjectCountForLabel(label.id)}
+                                          {@const isSelected = selectedLabelIndex === index}
+                                          <div
+                                            class="flex items-center group {isSelected ? 'bg-gray-200' : 'hover:bg-gray-200'}"
+                                            on:mouseenter={() => selectedLabelIndex = -1}
+                                            data-label-index={index}
+                                          >
+                                            <button
+                                              on:click|stopPropagation={() => handleAddLabelToProject(project.id, label.id)}
+                                              class="flex-1 px-3 py-2 text-left text-sm flex items-center gap-2"
+                                            >
+                                              <div class="w-3 h-3 rounded-full" style="background-color: {label.color}"></div>
+                                              <span>{label.title}</span>
+                                            </button>
+                                            <div class="flex items-center px-2">
+                                              <span class="text-gray-500" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
+                                              <button
+                                                on:click|stopPropagation={() => handleEditLabel(label)}
+                                                class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                title="Edit label"
+                                              >
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                </svg>
+                                              </button>
+                                              <button
+                                                on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
+                                                class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                title="Delete label"
+                                              >
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                                </svg>
+                                              </button>
+                                            </div>
+                                          </div>
+                                          {/each}
+                                        {/if}
+                                      {/if}
+
+                                      <!-- Empty State for Sectioned Mode -->
+                                      {#if addedLabelsForActiveProject.length === 0 && filteredLabelsForActiveProject.length === 0}
+                                        <div class="px-3 py-4 text-sm text-gray-500 text-center">
+                                          No labels available to add
+                                        </div>
+                                      {/if}
+
+                                    {/if}
+                                    </div>
+
+                                    <!-- Sticky Create New Label Button (outside scroll area) -->
+                                    <div class="border-t border-gray-100">
+                                      <button
+                                        on:click|stopPropagation={createLabelFromSearch}
+                                        on:mouseenter={() => selectedLabelIndex = -1}
+                                        class="w-full px-3 py-2 text-left text-sm {selectedLabelIndex === filteredLabelsForActiveProject.length ? 'bg-blue-100' : 'bg-blue-50 hover:bg-blue-100'} text-blue-600 transition-all flex items-center gap-2"
+                                        data-create-label-button="true"
+                                      >
+                                        <span class="text-lg font-semibold">+</span>
+                                        <span class="{selectedLabelIndex === filteredLabelsForActiveProject.length ? 'underline' : 'hover:underline'}">
+                                          {#if labelSearchQuery.trim()}
+                                            Create new label: "{labelSearchQuery.trim()}"
+                                          {:else}
+                                            Create new label...
+                                          {/if}
+                                        </span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              {/if}
+                              </div>
+                            </div>
                           </div>
                         </div>
                 {/each}
@@ -1066,4 +1668,139 @@
       {tooltipText}
     </div>
   {/if}
+
+  <!-- Label Delete Confirmation Modal -->
+  <Modal
+    show={showDeleteConfirmation && labelToDelete !== null}
+    title="Delete Label"
+    size="md"
+    primaryButton={{
+      text: 'Delete Label',
+      variant: 'red'
+    }}
+    secondaryButton={{
+      text: 'Cancel',
+      variant: 'outline'
+    }}
+    on:primary={confirmDeleteLabel}
+    on:secondary={cancelDeleteLabel}
+    on:close={cancelDeleteLabel}
+  >
+    <div class="space-y-3">
+      <div class="flex items-center gap-3">
+        <div class="w-4 h-4 rounded-full" style="background-color: {labelToDelete?.color}"></div>
+        <span class="font-semibold">{labelToDelete?.title}</span>
+      </div>
+
+      <p class="text-gray-700">
+        Are you sure you want to delete this label?
+      </p>
+
+      <p class="text-sm text-gray-500">
+        This label is used by <span class="font-semibold">{labelProjectCount}</span> project{labelProjectCount === 1 ? '' : 's'}
+        and will be removed from {labelProjectCount === 1 ? 'it' : 'them'}.
+      </p>
+
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+        <p class="text-sm text-amber-700">
+          ⚠️ This action cannot be undone.
+        </p>
+      </div>
+    </div>
+  </Modal>
+
+  <!-- Label Edit Modal -->
+  <Modal
+    show={showEditLabel}
+    title={labelToEdit ? 'Edit Label' : 'Create Label'}
+    size="md"
+    primaryButton={{
+      text: labelToEdit ? 'Save Changes' : 'Create Label',
+      variant: 'blue',
+      disabled: !editLabelTitle.trim() || isDuplicateLabelName,
+      loading: editingLabel
+    }}
+    secondaryButton={{
+      text: 'Cancel',
+      variant: 'outline'
+    }}
+    on:primary={saveEditLabel}
+    on:secondary={cancelEditLabel}
+    on:close={cancelEditLabel}
+  >
+    <div class="space-y-4">
+      <!-- Label Title Input -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Title
+        </label>
+        <input
+          bind:value={editLabelTitle}
+          placeholder="Enter label name..."
+          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 {isDuplicateLabelName ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} focus:border-transparent"
+          disabled={editingLabel}
+        />
+        {#if labelNameError}
+          <p class="text-sm text-red-600 mt-1">{labelNameError}</p>
+        {/if}
+      </div>
+
+      <!-- Color Picker -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Colour
+        </label>
+        <div class="flex items-center gap-1">
+          <input
+            type="color"
+            bind:value={editLabelColor}
+            on:input={() => justOpenedEditModal = false}
+            class="sr-only"
+            disabled={editingLabel}
+            id="colorPicker"
+          />
+          <label
+            for="colorPicker"
+            class="flex-1 flex items-center gap-2 px-3 py-2 rounded-full text-sm cursor-pointer"
+            style="background-color: {editLabelColor}; color: {editLabelTextColor}"
+          >
+            <span>{editLabelTitle || 'Preview'}</span>
+          </label>
+          <label
+            for="colorPicker"
+            class="p-2 rounded-lg cursor-pointer text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+            </svg>
+          </label>
+        </div>
+      </div>
+
+      <!-- Text Color Selection -->
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Text Colour
+        </label>
+        <div class="flex items-center gap-3">
+          <!-- Black Label Preview -->
+          <span class="px-3 py-1 text-sm font-bold rounded-full text-black bg-gray-100">Black</span>
+
+          <!-- Toggle Switch -->
+          <button
+            type="button"
+            on:click={() => handleTextColorChange(editLabelTextColor === 'white' ? 'black' : 'white')}
+            disabled={editingLabel}
+            class="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            <span class="sr-only">Toggle text color</span>
+            <span class="inline-block h-4 w-4 transform rounded-full bg-gray-600 transition-transform {editLabelTextColor === 'white' ? 'translate-x-6' : 'translate-x-1'} shadow-sm"></span>
+          </button>
+
+          <!-- White Label Preview -->
+          <span class="px-3 py-1 text-sm font-bold rounded-full text-white bg-black">White</span>
+        </div>
+      </div>
+    </div>
+  </Modal>
 </main>

@@ -24,6 +24,7 @@ export interface Label {
   user_id: string;
   title: string;
   color: string;
+  text_color?: 'white' | 'black';
   created_at?: string;
   updated_at?: string;
 }
@@ -315,7 +316,7 @@ export async function fetchLabels(): Promise<Label[]> {
 }
 
 // Create a new label
-export async function createLabel(title: string, color: string): Promise<Label> {
+export async function createLabel(title: string, color: string, textColor: 'white' | 'black' = 'white'): Promise<Label> {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
@@ -324,7 +325,8 @@ export async function createLabel(title: string, color: string): Promise<Label> 
     .insert({
       user_id: userId,
       title,
-      color
+      color,
+      text_color: textColor
     })
     .select()
     .single();
