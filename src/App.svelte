@@ -1,5 +1,6 @@
 <script lang='ts'>
   import { onMount } from 'svelte';
+  import { flip } from 'svelte/animate';
   import { setupAuth, login, logout, isLoggedIn, isLoggingOut } from './lib/auth';
   import { loadProjectsFromGitHub, githubProjects } from './lib/github';
   import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, deleteStatus, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel, updateStatusSorting, sortProjects } from './lib/database';
@@ -890,19 +891,19 @@
                 on:dragleave={(e) => handleDragLeave(e, status.id)}
                 on:drop={(e) => handleDrop(e, status.id)}
               >
-                {#each sortProjects(groupedProjects[status.id] || [], githubProjectsData, status) as project}
+                {#each sortProjects(groupedProjects[status.id] || [], githubProjectsData, status).filter(project => githubProjectsData[project.id]) as project (project.id)}
                   {@const githubProject = githubProjectsData[project.id]}
                   {@const isDragging = draggedProject?.id === project.id}
                   {@const isClosedColumn = status.title === 'Closed'}
-                  {#if githubProject}
                     <div
-                      class="bg-gray-50 rounded-lg p-3 transition-all duration-200 {isDragging ? 'opacity-50 scale-95' : 'hover:bg-gray-100 hover:shadow-md'} {!isClosedColumn ? 'cursor-grab active:cursor-grabbing' : ''}"
+                      class="bg-gray-200 rounded-lg p-3 transition-all duration-200 {isDragging ? 'opacity-50 scale-95' : 'hover:bg-gray-200 hover:shadow-md'} {!isClosedColumn ? 'cursor-grab active:cursor-grabbing' : ''}"
                       draggable={!isClosedColumn}
                       role={!isClosedColumn ? "button" : undefined}
                       aria-label={!isClosedColumn ? `Drag ${githubProject.title} to another status` : undefined}
                       tabindex={!isClosedColumn ? "0" : undefined}
                       on:dragstart={(e) => !isClosedColumn && handleDragStart(e, project)}
                       on:dragend={handleDragEnd}
+                      animate:flip={{ duration: 400 }}
                     >
                       <!-- Project Title -->
                       <div class="flex-1 min-w-0">
@@ -1006,7 +1007,6 @@
                             {/if}
                           </div>
                         </div>
-                  {/if}
                 {/each}
 
                 <!-- Empty state -->
