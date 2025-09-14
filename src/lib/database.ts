@@ -71,22 +71,43 @@ export async function createStatus(title: string): Promise<Status> {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
-  // Get max position
-  const { data: statuses } = await supabase
+  // Get all statuses to find the "Closed" status position
+  const { data: allStatuses } = await supabase
     .from('statuses')
-    .select('position')
+    .select('id, title, position')
     .eq('user_id', userId)
-    .order('position', { ascending: false })
-    .limit(1);
+    .order('position');
 
-  const maxPosition = statuses?.[0]?.position ?? -1;
+  if (!allStatuses) throw new Error('Failed to fetch statuses');
+
+  // Find "Closed" status
+  const closedStatus = allStatuses.find(s => s.title === 'Closed');
+
+  // If no "Closed" status exists, use max position + 1
+  let newPosition: number;
+  if (closedStatus) {
+    // Insert new status before "Closed"
+    newPosition = closedStatus.position;
+
+    // Update "Closed" status to be last
+    const { error: updateError } = await supabase
+      .from('statuses')
+      .update({ position: closedStatus.position + 1 })
+      .eq('id', closedStatus.id);
+
+    if (updateError) throw updateError;
+  } else {
+    // Fallback: use max position + 1
+    const maxPosition = Math.max(...allStatuses.map(s => s.position), -1);
+    newPosition = maxPosition + 1;
+  }
 
   const { data, error } = await supabase
     .from('statuses')
     .insert({
       user_id: userId,
       title,
-      position: maxPosition + 1,
+      position: newPosition,
       is_system: false
     })
     .select()
@@ -100,6 +121,22 @@ export async function createStatus(title: string): Promise<Status> {
 export async function deleteStatus(statusId: string) {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
+
+  // Get the status to be deleted to find its position
+  const { data: statusToDelete } = await supabase
+    .from('statuses')
+    .select('position, is_system')
+    .eq('id', statusId)
+    .eq('user_id', userId)
+    .single();
+
+  if (!statusToDelete) {
+    throw new Error('Status not found');
+  }
+
+  if (statusToDelete.is_system) {
+    throw new Error('Cannot delete system status');
+  }
 
   // First, move all projects from this status to "No Status"
   const { data: noStatusData } = await supabase
@@ -129,6 +166,40 @@ export async function deleteStatus(statusId: string) {
     .eq('id', statusId);
 
   if (deleteError) throw deleteError;
+
+  // Shift all statuses with higher positions down by 1 to compact gaps
+  const { error: compactError } = await supabase
+    .from('statuses')
+    .update({ position: supabase.rpc('position - 1') })
+    .eq('user_id', userId)
+    .gt('position', statusToDelete.position);
+
+  if (compactError) {
+    // If the RPC approach doesn't work, fall back to manual approach
+    console.warn('RPC position update failed, using manual approach:', compactError);
+
+    // Get all statuses with higher positions
+    const { data: statusesToUpdate } = await supabase
+      .from('statuses')
+      .select('id, position')
+      .eq('user_id', userId)
+      .gt('position', statusToDelete.position)
+      .order('position');
+
+    if (statusesToUpdate && statusesToUpdate.length > 0) {
+      // Update each status individually
+      for (const status of statusesToUpdate) {
+        const { error: individualUpdateError } = await supabase
+          .from('statuses')
+          .update({ position: status.position - 1 })
+          .eq('id', status.id);
+
+        if (individualUpdateError) {
+          console.error('Failed to update status position:', individualUpdateError);
+        }
+      }
+    }
+  }
 }
 
 // Fetch all labels for the current user
