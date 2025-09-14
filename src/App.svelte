@@ -66,15 +66,35 @@
   let tooltipX = 0;
   let tooltipY = 0;
   let tooltipText = '';
+  let tooltipTimeout: number | null = null;
 
   function showTooltip(event: MouseEvent, text: string) {
+    // Clear any existing timeout
+    if (tooltipTimeout) {
+      clearTimeout(tooltipTimeout);
+    }
+
     tooltipText = text;
-    tooltipX = event.clientX + 10;
-    tooltipY = event.clientY - 10;
-    tooltipVisible = true;
+
+    // Position tooltip relative to the target element
+    const target = event.target as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    tooltipX = rect.right + 0;
+    tooltipY = rect.bottom + 0;
+
+    // Show tooltip after short delay
+    tooltipTimeout = setTimeout(() => {
+      tooltipVisible = true;
+      tooltipTimeout = null;
+    }, 200);
   }
 
   function hideTooltip() {
+    // Clear any pending timeout
+    if (tooltipTimeout) {
+      clearTimeout(tooltipTimeout);
+      tooltipTimeout = null;
+    }
     tooltipVisible = false;
   }
 
@@ -876,7 +896,7 @@
                   {@const isClosedColumn = status.title === 'Closed'}
                   {#if githubProject}
                     <div
-                      class="bg-gray-50 rounded-lg p-3 transition-all duration-200 {isDragging ? 'opacity-50 scale-95' : 'hover:bg-gray-100 hover:shadow-md'} {!isClosedColumn ? 'cursor-move' : ''}"
+                      class="bg-gray-50 rounded-lg p-3 transition-all duration-200 {isDragging ? 'opacity-50 scale-95' : 'hover:bg-gray-100 hover:shadow-md'} {!isClosedColumn ? 'cursor-grab active:cursor-grabbing' : ''}"
                       draggable={!isClosedColumn}
                       role={!isClosedColumn ? "button" : undefined}
                       aria-label={!isClosedColumn ? `Drag ${githubProject.title} to another status` : undefined}
@@ -884,17 +904,11 @@
                       on:dragstart={(e) => !isClosedColumn && handleDragStart(e, project)}
                       on:dragend={handleDragEnd}
                     >
-                      <!-- Drag Handle and Project Title -->
-                      <div class="flex items-start gap-2">
-                        {#if !isClosedColumn}
-                          <div class="flex-shrink-0 mt-1 text-gray-400 hover:text-gray-600">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"></path>
-                            </svg>
-                          </div>
-                        {/if}
-                        <div class="flex-1 min-w-0">
+                      <!-- Project Title -->
+                      <div class="flex-1 min-w-0">
                       <h4 class="font-medium text-gray-900 mb-1">
+                        <span class="text-gray-500">#{githubProject.number}</span>
+                        {' '}
                         <a
                           href={githubProject.url}
                           target="_blank"
@@ -908,24 +922,9 @@
                       </h4>
 
                       <!-- Project Info -->
-                      <div class="text-sm text-gray-600 mb-2">
-                        {#if githubProject.shortDescription}
-                          <p class="mb-1">{githubProject.shortDescription}</p>
-                        {/if}
-                        <div class="flex items-center gap-2">
-                          <span>#{githubProject.number}</span>
-                          <span>•</span>
-                          <span>{githubProject.items} items</span>
-                          {#if githubProject.isClosed}
-                            <span class="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs">
-                              Closed
-                            </span>
-                          {:else}
-                            <span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
-                              Open
-                            </span>
-                          {/if}
-                        </div>
+                      <div class="text-xs text-gray-500">
+                        <span>{githubProject.items} {githubProject.items === 1 ? 'item' : 'items'}</span>
+                      </div>
 
                         <!-- Timestamp Information -->
                         <div class="mt-1 text-xs text-gray-500 space-y-0.5">
@@ -1007,8 +1006,6 @@
                             {/if}
                           </div>
                         </div>
-                      </div>
-                    </div>
                   {/if}
                 {/each}
 
