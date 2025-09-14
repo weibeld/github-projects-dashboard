@@ -8,6 +8,7 @@
   import { parse, filter } from 'liqe';
   import dayjs from 'dayjs';
   import relativeTime from 'dayjs/plugin/relativeTime';
+  import customParseFormat from 'dayjs/plugin/customParseFormat';
 
   let statuses: Status[] = [];
   let projects: Project[] = [];
@@ -27,19 +28,69 @@
   let searchQuery = '';
   let filteredProjects: Project[] = [];
 
-  // Initialize dayjs with relative time plugin
+  // Initialize dayjs with plugins
   dayjs.extend(relativeTime);
+  dayjs.extend(customParseFormat);
+
+  // Enhanced timestamp formatting functions
+  function formatTimestamp(date: Date | null): string {
+    if (!date) return '';
+
+    const now = dayjs();
+    const dateObj = dayjs(date);
+    const diffInDays = now.diff(dateObj, 'day');
+
+    // Use relative time for dates within the last month (30 days)
+    if (diffInDays <= 30) {
+      return dateObj.fromNow();
+    }
+
+    // Use absolute dates for older timestamps
+    const currentYear = now.year();
+    const dateYear = dateObj.year();
+
+    if (dateYear === currentYear) {
+      return dateObj.format('D MMM'); // e.g., "6 Apr"
+    } else {
+      return dateObj.format('D MMM YYYY'); // e.g., "1 Oct 2024"
+    }
+  }
+
+  function formatTooltip(date: Date | null): string {
+    if (!date) return '';
+    return dayjs(date).format('ddd, D MMM YYYY, HH:mm'); // e.g., "Sun, 1 Oct 2024, 14:24"
+  }
+
+  // Tooltip state management
+  let tooltipVisible = false;
+  let tooltipX = 0;
+  let tooltipY = 0;
+  let tooltipText = '';
+
+  function showTooltip(event: MouseEvent, text: string) {
+    tooltipText = text;
+    tooltipX = event.clientX + 10;
+    tooltipY = event.clientY - 10;
+    tooltipVisible = true;
+  }
+
+  function hideTooltip() {
+    tooltipVisible = false;
+  }
 
   // Subscribe to GitHub projects data
   $: githubProjectsData = $githubProjects;
 
-  // Function to preprocess relative dates in search queries
-  function preprocessRelativeDates(query: string): string {
+  // Function to preprocess relative and absolute dates in search queries
+  function preprocessDates(query: string): string {
+    let processedQuery = query;
+
+    // Process relative dates first
     // Regular expression to match relative date patterns like:
     // "updated:>1 month ago", "created:<2 weeks ago", "closed:>=3 days ago"
     const relativeDateRegex = /(\w+):(>|<|>=|<=|=)(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago/gi;
 
-    return query.replace(relativeDateRegex, (match, field, operator, amount, unit) => {
+    processedQuery = processedQuery.replace(relativeDateRegex, (match, field, operator, amount, unit) => {
       // Convert relative date to Unix timestamp
       // Normalize unit (remove 's' if plural) and ensure it's a valid dayjs unit
       const normalizedUnit = unit.toLowerCase().replace(/s$/, '') as 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
@@ -57,6 +108,36 @@
 
       return `${field}:${reversedOperator}${timestamp}`;
     });
+
+    // Process absolute dates
+    // Regular expressions for different absolute date formats:
+    // 1. ISO format: "updated:>2025-08-14", "created:<2025-06-01"
+    // 2. Short format with current year: "updated:>14 Aug", "created:<1 Jun"
+    // 3. Short format with year: "updated:>1 Oct 2024", "created:<14 Aug 2023"
+
+    // ISO date format (YYYY-MM-DD)
+    const isoDateRegex = /(\w+):(>|<|>=|<=|=)(\d{4}-\d{2}-\d{2})/gi;
+    processedQuery = processedQuery.replace(isoDateRegex, (match, field, operator, dateStr) => {
+      const timestamp = Math.floor(dayjs(dateStr).valueOf() / 1000);
+      return `${field}:${operator}${timestamp}`;
+    });
+
+    // Short format with year (D MMM YYYY)
+    const shortDateWithYearRegex = /(\w+):(>|<|>=|<=|=)(\d{1,2}\s+\w{3}\s+\d{4})/gi;
+    processedQuery = processedQuery.replace(shortDateWithYearRegex, (match, field, operator, dateStr) => {
+      const timestamp = Math.floor(dayjs(dateStr, 'D MMM YYYY').valueOf() / 1000);
+      return `${field}:${operator}${timestamp}`;
+    });
+
+    // Short format with current year (D MMM)
+    const shortDateRegex = /(\w+):(>|<|>=|<=|=)(\d{1,2}\s+\w{3})/gi;
+    processedQuery = processedQuery.replace(shortDateRegex, (match, field, operator, dateStr) => {
+      const currentYear = dayjs().year();
+      const timestamp = Math.floor(dayjs(`${dateStr} ${currentYear}`, 'D MMM YYYY').valueOf() / 1000);
+      return `${field}:${operator}${timestamp}`;
+    });
+
+    return processedQuery;
   }
 
   // Apply search filtering using liqe
@@ -66,8 +147,8 @@
     }
 
     try {
-      // Pre-process query to convert relative dates to timestamps
-      const processedQuery = preprocessRelativeDates(searchQuery);
+      // Pre-process query to convert relative and absolute dates to timestamps
+      const processedQuery = preprocessDates(searchQuery);
 
       // Parse the Lucene-style query
       const query = parse(processedQuery);
@@ -664,6 +745,24 @@
               >
                 open projects
               </button>
+              <button
+                on:click={() => searchQuery = 'updated:>2024-01-01'}
+                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              >
+                updated:&gt;2024-01-01
+              </button>
+              <button
+                on:click={() => searchQuery = 'created:>1 Jan'}
+                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              >
+                created:&gt;1 Jan
+              </button>
+              <button
+                on:click={() => searchQuery = 'updated:<15 Nov 2024'}
+                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+              >
+                updated:&lt;15 Nov 2024
+              </button>
             </div>
 
             <!-- Results Summary -->
@@ -831,25 +930,28 @@
                         <!-- Timestamp Information -->
                         <div class="mt-1 text-xs text-gray-500 space-y-0.5">
                           {#if githubProject.isClosed && githubProject.closedAt}
-                            <div
-                              title={dayjs(githubProject.closedAt).format('MMMM D, YYYY [at] h:mm A')}
-                              class="cursor-help"
-                            >
-                              Closed: {dayjs(githubProject.closedAt).fromNow()}
+                            <div>
+                              Closed: <span
+                                class="cursor-help underline decoration-1 decoration-gray-300"
+                                on:mouseenter={(e) => showTooltip(e, formatTooltip(githubProject.closedAt))}
+                                on:mouseleave={hideTooltip}
+                              >{formatTimestamp(githubProject.closedAt)}</span>
                             </div>
                           {:else if githubProject.updatedAt}
-                            <div
-                              title={dayjs(githubProject.updatedAt).format('MMMM D, YYYY [at] h:mm A')}
-                              class="cursor-help"
-                            >
-                              Last updated: {dayjs(githubProject.updatedAt).fromNow()}
+                            <div>
+                              Last updated: <span
+                                class="cursor-help underline decoration-1 decoration-gray-300"
+                                on:mouseenter={(e) => showTooltip(e, formatTooltip(githubProject.updatedAt))}
+                                on:mouseleave={hideTooltip}
+                              >{formatTimestamp(githubProject.updatedAt)}</span>
                             </div>
                           {/if}
-                          <div
-                            title={dayjs(githubProject.createdAt).format('MMMM D, YYYY [at] h:mm A')}
-                            class="cursor-help"
-                          >
-                            Created: {dayjs(githubProject.createdAt).fromNow()}
+                          <div>
+                            Created: <span
+                              class="cursor-help underline decoration-1 decoration-gray-300"
+                              on:mouseenter={(e) => showTooltip(e, formatTooltip(githubProject.createdAt))}
+                              on:mouseleave={hideTooltip}
+                            >{formatTimestamp(githubProject.createdAt)}</span>
                           </div>
                         </div>
                       </div>
@@ -957,4 +1059,14 @@
       </div>
     {/if}
   </div>
+
+  <!-- Custom Tooltip -->
+  {#if tooltipVisible}
+    <div
+      class="fixed pointer-events-none z-50 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg"
+      style="left: {tooltipX}px; top: {tooltipY}px;"
+    >
+      {tooltipText}
+    </div>
+  {/if}
 </main>
