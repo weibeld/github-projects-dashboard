@@ -551,3 +551,23 @@ export async function removeProjectLabel(projectId: string, labelId: string) {
 
   if (error) throw error;
 }
+
+// Update multiple status positions (for column reordering)
+export async function updateStatusPositions(statusPositions: Array<{id: string, position: number}>): Promise<void> {
+  const userId = getUserId();
+  if (!userId) throw new Error('User not authenticated');
+
+  // Update each status position
+  for (const statusPos of statusPositions) {
+    const { error } = await supabase
+      .from('statuses')
+      .update({
+        position: statusPos.position,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', statusPos.id)
+      .eq('user_id', userId);
+
+    if (error) throw error;
+  }
+}

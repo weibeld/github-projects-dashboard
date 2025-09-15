@@ -3,7 +3,7 @@
   import { flip } from 'svelte/animate';
   import { setupAuth, login, logout, isLoggedIn, isLoggingOut } from './lib/auth';
   import { loadProjectsFromGitHub, githubProjects } from './lib/github';
-  import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, createStatusAfter, deleteStatus, updateStatusTitle, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel, updateStatusSorting, sortProjects } from './lib/database';
+  import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, createStatusAfter, deleteStatus, updateStatusTitle, updateStatusPositions, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel, updateStatusSorting, sortProjects } from './lib/database';
   import { supabase } from './lib/supabase';
   import type { Status, Project, Label, SortField, SortDirection } from './lib/database';
   import type { GitHubProject } from './lib/github';
@@ -634,6 +634,91 @@
     editColumnTitle = '';
   }
 
+  // Move column left
+  async function moveColumnLeft(status: Status) {
+    if (status.is_system) return; // Can't move system columns
+
+    const currentIndex = statuses.findIndex(s => s.id === status.id);
+    if (currentIndex <= 1) return; // Can't move past "No Status" (index 0)
+
+    // Check if we're trying to move before "No Status"
+    const noStatusIndex = statuses.findIndex(s => s.title === 'No Status');
+    if (currentIndex - 1 <= noStatusIndex) return;
+
+    try {
+      // Swap positions with the column to the left
+      const newStatuses = [...statuses];
+      [newStatuses[currentIndex], newStatuses[currentIndex - 1]] = [newStatuses[currentIndex - 1], newStatuses[currentIndex]];
+
+      // Update positions in database
+      const statusUpdates = [
+        { id: newStatuses[currentIndex - 1].id, position: currentIndex - 1 },
+        { id: newStatuses[currentIndex].id, position: currentIndex }
+      ];
+
+      // Optimistic update
+      statuses = newStatuses;
+
+      // Update database
+      await updateStatusPositions(statusUpdates);
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to move column';
+      // Refresh on error
+      const updatedStatuses = await fetchStatuses();
+      statuses = [...updatedStatuses];
+    }
+  }
+
+  // Move column right
+  async function moveColumnRight(status: Status) {
+    if (status.is_system) return; // Can't move system columns
+
+    const currentIndex = statuses.findIndex(s => s.id === status.id);
+    if (currentIndex >= statuses.length - 1) return; // Can't move past last position
+
+    // Check if we're trying to move past "Closed"
+    const closedIndex = statuses.findIndex(s => s.title === 'Closed');
+    if (currentIndex + 1 >= closedIndex) return;
+
+    try {
+      // Swap positions with the column to the right
+      const newStatuses = [...statuses];
+      [newStatuses[currentIndex], newStatuses[currentIndex + 1]] = [newStatuses[currentIndex + 1], newStatuses[currentIndex]];
+
+      // Update positions in database
+      const statusUpdates = [
+        { id: newStatuses[currentIndex].id, position: currentIndex },
+        { id: newStatuses[currentIndex + 1].id, position: currentIndex + 1 }
+      ];
+
+      // Optimistic update
+      statuses = newStatuses;
+
+      // Update database
+      await updateStatusPositions(statusUpdates);
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to move column';
+      // Refresh on error
+      const updatedStatuses = await fetchStatuses();
+      statuses = [...updatedStatuses];
+    }
+  }
+
+  // Helper functions for arrow button visibility
+  function canMoveLeft(status: Status): boolean {
+    if (status.is_system) return false;
+    const currentIndex = statuses.findIndex(s => s.id === status.id);
+    const noStatusIndex = statuses.findIndex(s => s.title === 'No Status');
+    return currentIndex > noStatusIndex + 1;
+  }
+
+  function canMoveRight(status: Status): boolean {
+    if (status.is_system) return false;
+    const currentIndex = statuses.findIndex(s => s.id === status.id);
+    const closedIndex = statuses.findIndex(s => s.title === 'Closed');
+    return currentIndex < closedIndex - 1;
+  }
+
   // Handle keyboard events for new status input
   function handleKeydown(event: KeyboardEvent) {
     if (event.key === 'Enter') {
@@ -1245,8 +1330,11 @@
 
         <!-- Project Dashboard -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {#each statuses as status}
-            <div class="{status.title === 'Closed' ? 'bg-red-50' : 'bg-white'} rounded-lg shadow">
+          {#each statuses as status (status.id)}
+            <div
+              class="{status.title === 'Closed' ? 'bg-red-50' : 'bg-white'} rounded-lg shadow transition-all duration-200"
+              animate:flip={{ duration: 300 }}
+            >
               <!-- Column Header -->
               <div class="px-4 py-3 border-b border-gray-200">
                 <!-- Top line: Title and action buttons -->
@@ -1255,6 +1343,29 @@
                     <h3 class="font-semibold text-gray-900">{status.title}</h3>
                   </div>
                   <div class="flex items-center gap-1">
+                    <!-- Arrow buttons for reordering (only for non-system statuses) -->
+                    {#if !status.is_system}
+                      <!-- Left arrow -->
+                      <button
+                        on:click={() => moveColumnLeft(status)}
+                        disabled={!canMoveLeft(status)}
+                        class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-110 active:scale-95 text-base font-bold"
+                        title="Move column left"
+                      >
+                        ←
+                      </button>
+
+                      <!-- Right arrow -->
+                      <button
+                        on:click={() => moveColumnRight(status)}
+                        disabled={!canMoveRight(status)}
+                        class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-110 active:scale-95 text-base font-bold"
+                        title="Move column right"
+                      >
+                        →
+                      </button>
+                    {/if}
+
                     <!-- Edit button (only for non-system statuses) -->
                     {#if !status.is_system}
                       <button
