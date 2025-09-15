@@ -1329,12 +1329,14 @@
 
 
         <!-- Project Dashboard -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {#each statuses as status (status.id)}
-            <div
-              class="{status.title === 'Closed' ? 'bg-red-50' : 'bg-white'} rounded-lg shadow transition-all duration-200"
-              animate:flip={{ duration: 300 }}
-            >
+        <div class="overflow-x-auto">
+          <div class="flex gap-6 min-w-full w-max pb-4">
+            {#each statuses as status (status.id)}
+              <div
+                class="{status.title === 'Closed' ? 'bg-red-50' : 'bg-white'} rounded-lg shadow transition-all duration-200 flex-shrink-0"
+                style="width: 320px;"
+                animate:flip={{ duration: 300 }}
+              >
               <!-- Column Header -->
               <div class="px-4 py-3 border-b border-gray-200">
                 <!-- Top line: Title and action buttons -->
@@ -1863,7 +1865,8 @@
                 {/if}
               </div>
             </div>
-          {/each}
+            {/each}
+          </div>
         </div>
 
         <!-- Empty state for no statuses -->
