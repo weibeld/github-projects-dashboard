@@ -3,7 +3,7 @@
   import { flip } from 'svelte/animate';
   import { setupAuth, login, logout, isLoggedIn, isLoggingOut } from './lib/auth';
   import { loadProjectsFromGitHub, githubProjects } from './lib/github';
-  import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, deleteStatus, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel, updateStatusSorting, sortProjects } from './lib/database';
+  import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, createStatusAfter, deleteStatus, updateStatusTitle, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel, updateStatusSorting, sortProjects } from './lib/database';
   import { supabase } from './lib/supabase';
   import type { Status, Project, Label, SortField, SortDirection } from './lib/database';
   import type { GitHubProject } from './lib/github';
@@ -48,6 +48,23 @@
   // Collapsible section state
   let addedSectionCollapsed = true;
   let availableSectionCollapsed = false;
+
+  // Column creation state
+  let showCreateColumn = false;
+  let newColumnTitle = '';
+  let creatingColumn = false;
+  let insertAfterStatusId: string | null = null; // Track which status to insert after
+
+  // Column deletion state
+  let showDeleteColumn = false;
+  let statusToDelete: Status | null = null;
+  let deletingColumn = false;
+
+  // Column editing state
+  let showEditColumn = false;
+  let statusToEdit: Status | null = null;
+  let editColumnTitle = '';
+  let editingColumn = false;
 
   // Reactive filtered labels for the active dropdown (explicitly depends on labelSearchQuery)
   $: filteredLabelsForActiveProject = (() => {
@@ -129,6 +146,31 @@
   })();
 
   $: labelNameError = isDuplicateLabelName ? 'A label with this name already exists' : '';
+
+  // Column name duplicate validation (for creating new columns)
+  $: isDuplicateNewColumnName = (() => {
+    if (!newColumnTitle.trim()) return false;
+
+    const trimmedTitle = newColumnTitle.trim();
+    return statuses.some(status =>
+      status.title === trimmedTitle
+    );
+  })();
+
+  // Column name duplicate validation (for editing existing columns)
+  $: isDuplicateEditColumnName = (() => {
+    if (!editColumnTitle.trim()) return false;
+
+    const trimmedTitle = editColumnTitle.trim();
+    return statuses.some(status => {
+      // When editing, exclude the current status from duplicate check
+      if (statusToEdit && status.id === statusToEdit.id) return false;
+      return status.title === trimmedTitle;
+    });
+  })();
+
+  $: newColumnNameError = isDuplicateNewColumnName ? 'A column with this name already exists' : '';
+  $: editColumnNameError = isDuplicateEditColumnName ? 'A column with this name already exists' : '';
 
   // Track when we just opened edit modal for existing label (to preserve their text color choice)
   let justOpenedEditModal = false;
@@ -483,6 +525,113 @@
       error = err instanceof Error ? err.message : 'Failed to delete status';
       console.error('Delete status error:', err);
     }
+  }
+
+  // Create new column (status)
+  async function handleCreateColumn() {
+    if (!newColumnTitle.trim() || creatingColumn || isDuplicateNewColumnName) return;
+
+    creatingColumn = true;
+    try {
+      if (insertAfterStatusId) {
+        // Insert after specific status
+        await createStatusAfter(newColumnTitle.trim(), insertAfterStatusId);
+      } else {
+        // Default behavior (before Closed)
+        await createStatus(newColumnTitle.trim());
+      }
+
+      // Refresh statuses
+      const updatedStatuses = await fetchStatuses();
+      statuses = [...updatedStatuses];
+
+      // Reset form
+      newColumnTitle = '';
+      showCreateColumn = false;
+      insertAfterStatusId = null;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to create column';
+      console.error('Create column error:', err);
+    } finally {
+      creatingColumn = false;
+    }
+  }
+
+  // Show delete column confirmation
+  function showDeleteColumnConfirmation(status: Status) {
+    statusToDelete = status;
+    showDeleteColumn = true;
+  }
+
+  // Confirm delete column
+  async function confirmDeleteColumn() {
+    if (!statusToDelete || deletingColumn) return;
+
+    deletingColumn = true;
+    try {
+      await deleteStatus(statusToDelete.id);
+
+      // Refresh data
+      const [updatedStatuses, updatedProjects] = await Promise.all([
+        fetchStatuses(),
+        fetchProjects()
+      ]);
+      statuses = [...updatedStatuses];
+      projects = [...updatedProjects];
+
+      // Reset state
+      showDeleteColumn = false;
+      statusToDelete = null;
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to delete column';
+      console.error('Delete column error:', err);
+    } finally {
+      deletingColumn = false;
+    }
+  }
+
+  // Cancel delete column
+  function cancelDeleteColumn() {
+    showDeleteColumn = false;
+    statusToDelete = null;
+  }
+
+  // Show edit column modal
+  function showEditColumnModal(status: Status) {
+    statusToEdit = status;
+    editColumnTitle = status.title;
+    showEditColumn = true;
+  }
+
+  // Handle edit column
+  async function handleEditColumn() {
+    if (!editColumnTitle.trim() || !statusToEdit || editingColumn || isDuplicateEditColumnName) return;
+
+    editingColumn = true;
+    try {
+      await updateStatusTitle(statusToEdit.id, editColumnTitle.trim());
+
+      // Refresh statuses
+      const updatedStatuses = await fetchStatuses();
+      statuses = [...updatedStatuses];
+
+      // Reset state
+      showEditColumn = false;
+      statusToEdit = null;
+      editColumnTitle = '';
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Failed to update column title';
+      console.error('Edit column error:', err);
+    } finally {
+      editingColumn = false;
+    }
+  }
+
+  // Cancel edit column
+  function cancelEditColumn() {
+    showEditColumn = false;
+    statusToEdit = null;
+    editColumnTitle = '';
   }
 
   // Handle keyboard events for new status input
@@ -997,57 +1146,6 @@
           </button>
         </div>
       {:else}
-        <!-- Status Management -->
-        <div class="mb-6">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900">Project Statuses</h2>
-            {#if !showAddStatus}
-              <button
-                on:click={() => showAddStatus = true}
-                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
-                </svg>
-                Add Status
-              </button>
-            {/if}
-          </div>
-
-          {#if showAddStatus}
-            <div class="bg-white rounded-lg shadow p-4 mb-4">
-              <div class="flex items-center gap-3">
-                <input
-                  bind:value={newStatusTitle}
-                  on:keydown={handleKeydown}
-                  placeholder="Enter status name..."
-                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={creatingStatus}
-                />
-                <button
-                  on:click={handleCreateStatus}
-                  disabled={!newStatusTitle.trim() || creatingStatus}
-                  class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {#if creatingStatus}
-                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Creating...
-                  {:else}
-                    Create
-                  {/if}
-                </button>
-                <button
-                  on:click={() => { showAddStatus = false; newStatusTitle = ''; }}
-                  class="px-4 py-2 text-gray-600 hover:text-gray-800"
-                  disabled={creatingStatus}
-                >
-                  Cancel
-                </button>
-              </div>
-              <p class="text-sm text-gray-500 mt-2">Press Enter to create, Escape to cancel</p>
-            </div>
-          {/if}
-        </div>
 
 
         <!-- Search Bar -->
@@ -1144,78 +1242,112 @@
           </div>
         </div>
 
+
         <!-- Project Dashboard -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {#each statuses as status}
             <div class="{status.title === 'Closed' ? 'bg-red-50' : 'bg-white'} rounded-lg shadow">
               <!-- Column Header -->
               <div class="px-4 py-3 border-b border-gray-200">
-                <div class="flex items-center justify-between">
+                <!-- Top line: Title and action buttons -->
+                <div class="flex items-center justify-between mb-2">
                   <div>
                     <h3 class="font-semibold text-gray-900">{status.title}</h3>
-                    <p class="text-sm text-gray-500">
-                      {(groupedProjects[status.id] || []).length} projects
-                    </p>
                   </div>
                   <div class="flex items-center gap-1">
-                    <!-- Sorting controls -->
-                    <div class="flex items-center gap-1">
-                      <!-- Sort Field dropdown -->
-                      <select
-                        on:change={(e) => {
-                          const field = e.currentTarget.value as SortField;
-                          handleSortingChange(status.id, field, status.sort_direction || 'desc');
-                        }}
-                        value="{(() => {
-                          const currentField = status.sort_field || 'number';
-                          // Context-aware field validation for UI
-                          if (status.title === 'Closed' && currentField === 'updated') {
-                            return 'closed';
-                          } else if (status.title !== 'Closed' && currentField === 'closed') {
-                            return 'updated';
-                          }
-                          return currentField;
-                        })()}"
-                        class="text-xs px-2 py-1 border border-gray-200 rounded bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                        title="Sort field"
-                      >
-                        <option value="title">Title</option>
-                        <option value="number">Project #</option>
-                        <option value="items">Items</option>
-                        {#if status.title === 'Closed'}
-                          <option value="closed">Closed</option>
-                        {:else}
-                          <option value="updated">Updated</option>
-                        {/if}
-                        <option value="created">Created</option>
-                      </select>
-
-                      <!-- Sort Direction dropdown -->
-                      <select
-                        on:change={(e) => {
-                          const direction = e.currentTarget.value as SortDirection;
-                          handleSortingChange(status.id, status.sort_field || 'created', direction);
-                        }}
-                        value="{status.sort_direction || 'desc'}"
-                        class="text-xs px-2 py-1 border border-gray-200 rounded bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                        title="Sort direction"
-                      >
-                        <option value="asc">↑ Asc</option>
-                        <option value="desc">↓ Desc</option>
-                      </select>
-                    </div>
+                    <!-- Edit button (only for non-system statuses) -->
                     {#if !status.is_system}
-                    <button
-                      on:click={() => handleDeleteStatus(status)}
-                      class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-                      title="Delete this status"
-                      aria-label="Delete status {status.title}"
-                    >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                      </svg>
+                      <button
+                        on:click={() => showEditColumnModal(status)}
+                        class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        title="Edit column title"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                        </svg>
                       </button>
                     {/if}
+
+                    <!-- Add Column button (not for Closed column) -->
+                    {#if status.title !== 'Closed'}
+                      <button
+                        on:click={() => {
+                          insertAfterStatusId = status.id;
+                          showCreateColumn = true;
+                        }}
+                        class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        title="Add column after {status.title}"
+                      >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                        </svg>
+                      </button>
+                    {/if}
+
+                    <!-- Delete button (only for non-system statuses) -->
+                    {#if !status.is_system}
+                      <button
+                        on:click={() => showDeleteColumnConfirmation(status)}
+                        class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Delete column"
+                      >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                      </button>
+                    {/if}
+                  </div>
+                </div>
+
+                <!-- Bottom line: Project count and sorting controls -->
+                <div class="flex items-center justify-between">
+                  <p class="text-sm text-gray-500">
+                    {(groupedProjects[status.id] || []).length} projects
+                  </p>
+                  <div class="flex items-center gap-1">
+                  <!-- Sort Field dropdown -->
+                  <select
+                    on:change={(e) => {
+                      const field = e.currentTarget.value as SortField;
+                      handleSortingChange(status.id, field, status.sort_direction || 'desc');
+                    }}
+                    value="{(() => {
+                      const currentField = status.sort_field || 'number';
+                      // Context-aware field validation for UI
+                      if (status.title === 'Closed' && currentField === 'updated') {
+                        return 'closed';
+                      } else if (status.title !== 'Closed' && currentField === 'closed') {
+                        return 'updated';
+                      }
+                      return currentField;
+                    })()}"
+                    class="text-xs px-2 py-1 border border-gray-200 rounded bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                    title="Sort field"
+                  >
+                    <option value="title">Title</option>
+                    <option value="number">Project #</option>
+                    <option value="items">Items</option>
+                    {#if status.title === 'Closed'}
+                      <option value="closed">Closed</option>
+                    {:else}
+                      <option value="updated">Updated</option>
+                    {/if}
+                    <option value="created">Created</option>
+                  </select>
+
+                  <!-- Sort Direction dropdown -->
+                  <select
+                    on:change={(e) => {
+                      const direction = e.currentTarget.value as SortDirection;
+                      handleSortingChange(status.id, status.sort_field || 'created', direction);
+                    }}
+                    value="{status.sort_direction || 'desc'}"
+                    class="text-xs px-2 py-1 border border-gray-200 rounded bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                    title="Sort direction"
+                  >
+                    <option value="asc">↑ Asc</option>
+                    <option value="desc">↓ Desc</option>
+                  </select>
                   </div>
                 </div>
               </div>
@@ -1388,8 +1520,7 @@
                                                 title="Edit label"
                                               >
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
                                                 </svg>
                                               </button>
                                               <button
@@ -1443,8 +1574,7 @@
                                                 title="Edit label"
                                               >
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
                                                 </svg>
                                               </button>
                                               <button
@@ -1500,8 +1630,7 @@
                                                 title="Edit label"
                                               >
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
                                                 </svg>
                                               </button>
                                               <button
@@ -1555,8 +1684,7 @@
                                                 title="Edit label"
                                               >
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
                                                 </svg>
                                               </button>
                                               <button
@@ -1800,6 +1928,130 @@
           <!-- White Label Preview -->
           <span class="px-3 py-1 text-sm font-bold rounded-full text-white bg-black">White</span>
         </div>
+      </div>
+    </div>
+  </Modal>
+
+  <!-- Create Column Modal -->
+  <Modal
+    show={showCreateColumn}
+    title="Create New Column"
+    size="md"
+    primaryButton={{
+      text: 'Create Column',
+      variant: 'blue',
+      disabled: !newColumnTitle.trim() || isDuplicateNewColumnName,
+      loading: creatingColumn
+    }}
+    secondaryButton={{
+      text: 'Cancel',
+      variant: 'outline'
+    }}
+    on:primary={handleCreateColumn}
+    on:secondary={() => { showCreateColumn = false; newColumnTitle = ''; insertAfterStatusId = null; }}
+    on:close={() => { showCreateColumn = false; newColumnTitle = ''; insertAfterStatusId = null; }}
+  >
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Column Name
+        </label>
+        <input
+          bind:value={newColumnTitle}
+          placeholder="Enter column name..."
+          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 {isDuplicateNewColumnName ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} focus:border-transparent"
+          autofocus
+          on:keydown={(e) => {
+            if (e.key === 'Enter' && newColumnTitle.trim() && !creatingColumn && !isDuplicateNewColumnName) {
+              handleCreateColumn();
+            }
+          }}
+        />
+        {#if newColumnNameError}
+          <p class="text-red-600 text-sm mt-1">{newColumnNameError}</p>
+        {/if}
+      </div>
+
+      <div class="text-sm text-gray-500">
+        {#if insertAfterStatusId}
+          {@const afterStatus = statuses.find(s => s.id === insertAfterStatusId)}
+          The new column will be created to the right of the "{afterStatus?.title || 'Unknown'}" column.
+        {:else}
+          The new column will be created to the left of the "Closed" column.
+        {/if}
+      </div>
+    </div>
+  </Modal>
+
+  <!-- Delete Column Confirmation Modal -->
+  <Modal
+    show={showDeleteColumn && statusToDelete !== null}
+    title="Delete Column"
+    size="md"
+    primaryButton={{
+      text: 'Delete Column',
+      variant: 'red',
+      loading: deletingColumn
+    }}
+    secondaryButton={{
+      text: 'Cancel',
+      variant: 'outline'
+    }}
+    on:primary={confirmDeleteColumn}
+    on:secondary={cancelDeleteColumn}
+    on:close={cancelDeleteColumn}
+  >
+    <div class="space-y-4">
+      <p class="text-gray-700">
+        Are you sure you want to delete the "<strong>{statusToDelete?.title}</strong>" column?
+      </p>
+
+      <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+        <p class="text-sm text-amber-700">
+          ⚠️ All projects in this column will be moved to "No Status". This action cannot be undone.
+        </p>
+      </div>
+    </div>
+  </Modal>
+
+  <!-- Edit Column Modal -->
+  <Modal
+    show={showEditColumn}
+    title="Edit Column"
+    size="md"
+    primaryButton={{
+      text: 'Save Changes',
+      variant: 'blue',
+      disabled: !editColumnTitle.trim() || isDuplicateEditColumnName,
+      loading: editingColumn
+    }}
+    secondaryButton={{
+      text: 'Cancel',
+      variant: 'outline'
+    }}
+    on:primary={handleEditColumn}
+    on:secondary={cancelEditColumn}
+    on:close={cancelEditColumn}
+  >
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">
+          Column Name
+        </label>
+        <input
+          bind:value={editColumnTitle}
+          placeholder="Enter column name..."
+          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 {isDuplicateEditColumnName ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} focus:border-transparent"
+          autofocus
+          on:keydown={(e) => {
+            if (e.key === 'Enter' && editColumnTitle.trim() && !editingColumn && !isDuplicateEditColumnName) {
+              handleEditColumn();
+            }
+          }}
+        />
+        {#if editColumnNameError}
+          <p class="text-red-600 text-sm mt-1">{editColumnNameError}</p>
+        {/if}
       </div>
     </div>
   </Modal>

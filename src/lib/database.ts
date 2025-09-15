@@ -90,6 +90,23 @@ export async function updateStatusSorting(statusId: string, sortField: SortField
   if (error) throw error;
 }
 
+// Update status title
+export async function updateStatusTitle(statusId: string, title: string): Promise<void> {
+  const userId = getUserId();
+  if (!userId) throw new Error('User not authenticated');
+
+  const { error } = await supabase
+    .from('statuses')
+    .update({
+      title,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', statusId)
+    .eq('user_id', userId);
+
+  if (error) throw error;
+}
+
 // Sort projects based on status sorting preferences
 export function sortProjects(projects: Project[], githubProjects: Record<string, GitHubProject>, status: Status): Project[] {
   if (!projects || projects.length === 0) return projects;
@@ -198,6 +215,68 @@ export async function createStatus(title: string): Promise<Status> {
     newPosition = maxPosition + 1;
   }
 
+  const { data, error } = await supabase
+    .from('statuses')
+    .insert({
+      user_id: userId,
+      title,
+      position: newPosition,
+      is_system: false,
+      sort_field: 'number',
+      sort_direction: 'desc'
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+// Create a new status after a specific status
+export async function createStatusAfter(title: string, afterStatusId: string): Promise<Status> {
+  const userId = getUserId();
+  if (!userId) throw new Error('User not authenticated');
+
+  // Get all statuses to find positions
+  const { data: allStatuses } = await supabase
+    .from('statuses')
+    .select('id, title, position')
+    .eq('user_id', userId)
+    .order('position');
+
+  if (!allStatuses) throw new Error('Failed to fetch statuses');
+
+  // Find the status to insert after
+  const afterStatus = allStatuses.find(s => s.id === afterStatusId);
+  if (!afterStatus) throw new Error('Status to insert after not found');
+
+  const newPosition = afterStatus.position + 1;
+
+  // Update positions of all statuses that come after the target position
+  const { error: updateError } = await supabase
+    .from('statuses')
+    .update({ position: supabase.rpc('position + 1') })
+    .eq('user_id', userId)
+    .gte('position', newPosition);
+
+  if (updateError) {
+    // If RPC doesn't work, do it manually
+    console.warn('RPC position update failed, using manual approach:', updateError);
+
+    const statusesToUpdate = allStatuses.filter(s => s.position >= newPosition);
+    for (const status of statusesToUpdate) {
+      const { error: individualUpdateError } = await supabase
+        .from('statuses')
+        .update({ position: status.position + 1 })
+        .eq('id', status.id);
+
+      if (individualUpdateError) {
+        console.error('Failed to update status position:', individualUpdateError);
+      }
+    }
+  }
+
+  // Create the new status
   const { data, error } = await supabase
     .from('statuses')
     .insert({
