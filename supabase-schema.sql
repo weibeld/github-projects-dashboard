@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS statuses (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, title),
-  CHECK (sort_field IN ('title', 'number', 'items', 'updated', 'closed', 'created')),
+  CHECK (sort_field IN ('title', 'number', 'items', 'updatedAt', 'closedAt', 'createdAt')),
   CHECK (sort_direction IN ('asc', 'desc'))
 );
 
@@ -153,12 +153,12 @@ BEGIN
 
   -- Create 'No Status' status
   INSERT INTO statuses (user_id, title, position, is_system, sort_field, sort_direction)
-  VALUES (p_user_id, 'No Status', 0, true, 'number', 'desc')
+  VALUES (p_user_id, 'No Status', 0, true, 'updatedAt', 'desc')
   RETURNING id INTO no_status_id;
 
   -- Create 'Closed' status
   INSERT INTO statuses (user_id, title, position, is_system, sort_field, sort_direction)
-  VALUES (p_user_id, 'Closed', 1, true, 'number', 'desc')
+  VALUES (p_user_id, 'Closed', 1, true, 'closedAt', 'desc')
   RETURNING id INTO closed_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

@@ -4,8 +4,26 @@ import { githubUserInfo } from './auth';
 import type { GitHubProject } from './github';
 
 // Database types
-export type SortField = 'title' | 'number' | 'items' | 'updated' | 'closed' | 'created';
+export type SortField = 'title' | 'number' | 'items' | 'updatedAt' | 'closedAt' | 'createdAt';
 export type SortDirection = 'asc' | 'desc';
+
+// Sort field configuration
+export const SORT_FIELD_LABELS: Record<SortField, string> = {
+  title: 'Title',
+  number: 'Project ID',
+  items: 'Items',
+  updatedAt: 'Updated',
+  closedAt: 'Closed',
+  createdAt: 'Created'
+};
+
+export const SORT_DIRECTION_LABELS: Record<SortDirection, string> = {
+  asc: 'Asc',
+  desc: 'Desc'
+};
+
+export const DEFAULT_SORT_FIELD: SortField = 'updatedAt';
+export const DEFAULT_SORT_DIRECTION: SortDirection = 'desc';
 
 export interface Status {
   id: string;
@@ -112,21 +130,9 @@ export function sortProjects(projects: Project[], githubProjects: Record<string,
   if (!projects || projects.length === 0) return projects;
 
   // Context-aware sort field validation and defaults
-  let sortField = status.sort_field || 'number';
+  let sortField = status.sort_field || 'updatedAt';
   const sortDirection = status.sort_direction || 'desc';
 
-  // Validate sort field is appropriate for this column type
-  if (status.title === 'Closed') {
-    // For closed columns, if using 'updated', switch to 'closed'
-    if (sortField === 'updated') {
-      sortField = 'closed';
-    }
-  } else {
-    // For non-closed columns, if using 'closed', switch to 'updated'
-    if (sortField === 'closed') {
-      sortField = 'updated';
-    }
-  }
 
   return [...projects].sort((a, b) => {
     const githubA = githubProjects[a.id];
@@ -148,15 +154,15 @@ export function sortProjects(projects: Project[], githubProjects: Record<string,
         valueA = githubA?.items || 0;
         valueB = githubB?.items || 0;
         break;
-      case 'updated':
+      case 'updatedAt':
         valueA = githubA?.updatedAt?.getTime() || 0;
         valueB = githubB?.updatedAt?.getTime() || 0;
         break;
-      case 'closed':
+      case 'closedAt':
         valueA = githubA?.closedAt?.getTime() || 0;
         valueB = githubB?.closedAt?.getTime() || 0;
         break;
-      case 'created':
+      case 'createdAt':
         valueA = githubA?.createdAt?.getTime() || 0;
         valueB = githubB?.createdAt?.getTime() || 0;
         break;
@@ -222,8 +228,8 @@ export async function createStatus(title: string): Promise<Status> {
       title,
       position: newPosition,
       is_system: false,
-      sort_field: 'number',
-      sort_direction: 'desc'
+      sort_field: DEFAULT_SORT_FIELD,
+      sort_direction: DEFAULT_SORT_DIRECTION
     })
     .select()
     .single();
@@ -284,8 +290,8 @@ export async function createStatusAfter(title: string, afterStatusId: string): P
       title,
       position: newPosition,
       is_system: false,
-      sort_field: 'number',
-      sort_direction: 'desc'
+      sort_field: DEFAULT_SORT_FIELD,
+      sort_direction: DEFAULT_SORT_DIRECTION
     })
     .select()
     .single();

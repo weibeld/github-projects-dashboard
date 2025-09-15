@@ -3,7 +3,7 @@
   import { flip } from 'svelte/animate';
   import { setupAuth, login, logout, isLoggedIn, isLoggingOut } from './lib/auth';
   import { loadProjectsFromGitHub, githubProjects } from './lib/github';
-  import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, createStatusAfter, deleteStatus, updateStatusTitle, updateStatusPositions, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel, updateStatusSorting, sortProjects } from './lib/database';
+  import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, createStatusAfter, deleteStatus, updateStatusTitle, updateStatusPositions, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel, updateStatusSorting, sortProjects, SORT_FIELD_LABELS, SORT_DIRECTION_LABELS } from './lib/database';
   import { supabase } from './lib/supabase';
   import type { Status, Project, Label, SortField, SortDirection } from './lib/database';
   import type { GitHubProject } from './lib/github';
@@ -12,6 +12,7 @@
   import relativeTime from 'dayjs/plugin/relativeTime';
   import customParseFormat from 'dayjs/plugin/customParseFormat';
   import Modal from './lib/components/Modal.svelte';
+  import { CaseSensitive, Hash, ListOrdered, CalendarSync, CalendarPlus, CalendarX2, ArrowUpNarrowWide, ArrowUpWideNarrow, ArrowDownWideNarrow, ArrowDownNarrowWide, Trash2, Pencil, Plus, ArrowRight, ArrowLeft, X, ChevronRight } from 'lucide-svelte';
 
   let statuses: Status[] = [];
   let projects: Project[] = [];
@@ -30,6 +31,12 @@
 
   // Keyboard navigation for dropdown
   let selectedLabelIndex = -1;
+
+  // Sort dropdown management
+  let activeSortFieldDropdown: string | null = null;
+  let selectedSortFieldIndex = -1;
+
+  // Note: Sort field and direction labels are now imported from database.ts
 
   // Confirmation modal state
   let showDeleteConfirmation = false;
@@ -453,22 +460,36 @@
       }
     });
 
-    // Handle click outside to close label dropdown
+    // Handle click outside to close label dropdown and sort dropdowns
     const handleClickOutside = (event: MouseEvent) => {
-      if (activeDropdownProjectId && !(event.target as Element)?.closest('.relative')) {
+      const target = event.target as Element;
+
+      if (activeDropdownProjectId && !target?.closest('.relative')) {
         closeLabelDropdown();
       }
+
+      // Close sort dropdowns when clicking outside
+      if (activeSortFieldDropdown && !target?.closest('.relative')) {
+        activeSortFieldDropdown = null;
+        selectedSortFieldIndex = -1;
+      }
+
     };
     document.addEventListener('click', handleClickOutside);
 
-    // Handle keyboard events for modals
+    // Handle keyboard events for modals and dropdowns
     const handleKeydown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         if (showDeleteConfirmation) {
           cancelDeleteLabel();
         } else if (showEditLabel) {
           cancelEditLabel();
+        } else if (activeSortFieldDropdown) {
+          activeSortFieldDropdown = null;
+          selectedSortFieldIndex = -1;
         }
+      } else if (activeSortFieldDropdown) {
+        handleSortFieldKeydown(event, activeSortFieldDropdown);
       }
     };
     document.addEventListener('keydown', handleKeydown);
@@ -835,6 +856,47 @@
     showEditLabel = true;
   }
 
+  // Sort dropdown keyboard navigation
+  function handleSortFieldKeydown(event: KeyboardEvent, statusId: string) {
+    const status = statuses.find(s => s.id === statusId);
+    const sortFieldOptions = status?.title === 'Closed'
+      ? ['title', 'number', 'items', 'updatedAt', 'createdAt', 'closedAt']
+      : ['title', 'number', 'items', 'updatedAt', 'createdAt'];
+    const maxIndex = sortFieldOptions.length - 1;
+
+    switch (event.key) {
+      case 'ArrowDown':
+      case 'Tab':
+        event.preventDefault();
+        if (event.shiftKey && event.key === 'Tab') {
+          selectedSortFieldIndex = selectedSortFieldIndex <= 0 ? maxIndex : selectedSortFieldIndex - 1;
+        } else {
+          selectedSortFieldIndex = selectedSortFieldIndex < 0 ? 0 : Math.min(selectedSortFieldIndex + 1, maxIndex);
+        }
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        selectedSortFieldIndex = selectedSortFieldIndex <= 0 ? maxIndex : selectedSortFieldIndex - 1;
+        break;
+      case 'Enter':
+        event.preventDefault();
+        if (selectedSortFieldIndex >= 0) {
+          const status = statuses.find(s => s.id === statusId);
+          const field = sortFieldOptions[selectedSortFieldIndex];
+          handleSortingChange(statusId, field, status?.sort_direction || 'desc');
+          activeSortFieldDropdown = null;
+          selectedSortFieldIndex = -1;
+        }
+        break;
+      case 'Escape':
+        event.preventDefault();
+        activeSortFieldDropdown = null;
+        selectedSortFieldIndex = -1;
+        break;
+    }
+  }
+
+
   // Get filtered labels based on search query and available labels for a project
   function getFilteredLabels(projectId: string) {
     const projectLabelIds = new Set(projects.find(p => p.id === projectId)?.labels?.map(l => l.id) || []);
@@ -1078,15 +1140,24 @@
 
   // Handle sorting change
   async function handleSortingChange(statusId: string, sortField: SortField, sortDirection: SortDirection) {
+    // Optimistic update - update UI immediately
+    statuses = statuses.map(status =>
+      status.id === statusId
+        ? { ...status, sort_field: sortField, sort_direction: sortDirection }
+        : status
+    );
+
+    // Then update the database in the background
     try {
       await updateStatusSorting(statusId, sortField, sortDirection);
-
-      // Refresh statuses to show updated sorting preferences
-      const updatedStatuses = await fetchStatuses();
-      statuses = [...updatedStatuses];
     } catch (err) {
+      // If database update fails, revert the optimistic update
       error = err instanceof Error ? err.message : 'Failed to update sorting';
       console.error('Update sorting error:', err);
+
+      // Refresh from database to get the correct state
+      const updatedStatuses = await fetchStatuses();
+      statuses = [...updatedStatuses];
     }
   }
 
@@ -1253,9 +1324,7 @@
                   class="flex-shrink-0 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
                   title="Clear search"
                 >
-                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                  </svg>
+                  <X class="w-4 h-4" />
                 </button>
               {/if}
             </div>
@@ -1342,7 +1411,17 @@
                 <!-- Top line: Title and action buttons -->
                 <div class="flex items-center justify-between mb-2">
                   <div>
-                    <h3 class="font-semibold text-gray-900">{status.title}</h3>
+                    {#if status.is_system}
+                      <h3 class="font-semibold text-gray-900">{status.title}</h3>
+                    {:else}
+                      <button
+                        on:click={() => showEditColumnModal(status)}
+                        class="font-semibold text-gray-900 cursor-pointer text-left"
+                        title="Click to edit column title"
+                      >
+                        {status.title}
+                      </button>
+                    {/if}
                   </div>
                   <div class="flex items-center gap-1">
                     <!-- Arrow buttons for reordering (only for non-system statuses) -->
@@ -1354,7 +1433,7 @@
                         class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-110 active:scale-95 text-base font-bold"
                         title="Move column left"
                       >
-                        ←
+                        <ArrowLeft class="w-4 h-4" />
                       </button>
 
                       <!-- Right arrow -->
@@ -1364,22 +1443,10 @@
                         class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-110 active:scale-95 text-base font-bold"
                         title="Move column right"
                       >
-                        →
+                        <ArrowRight class="w-4 h-4" />
                       </button>
                     {/if}
 
-                    <!-- Edit button (only for non-system statuses) -->
-                    {#if !status.is_system}
-                      <button
-                        on:click={() => showEditColumnModal(status)}
-                        class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                        title="Edit column title"
-                      >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-                        </svg>
-                      </button>
-                    {/if}
 
                     <!-- Add Column button (not for Closed column) -->
                     {#if status.title !== 'Closed'}
@@ -1391,9 +1458,7 @@
                         class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                         title="Add column after {status.title}"
                       >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                        </svg>
+                        <Plus class="w-5 h-5" />
                       </button>
                     {/if}
 
@@ -1404,9 +1469,7 @@
                         class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                         title="Delete column"
                       >
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
+                        <Trash2 class="w-4 h-4" />
                       </button>
                     {/if}
                   </div>
@@ -1414,53 +1477,147 @@
 
                 <!-- Bottom line: Project count and sorting controls -->
                 <div class="flex items-center justify-between">
-                  <p class="text-sm text-gray-500">
-                    {(groupedProjects[status.id] || []).length} projects
-                  </p>
-                  <div class="flex items-center gap-1">
+                  <div class="flex items-center">
+                    <span class="px-2 py-1 bg-gray-300 text-gray-700 font-bold rounded-full text-xs">
+                      {(groupedProjects[status.id] || []).length}
+                    </span>
+                  </div>
+                  <div class="flex items-center">
                   <!-- Sort Field dropdown -->
-                  <select
-                    on:change={(e) => {
-                      const field = e.currentTarget.value as SortField;
-                      handleSortingChange(status.id, field, status.sort_direction || 'desc');
-                    }}
-                    value="{(() => {
-                      const currentField = status.sort_field || 'number';
-                      // Context-aware field validation for UI
-                      if (status.title === 'Closed' && currentField === 'updated') {
-                        return 'closed';
-                      } else if (status.title !== 'Closed' && currentField === 'closed') {
-                        return 'updated';
-                      }
-                      return currentField;
-                    })()}"
-                    class="text-xs px-2 py-1 border border-gray-200 rounded bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                    title="Sort field"
-                  >
-                    <option value="title">Title</option>
-                    <option value="number">Project #</option>
-                    <option value="items">Items</option>
-                    {#if status.title === 'Closed'}
-                      <option value="closed">Closed</option>
-                    {:else}
-                      <option value="updated">Updated</option>
-                    {/if}
-                    <option value="created">Created</option>
-                  </select>
+                  <div class="relative">
+                    <button
+                      on:click={() => {
+                        if (activeSortFieldDropdown === status.id) {
+                          activeSortFieldDropdown = null;
+                        } else {
+                          activeSortFieldDropdown = status.id;
+                          selectedSortFieldIndex = -1;
+                        }
+                      }}
+                      class="text-xs px-1 py-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer flex items-center gap-1 focus:outline-none"
+                      title="Sort field"
+                    >
+                      <!-- Display appropriate icon based on current sort field -->
+                      {#if (status.sort_field || 'updatedAt') === 'title'}
+                        <CaseSensitive class="w-5 h-5" />
+                        {SORT_FIELD_LABELS.title.toUpperCase()}
+                      {:else if (status.sort_field || 'updatedAt') === 'number'}
+                        <Hash class="w-5 h-5" />
+                        {SORT_FIELD_LABELS.number.toUpperCase()}
+                      {:else if (status.sort_field || 'updatedAt') === 'items'}
+                        <ListOrdered class="w-5 h-5" />
+                        {SORT_FIELD_LABELS.items.toUpperCase()}
+                      {:else if (status.sort_field || 'updatedAt') === 'updatedAt'}
+                        <CalendarSync class="w-5 h-5" />
+                        {SORT_FIELD_LABELS.updatedAt.toUpperCase()}
+                      {:else if (status.sort_field || 'updatedAt') === 'closedAt'}
+                        <CalendarX2 class="w-5 h-5" />
+                        {SORT_FIELD_LABELS.closedAt.toUpperCase()}
+                      {:else}
+                        <CalendarPlus class="w-5 h-5" />
+                        {SORT_FIELD_LABELS.createdAt.toUpperCase()}
+                      {/if}
+                    </button>
 
-                  <!-- Sort Direction dropdown -->
-                  <select
-                    on:change={(e) => {
-                      const direction = e.currentTarget.value as SortDirection;
-                      handleSortingChange(status.id, status.sort_field || 'created', direction);
+                    {#if activeSortFieldDropdown === status.id}
+                      <div
+                        class="absolute left-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+                      >
+                        <button
+                          on:click={() => {
+                            handleSortingChange(status.id, 'title', status.sort_direction || 'desc');
+                            activeSortFieldDropdown = null;
+                            selectedSortFieldIndex = -1;
+                          }}
+                          on:mouseenter={() => selectedSortFieldIndex = -1}
+                          class="w-full px-3 py-2 text-xs text-left first:rounded-t-lg flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 0 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}"
+                        >
+                          <CaseSensitive class="w-5 h-5" />
+                          {SORT_FIELD_LABELS.title.toUpperCase()}
+                        </button>
+                        <button
+                          on:click={() => {
+                            handleSortingChange(status.id, 'number', status.sort_direction || 'desc');
+                            activeSortFieldDropdown = null;
+                            selectedSortFieldIndex = -1;
+                          }}
+                          on:mouseenter={() => selectedSortFieldIndex = -1}
+                          class="w-full px-3 py-2 text-xs text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 1 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}"
+                        >
+                          <Hash class="w-5 h-5" />
+                          {SORT_FIELD_LABELS.number.toUpperCase()}
+                        </button>
+                        <button
+                          on:click={() => {
+                            handleSortingChange(status.id, 'items', status.sort_direction || 'desc');
+                            activeSortFieldDropdown = null;
+                            selectedSortFieldIndex = -1;
+                          }}
+                          on:mouseenter={() => selectedSortFieldIndex = -1}
+                          class="w-full px-3 py-2 text-xs text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 2 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}"
+                        >
+                          <ListOrdered class="w-5 h-5" />
+                          {SORT_FIELD_LABELS.items.toUpperCase()}
+                        </button>
+                        <button
+                          on:click={() => {
+                            handleSortingChange(status.id, 'updatedAt', status.sort_direction || 'desc');
+                            activeSortFieldDropdown = null;
+                            selectedSortFieldIndex = -1;
+                          }}
+                          on:mouseenter={() => selectedSortFieldIndex = -1}
+                          class="w-full px-3 py-2 text-xs text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 3 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}"
+                        >
+                          <CalendarSync class="w-5 h-5" />
+                          {SORT_FIELD_LABELS.updatedAt.toUpperCase()}
+                        </button>
+                        <button
+                          on:click={() => {
+                            handleSortingChange(status.id, 'createdAt', status.sort_direction || 'desc');
+                            activeSortFieldDropdown = null;
+                            selectedSortFieldIndex = -1;
+                          }}
+                          on:mouseenter={() => selectedSortFieldIndex = -1}
+                          class="w-full px-3 py-2 text-xs text-left {status.title === 'Closed' ? '' : 'last:rounded-b-lg'} flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 4 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}"
+                        >
+                          <CalendarPlus class="w-5 h-5" />
+                          {SORT_FIELD_LABELS.createdAt.toUpperCase()}
+                        </button>
+                        {#if status.title === 'Closed'}
+                          <button
+                            on:click={() => {
+                              handleSortingChange(status.id, 'closedAt', status.sort_direction || 'desc');
+                              activeSortFieldDropdown = null;
+                              selectedSortFieldIndex = -1;
+                            }}
+                            on:mouseenter={() => selectedSortFieldIndex = -1}
+                            class="w-full px-3 py-2 text-xs text-left last:rounded-b-lg flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 5 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}"
+                          >
+                            <CalendarX2 class="w-5 h-5" />
+                            {SORT_FIELD_LABELS.closedAt.toUpperCase()}
+                          </button>
+                        {/if}
+                      </div>
+                    {/if}
+                  </div>
+
+                  <!-- Sort Direction toggle -->
+                  <button
+                    on:click={() => {
+                      const newDirection = status.sort_direction === 'asc' ? 'desc' : 'asc';
+                      handleSortingChange(status.id, status.sort_field || 'updatedAt', newDirection);
                     }}
-                    value="{status.sort_direction || 'desc'}"
-                    class="text-xs px-2 py-1 border border-gray-200 rounded bg-gray-50 hover:bg-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
-                    title="Sort direction"
+                    class="text-xs px-1 py-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer flex items-center gap-1 focus:outline-none"
+                    title="Toggle sort direction"
                   >
-                    <option value="asc">↑ Asc</option>
-                    <option value="desc">↓ Desc</option>
-                  </select>
+                    {#if status.sort_direction === 'asc'}
+                      <ArrowUpNarrowWide class="w-5 h-5" />
+                      {SORT_DIRECTION_LABELS.asc.toUpperCase()}
+                    {:else}
+                      <ArrowDownWideNarrow class="w-5 h-5" />
+                      {SORT_DIRECTION_LABELS.desc.toUpperCase()}
+                    {/if}
+                  </button>
                   </div>
                 </div>
               </div>
@@ -1522,7 +1679,7 @@
                           {#if githubProject.isClosed && githubProject.closedAt}
                             <div>
                               Closed: <span
-                                class="cursor-help underline decoration-1 decoration-gray-300"
+                                class="cursor-pointer underline decoration-1 decoration-gray-300"
                                 on:mouseenter={(e) => showTooltip(e, formatTooltip(githubProject.closedAt))}
                                 on:mouseleave={hideTooltip}
                               >{formatTimestamp(githubProject.closedAt)}</span>
@@ -1530,7 +1687,7 @@
                           {:else if githubProject.updatedAt}
                             <div>
                               Last updated: <span
-                                class="cursor-help underline decoration-1 decoration-gray-300"
+                                class="cursor-pointer underline decoration-1 decoration-gray-300"
                                 on:mouseenter={(e) => showTooltip(e, formatTooltip(githubProject.updatedAt))}
                                 on:mouseleave={hideTooltip}
                               >{formatTimestamp(githubProject.updatedAt)}</span>
@@ -1538,7 +1695,7 @@
                           {/if}
                           <div>
                             Created: <span
-                              class="cursor-help underline decoration-1 decoration-gray-300"
+                              class="cursor-pointer underline decoration-1 decoration-gray-300"
                               on:mouseenter={(e) => showTooltip(e, formatTooltip(githubProject.createdAt))}
                               on:mouseleave={hideTooltip}
                             >{formatTimestamp(githubProject.createdAt)}</span>
@@ -1566,9 +1723,7 @@
                                       class="hover:bg-black/20 rounded-full p-0.5 transition-colors"
                                       title="Remove {label.title} label"
                                     >
-                                      <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
-                                      </svg>
+                                      <X class="w-2.5 h-2.5" />
                                     </button>
                                   </div>
                                 {/each}
@@ -1611,9 +1766,7 @@
                                           on:click={toggleAddedSection}
                                           class="w-full px-3 py-1 text-xs font-normal text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors"
                                         >
-                                          <svg class="w-3 h-3 transition-transform duration-200 {addedSectionCollapsed ? '' : 'rotate-90'}" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                                          </svg>
+                                          <ChevronRight class="w-5 h-5 transition-transform duration-200 {addedSectionCollapsed ? '' : 'rotate-90'}" />
                                           <span>ADDED</span>
                                           <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{addedLabelsForActiveProject.length}</span>
                                         </button>
@@ -1622,7 +1775,7 @@
                                           {@const projectCount = getProjectCountForLabel(label.id)}
                                           <div class="flex items-center group">
                                             <div class="flex-1 px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-500">
-                                              <div class="w-3 h-3 rounded-full" style="background-color: {label.color}"></div>
+                                              <div class="w-5 h-5 rounded-full" style="background-color: {label.color}"></div>
                                               <span>{label.title}</span>
                                             </div>
                                             <div class="flex items-center px-2">
@@ -1632,18 +1785,14 @@
                                                 class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                                 title="Edit label"
                                               >
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-                                                </svg>
+                                                <Pencil class="w-4 h-4" />
                                               </button>
                                               <button
                                                 on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
                                                 class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                                 title="Delete label"
                                               >
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                </svg>
+                                                <Trash2 class="w-4 h-4" />
                                               </button>
                                             </div>
                                           </div>
@@ -1657,9 +1806,7 @@
                                           on:click={toggleAvailableSection}
                                           class="w-full px-3 py-1 text-xs font-normal text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors"
                                         >
-                                          <svg class="w-3 h-3 transition-transform duration-200 {availableSectionCollapsed ? '' : 'rotate-90'}" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                                          </svg>
+                                          <ChevronRight class="w-5 h-5 transition-transform duration-200 {availableSectionCollapsed ? '' : 'rotate-90'}" />
                                           <span>AVAILABLE</span>
                                           <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{filteredLabelsForActiveProject.length}</span>
                                         </button>
@@ -1676,7 +1823,7 @@
                                               on:click|stopPropagation={() => handleAddLabelToProject(project.id, label.id)}
                                               class="flex-1 px-3 py-2 text-left text-sm flex items-center gap-2"
                                             >
-                                              <div class="w-3 h-3 rounded-full" style="background-color: {label.color}"></div>
+                                              <div class="w-5 h-5 rounded-full" style="background-color: {label.color}"></div>
                                               <span>{label.title}</span>
                                             </button>
                                             <div class="flex items-center px-2">
@@ -1686,18 +1833,14 @@
                                                 class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                                 title="Edit label"
                                               >
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-                                                </svg>
+                                                <Pencil class="w-4 h-4" />
                                               </button>
                                               <button
                                                 on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
                                                 class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                                 title="Delete label"
                                               >
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                </svg>
+                                                <Trash2 class="w-4 h-4" />
                                               </button>
                                             </div>
                                           </div>
@@ -1721,9 +1864,7 @@
                                           on:click={toggleAddedSection}
                                           class="w-full px-3 py-1 text-xs font-normal text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors"
                                         >
-                                          <svg class="w-3 h-3 transition-transform duration-200 {addedSectionCollapsed ? '' : 'rotate-90'}" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                                          </svg>
+                                          <ChevronRight class="w-5 h-5 transition-transform duration-200 {addedSectionCollapsed ? '' : 'rotate-90'}" />
                                           <span>ADDED</span>
                                           <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{addedLabelsForActiveProject.length}</span>
                                         </button>
@@ -1732,7 +1873,7 @@
                                           {@const projectCount = getProjectCountForLabel(label.id)}
                                           <div class="flex items-center group">
                                             <div class="flex-1 px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-500">
-                                              <div class="w-3 h-3 rounded-full" style="background-color: {label.color}"></div>
+                                              <div class="w-5 h-5 rounded-full" style="background-color: {label.color}"></div>
                                               <span>{label.title}</span>
                                             </div>
                                             <div class="flex items-center px-2">
@@ -1742,18 +1883,14 @@
                                                 class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                                 title="Edit label"
                                               >
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-                                                </svg>
+                                                <Pencil class="w-4 h-4" />
                                               </button>
                                               <button
                                                 on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
                                                 class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                                 title="Delete label"
                                               >
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                </svg>
+                                                <Trash2 class="w-4 h-4" />
                                               </button>
                                             </div>
                                           </div>
@@ -1767,9 +1904,7 @@
                                           on:click={toggleAvailableSection}
                                           class="w-full px-3 py-1 text-xs font-normal text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors"
                                         >
-                                          <svg class="w-3 h-3 transition-transform duration-200 {availableSectionCollapsed ? '' : 'rotate-90'}" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
-                                          </svg>
+                                          <ChevronRight class="w-5 h-5 transition-transform duration-200 {availableSectionCollapsed ? '' : 'rotate-90'}" />
                                           <span>AVAILABLE</span>
                                           <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{filteredLabelsForActiveProject.length}</span>
                                         </button>
@@ -1786,7 +1921,7 @@
                                               on:click|stopPropagation={() => handleAddLabelToProject(project.id, label.id)}
                                               class="flex-1 px-3 py-2 text-left text-sm flex items-center gap-2"
                                             >
-                                              <div class="w-3 h-3 rounded-full" style="background-color: {label.color}"></div>
+                                              <div class="w-5 h-5 rounded-full" style="background-color: {label.color}"></div>
                                               <span>{label.title}</span>
                                             </button>
                                             <div class="flex items-center px-2">
@@ -1796,18 +1931,14 @@
                                                 class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
                                                 title="Edit label"
                                               >
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-                                                </svg>
+                                                <Pencil class="w-4 h-4" />
                                               </button>
                                               <button
                                                 on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
                                                 class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
                                                 title="Delete label"
                                               >
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                                </svg>
+                                                <Trash2 class="w-4 h-4" />
                                               </button>
                                             </div>
                                           </div>
@@ -2012,9 +2143,7 @@
             for="colorPicker"
             class="p-2 rounded-lg cursor-pointer text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
-            </svg>
+            <Pencil class="w-4 h-4" />
           </label>
         </div>
       </div>
@@ -2068,7 +2197,7 @@
     <div class="space-y-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
-          Column Name
+          Name
         </label>
         <input
           bind:value={newColumnTitle}
@@ -2150,7 +2279,7 @@
     <div class="space-y-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-2">
-          Column Name
+          Name
         </label>
         <input
           bind:value={editColumnTitle}
