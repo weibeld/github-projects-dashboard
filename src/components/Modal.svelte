@@ -12,14 +12,14 @@
   // Button configurations
   export let primaryButton: {
     text: string;
-    variant?: 'blue' | 'red' | 'green' | 'gray';
+    variant?: 'blue' | 'red';
     disabled?: boolean;
     loading?: boolean;
   } | null = null;
 
   export let secondaryButton: {
     text: string;
-    variant?: 'outline' | 'ghost';
+    variant?: 'outline';
     disabled?: boolean;
   } | null = { text: 'Cancel', variant: 'outline' };
 
@@ -60,12 +60,9 @@
   };
 
   $: buttonVariants = {
-    blue: 'bg-blue-600 text-white hover:bg-blue-700',
-    red: 'bg-red-600 text-white hover:bg-red-700',
-    green: 'bg-green-600 text-white hover:bg-green-700',
-    gray: 'bg-gray-600 text-white hover:bg-gray-700',
-    outline: 'text-gray-700 border border-gray-300 hover:bg-gray-50',
-    ghost: 'text-gray-700 hover:bg-gray-100'
+    blue: '_bg-blue-regular _text-white hover:_bg-blue-dark',
+    red: '_bg-red-regular _text-white hover:_bg-red-dark',
+    outline: '_text-gray-black border _border-gray-regular hover:_bg-gray-light'
   };
 </script>
 
@@ -81,7 +78,7 @@
       {#if title || showCloseButton}
         <div class="flex items-center justify-between mb-6">
           {#if title}
-            <h3 class="text-lg font-semibold text-gray-900">{title}</h3>
+            <h3 class="_text-large font-semibold _text-black">{title}</h3>
           {:else}
             <div></div>
           {/if}
@@ -89,10 +86,10 @@
           {#if showCloseButton}
             <button
               on:click={handleClose}
-              class="text-gray-400 hover:text-gray-600 transition-colors"
+              class="_icon-button-hover-neutral _icon-large"
               disabled={primaryButton?.loading}
             >
-              <X class="w-6 h-6" />
+              <X />
             </button>
           {/if}
         </div>

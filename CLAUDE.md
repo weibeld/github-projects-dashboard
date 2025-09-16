@@ -56,3 +56,33 @@ Implements SortableJS for drag-and-drop functionality between project status col
 - Base path configured for GitHub Pages deployment: `/github-projects-dashboard/`
 - Metadata store functions include complex validation for unique titles and proper cross-entity relationships
 - Store logging is implemented via `src/lib/log.ts` for debugging state changes
+
+## User Todo List Management
+
+The user maintains a personal todo list at `tmp/todo` for tracking tasks and ideas during development sessions. When the user requests todo list operations, always:
+
+1. **Show todo list**: Read and display contents of `tmp/todo`
+2. **Add items**: Append new items to the list with bullets (-)
+3. **Insert items**: Add items at specific positions in the list
+4. **Edit items**: Modify existing items by replacing the text
+5. **Mark as done**: Add [DONE] prefix or strikethrough to completed items
+6. **Reset list**: Clear all items and reinitialize with empty list template
+
+Always update the "Last updated" timestamp when modifying the file. The file format is:
+```
+# Todo List
+
+## Items:
+
+- Item 1
+- Item 2
+- [DONE] Completed item
+
+---
+Last updated: [timestamp]
+```
+
+## Spelling
+
+Use British spelling (e.g. "Colour" instead of "Color") except in identifiers in the code (e.g. name variables 'color', not 'colour').
+- Please marke the done items in the todo file too

@@ -12,7 +12,7 @@
   import relativeTime from 'dayjs/plugin/relativeTime';
   import customParseFormat from 'dayjs/plugin/customParseFormat';
   import Modal from './components/Modal.svelte';
-  import { CaseSensitive, Hash, ListOrdered, CalendarSync, CalendarPlus, CalendarX2, ArrowUpNarrowWide, ArrowUpWideNarrow, ArrowDownWideNarrow, ArrowDownNarrowWide, Trash2, Pencil, Plus, ArrowRight, ArrowLeft, X, ChevronRight } from 'lucide-svelte';
+  import { CaseSensitive, Hash, ListOrdered, CalendarSync, CalendarPlus, CalendarX2, ArrowUpNarrowWide, ArrowUpWideNarrow, ArrowDownWideNarrow, ArrowDownNarrowWide, Trash2, Pencil, Plus, ArrowRight, ArrowLeft, X, ChevronRight, Loader, Search } from 'lucide-svelte';
 
   let statuses: Status[] = [];
   let projects: Project[] = [];
@@ -1266,37 +1266,43 @@
   }
 </script>
 
-<main class="min-h-screen bg-gray-50">
-  <div class="max-w-7xl mx-auto px-4 py-8">
-    <!-- Header -->
-    <div class="flex justify-between items-center mb-8">
-      <h1 class="text-2xl font-bold text-gray-900">GitHub Projects Dashboard</h1>
+<main class="min-h-screen _bg-white">
+  <!-- Header -->
+  <div class="_bg-gray-light">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+      <div class="flex justify-between items-center">
+      <h1 class="text-2xl font-bold _text-black">GitHub Projects Dashboard</h1>
       {#if $isLoggedIn}
         <button
           on:click={logout}
           disabled={$isLoggingOut}
-          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+          class="px-4 py-2 _bg-red-regular _text-white rounded hover:_bg-red-dark disabled:opacity-50"
         >
           {$isLoggingOut ? 'Logging out...' : 'Logout'}
         </button>
       {/if}
+      </div>
     </div>
+  </div>
 
-    <!-- Main Content -->
+  <!-- Main Content -->
+  <div class="px-4 py-8 mx-auto">
     {#if $isLoggedIn}
       {#if loading}
         <div class="flex items-center justify-center min-h-[400px]">
           <div class="text-center">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
-            <p class="text-gray-600">Loading your GitHub Projects...</p>
+            <div class="flex justify-center mb-4 _text-black">
+              <Loader size={32} class="animate-spin" />
+            </div>
+            <p class="_text-regular _text-gray-black">Loading your GitHub Projects...</p>
           </div>
         </div>
       {:else if error}
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <p class="text-red-700">Error: {error}</p>
+        <div class="_bg-red-light border _border-red rounded-lg p-4 mb-6">
+          <p class="_text-regular _text-red">Error: {error}</p>
           <button
             on:click={loadDashboardData}
-            class="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            class="mt-2 px-4 py-2 _bg-red-regular _text-white rounded hover:_bg-red-dark"
           >
             Retry
           </button>
@@ -1306,77 +1312,75 @@
 
         <!-- Search Bar -->
         <div class="mb-6">
-          <div class="bg-white rounded-lg shadow p-4">
+          <div class="_bg-white p-4">
             <div class="flex items-center gap-3">
-              <div class="flex-shrink-0">
-                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
+              <div class="flex-shrink-0 _icon-normal _text-gray">
+                <Search />
               </div>
               <input
                 bind:value={searchQuery}
                 placeholder="Search projects... (e.g., &quot;app&quot;, &quot;label:frontend&quot;, &quot;updated:>1 month ago&quot;)"
-                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                class="flex-1 px-3 py-2 border _border-gray-regular rounded-lg focus:outline-none focus:ring-2 focus:_ring-blue focus:border-transparent"
               />
               {#if searchQuery}
                 <button
                   on:click={() => searchQuery = ''}
-                  class="flex-shrink-0 p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
+                  class="_icon-button-hover-red _icon-normal"
                   title="Clear search"
                 >
-                  <X class="w-4 h-4" />
+                  <X />
                 </button>
               {/if}
             </div>
 
             <!-- Search Examples -->
-            <div class="mt-3 flex flex-wrap gap-2 text-sm">
-              <span class="text-gray-500">Examples:</span>
+            <div class="mt-3 flex flex-wrap gap-2 _text-regular">
+              <span class="_text-regular _text-gray">Examples:</span>
               <button
                 on:click={() => searchQuery = 'app'}
-                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                class="px-2 py-1 _bg-gray-regular _text-gray-black rounded hover:_bg-gray-regular transition-colors"
               >
                 app
               </button>
               <button
                 on:click={() => searchQuery = 'label:frontend'}
-                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                class="px-2 py-1 _bg-gray-regular _text-gray-black rounded hover:_bg-gray-regular transition-colors"
               >
                 label:frontend
               </button>
               <button
                 on:click={() => searchQuery = 'updated:>1 month ago'}
-                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                class="px-2 py-1 _bg-gray-regular _text-gray-black rounded hover:_bg-gray-regular transition-colors"
               >
                 updated:&gt;1 month ago
               </button>
               <button
                 on:click={() => searchQuery = 'created:<1 week ago'}
-                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                class="px-2 py-1 _bg-gray-regular _text-gray-black rounded hover:_bg-gray-regular transition-colors"
               >
                 created:&lt;1 week ago
               </button>
               <button
                 on:click={() => searchQuery = 'isClosed:false'}
-                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                class="px-2 py-1 _bg-gray-regular _text-gray-black rounded hover:_bg-gray-regular transition-colors"
               >
                 open projects
               </button>
               <button
                 on:click={() => searchQuery = 'updated:>2024-01-01'}
-                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                class="px-2 py-1 _bg-gray-regular _text-gray-black rounded hover:_bg-gray-regular transition-colors"
               >
                 updated:&gt;2024-01-01
               </button>
               <button
                 on:click={() => searchQuery = 'created:>1 Jan'}
-                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                class="px-2 py-1 _bg-gray-regular _text-gray-black rounded hover:_bg-gray-regular transition-colors"
               >
                 created:&gt;1 Jan
               </button>
               <button
                 on:click={() => searchQuery = 'updated:<15 Nov 2024'}
-                class="px-2 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
+                class="px-2 py-1 _bg-gray-regular _text-gray-black rounded hover:_bg-gray-regular transition-colors"
               >
                 updated:&lt;15 Nov 2024
               </button>
@@ -1384,10 +1388,10 @@
 
             <!-- Results Summary -->
             {#if searchQuery}
-              <div class="mt-3 text-sm text-gray-600">
+              <div class="mt-3 _text-regular _text-gray-black">
                 Showing {filteredProjects.length} of {projects.length} projects
                 {#if filteredProjects.length !== projects.length}
-                  <span class="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                  <span class="ml-2 px-2 py-1 _bg-blue-light _text-blue rounded-full _text-small">
                     {projects.length - filteredProjects.length} hidden
                   </span>
                 {/if}
@@ -1399,24 +1403,24 @@
 
         <!-- Project Dashboard -->
         <div class="overflow-x-auto">
-          <div class="flex gap-6 min-w-full w-max pb-4">
+          <div class="flex gap-6 min-w-full w-max pb-4 justify-center">
             {#each statuses as status (status.id)}
               <div
-                class="{status.title === 'Closed' ? 'bg-red-50' : 'bg-white'} rounded-lg shadow transition-all duration-200 flex-shrink-0"
-                style="width: 320px;"
+                class="_bg-gray-light rounded-lg shadow transition-all duration-200 flex-shrink-0"
+                style="width: 380px;"
                 animate:flip={{ duration: 300 }}
               >
               <!-- Column Header -->
-              <div class="px-4 py-3 border-b border-gray-200">
+              <div class="px-4 py-3 border-b _border-gray-light">
                 <!-- Top line: Title and action buttons -->
                 <div class="flex items-center justify-between mb-2">
                   <div>
                     {#if status.is_system}
-                      <h3 class="font-semibold text-gray-900">{status.title}</h3>
+                      <h3 class="_text-regular font-semibold _text-black">{status.title}</h3>
                     {:else}
                       <button
                         on:click={() => showEditColumnModal(status)}
-                        class="font-semibold text-gray-900 cursor-pointer text-left"
+                        class="_text-regular font-semibold _text-black cursor-pointer text-left"
                         title="Click to edit column title"
                       >
                         {status.title}
@@ -1430,20 +1434,20 @@
                       <button
                         on:click={() => moveColumnLeft(status)}
                         disabled={!canMoveLeft(status)}
-                        class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-110 active:scale-95 text-base font-bold"
+                        class="{!canMoveLeft(status) ? '_icon-button-disabled' : '_icon-button-hover-blue'} _icon-normal _text-regular font-bold"
                         title="Move column left"
                       >
-                        <ArrowLeft class="w-4 h-4" />
+                        <ArrowLeft />
                       </button>
 
                       <!-- Right arrow -->
                       <button
                         on:click={() => moveColumnRight(status)}
                         disabled={!canMoveRight(status)}
-                        class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all duration-150 disabled:opacity-30 disabled:cursor-not-allowed hover:scale-110 active:scale-95 text-base font-bold"
+                        class="{!canMoveRight(status) ? '_icon-button-disabled' : '_icon-button-hover-blue'} _icon-normal _text-regular font-bold"
                         title="Move column right"
                       >
-                        <ArrowRight class="w-4 h-4" />
+                        <ArrowRight />
                       </button>
                     {/if}
 
@@ -1455,10 +1459,10 @@
                           insertAfterStatusId = status.id;
                           showCreateColumn = true;
                         }}
-                        class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                        class="_icon-button-hover-blue _icon-normal"
                         title="Add column after {status.title}"
                       >
-                        <Plus class="w-5 h-5" />
+                        <Plus />
                       </button>
                     {/if}
 
@@ -1466,10 +1470,10 @@
                     {#if !status.is_system}
                       <button
                         on:click={() => showDeleteColumnConfirmation(status)}
-                        class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                        class="_icon-button-hover-red _icon-normal"
                         title="Delete column"
                       >
-                        <Trash2 class="w-4 h-4" />
+                        <Trash2 />
                       </button>
                     {/if}
                   </div>
@@ -1478,7 +1482,7 @@
                 <!-- Bottom line: Project count and sorting controls -->
                 <div class="flex items-center justify-between">
                   <div class="flex items-center">
-                    <span class="px-2 py-1 bg-gray-300 text-gray-700 font-bold rounded-full text-xs">
+                    <span class="px-2 py-1 _bg-gray-regular _text-gray-black font-bold rounded-full _text-small">
                       {(groupedProjects[status.id] || []).length}
                     </span>
                   </div>
@@ -1494,34 +1498,34 @@
                           selectedSortFieldIndex = -1;
                         }
                       }}
-                      class="text-xs px-1 py-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer flex items-center gap-1 focus:outline-none"
+                      class="_icon-button-hover-blue _icon-normal _text-small cursor-pointer flex items-center gap-1"
                       title="Sort field"
                     >
                       <!-- Display appropriate icon based on current sort field -->
                       {#if (status.sort_field || 'updatedAt') === 'title'}
-                        <CaseSensitive class="w-5 h-5" />
+                        <CaseSensitive />
                         {SORT_FIELD_LABELS.title.toUpperCase()}
                       {:else if (status.sort_field || 'updatedAt') === 'number'}
-                        <Hash class="w-5 h-5" />
+                        <Hash />
                         {SORT_FIELD_LABELS.number.toUpperCase()}
                       {:else if (status.sort_field || 'updatedAt') === 'items'}
-                        <ListOrdered class="w-5 h-5" />
+                        <ListOrdered />
                         {SORT_FIELD_LABELS.items.toUpperCase()}
                       {:else if (status.sort_field || 'updatedAt') === 'updatedAt'}
-                        <CalendarSync class="w-5 h-5" />
+                        <CalendarSync />
                         {SORT_FIELD_LABELS.updatedAt.toUpperCase()}
                       {:else if (status.sort_field || 'updatedAt') === 'closedAt'}
-                        <CalendarX2 class="w-5 h-5" />
+                        <CalendarX2 />
                         {SORT_FIELD_LABELS.closedAt.toUpperCase()}
                       {:else}
-                        <CalendarPlus class="w-5 h-5" />
+                        <CalendarPlus />
                         {SORT_FIELD_LABELS.createdAt.toUpperCase()}
                       {/if}
                     </button>
 
                     {#if activeSortFieldDropdown === status.id}
                       <div
-                        class="absolute left-0 top-full mt-1 w-36 bg-white border border-gray-200 rounded-lg shadow-lg z-50"
+                        class="absolute left-0 top-full mt-1 w-36 bg-white border _border-gray-light rounded-lg shadow-lg z-50"
                       >
                         <button
                           on:click={() => {
@@ -1530,9 +1534,9 @@
                             selectedSortFieldIndex = -1;
                           }}
                           on:mouseenter={() => selectedSortFieldIndex = -1}
-                          class="w-full px-3 py-2 text-xs text-left first:rounded-t-lg flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 0 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}"
+                          class="_icon-normal w-full px-3 py-2 _text-small text-left first:rounded-t-lg flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 0 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                         >
-                          <CaseSensitive class="w-5 h-5" />
+                          <CaseSensitive />
                           {SORT_FIELD_LABELS.title.toUpperCase()}
                         </button>
                         <button
@@ -1542,9 +1546,9 @@
                             selectedSortFieldIndex = -1;
                           }}
                           on:mouseenter={() => selectedSortFieldIndex = -1}
-                          class="w-full px-3 py-2 text-xs text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 1 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}"
+                          class="_icon-normal w-full px-3 py-2 _text-small text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 1 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                         >
-                          <Hash class="w-5 h-5" />
+                          <Hash />
                           {SORT_FIELD_LABELS.number.toUpperCase()}
                         </button>
                         <button
@@ -1554,9 +1558,9 @@
                             selectedSortFieldIndex = -1;
                           }}
                           on:mouseenter={() => selectedSortFieldIndex = -1}
-                          class="w-full px-3 py-2 text-xs text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 2 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}"
+                          class="_icon-normal w-full px-3 py-2 _text-small text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 2 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                         >
-                          <ListOrdered class="w-5 h-5" />
+                          <ListOrdered />
                           {SORT_FIELD_LABELS.items.toUpperCase()}
                         </button>
                         <button
@@ -1566,9 +1570,9 @@
                             selectedSortFieldIndex = -1;
                           }}
                           on:mouseenter={() => selectedSortFieldIndex = -1}
-                          class="w-full px-3 py-2 text-xs text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 3 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}"
+                          class="_icon-normal w-full px-3 py-2 _text-small text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 3 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                         >
-                          <CalendarSync class="w-5 h-5" />
+                          <CalendarSync />
                           {SORT_FIELD_LABELS.updatedAt.toUpperCase()}
                         </button>
                         <button
@@ -1578,9 +1582,9 @@
                             selectedSortFieldIndex = -1;
                           }}
                           on:mouseenter={() => selectedSortFieldIndex = -1}
-                          class="w-full px-3 py-2 text-xs text-left {status.title === 'Closed' ? '' : 'last:rounded-b-lg'} flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 4 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}"
+                          class="_icon-normal w-full px-3 py-2 _text-small text-left {status.title === 'Closed' ? '' : 'last:rounded-b-lg'} flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 4 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                         >
-                          <CalendarPlus class="w-5 h-5" />
+                          <CalendarPlus />
                           {SORT_FIELD_LABELS.createdAt.toUpperCase()}
                         </button>
                         {#if status.title === 'Closed'}
@@ -1591,9 +1595,9 @@
                               selectedSortFieldIndex = -1;
                             }}
                             on:mouseenter={() => selectedSortFieldIndex = -1}
-                            class="w-full px-3 py-2 text-xs text-left last:rounded-b-lg flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 5 ? 'text-blue-600 bg-blue-50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'}"
+                            class="_icon-normal w-full px-3 py-2 _text-small text-left last:rounded-b-lg flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 5 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                           >
-                            <CalendarX2 class="w-5 h-5" />
+                            <CalendarX2 />
                             {SORT_FIELD_LABELS.closedAt.toUpperCase()}
                           </button>
                         {/if}
@@ -1607,14 +1611,14 @@
                       const newDirection = status.sort_direction === 'asc' ? 'desc' : 'asc';
                       handleSortingChange(status.id, status.sort_field || 'updatedAt', newDirection);
                     }}
-                    class="text-xs px-1 py-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer flex items-center gap-1 focus:outline-none"
+                    class="_icon-button-hover-blue _icon-normal _text-small cursor-pointer flex items-center gap-1"
                     title="Toggle sort direction"
                   >
                     {#if status.sort_direction === 'asc'}
-                      <ArrowUpNarrowWide class="w-5 h-5" />
+                      <ArrowUpNarrowWide />
                       {SORT_DIRECTION_LABELS.asc.toUpperCase()}
                     {:else}
-                      <ArrowDownWideNarrow class="w-5 h-5" />
+                      <ArrowDownWideNarrow />
                       {SORT_DIRECTION_LABELS.desc.toUpperCase()}
                     {/if}
                   </button>
@@ -1627,8 +1631,8 @@
                 class="p-4 space-y-3 min-h-[200px] transition-all duration-200 {
                   dragOverColumn === status.id
                     ? status.title === 'Closed'
-                      ? 'bg-red-50 border-2 border-dashed border-red-300'
-                      : 'bg-blue-50 border-2 border-dashed border-blue-300'
+                      ? '_bg-red-light border-2 border-dashed _border-red'
+                      : '_bg-blue-light border-2 border-dashed _border-blue'
                     : ''
                 }"
                 role="region"
@@ -1643,7 +1647,7 @@
                   {@const isClosedColumn = status.title === 'Closed'}
                   {@const isDropdownOpen = activeDropdownProjectId === project.id}
                     <div
-                      class="bg-gray-200 rounded-lg p-3 transition-all duration-200 {isDragging ? 'opacity-50 scale-95' : 'hover:bg-gray-200 hover:shadow-md'} {!isClosedColumn && !isDropdownOpen ? 'cursor-grab active:cursor-grabbing' : ''}"
+                      class="_bg-white rounded-lg p-3 transition-all duration-200 {isDragging ? 'opacity-50 scale-95' : 'hover:shadow-md'} {!isClosedColumn && !isDropdownOpen ? 'cursor-grab active:cursor-grabbing' : ''}"
                       draggable={!isClosedColumn && !isDropdownOpen}
                       role={!isClosedColumn ? "button" : undefined}
                       aria-label={!isClosedColumn ? `Drag ${githubProject.title} to another status` : undefined}
@@ -1654,14 +1658,14 @@
                     >
                       <!-- Project Title -->
                       <div class="flex-1 min-w-0">
-                      <h4 class="font-medium text-gray-900 mb-1">
-                        <span class="text-gray-500">#{githubProject.number}</span>
+                      <h4 class="_text-regular font-medium _text-black mb-1">
+                        <span class="_text-regular _text-gray">#{githubProject.number}</span>
                         {' '}
                         <a
                           href={githubProject.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          class="hover:text-blue-600"
+                          class="_text-regular _text-link-hover"
                           on:mousedown|stopPropagation
                           on:dragstart|preventDefault
                         >
@@ -1670,12 +1674,12 @@
                       </h4>
 
                       <!-- Project Info -->
-                      <div class="text-xs text-gray-500">
+                      <div class="_text-small _text-gray">
                         <span>{githubProject.items} {githubProject.items === 1 ? 'item' : 'items'}</span>
                       </div>
 
                         <!-- Timestamp Information -->
-                        <div class="mt-1 text-xs text-gray-500 space-y-0.5">
+                        <div class="mt-1 _text-small _text-gray space-y-0.5">
                           {#if githubProject.isClosed && githubProject.closedAt}
                             <div>
                               Closed: <span
@@ -1710,10 +1714,10 @@
                               <!-- Current Labels -->
                               {#if project.labels && project.labels.length > 0}
                                 {#each project.labels.sort((a, b) => a.title.localeCompare(b.title)) as label}
-                                  <div class="flex items-center gap-1 px-2 py-1 text-xs rounded-full" style="background-color: {label.color}; color: {label.text_color || 'white'}">
+                                  <div class="flex items-center gap-1 px-2 py-1 _text-small rounded-full {label.text_color === 'black' ? '_text-black' : '_text-white'}" style="background-color: {label.color}">
                                     <button
                                       on:click|stopPropagation={() => handleEditLabel(label)}
-                                      class="flex-1 text-left hover:opacity-80 transition-opacity cursor-pointer"
+                                      class="flex-1 _text-small text-left hover:opacity-80 transition-opacity cursor-pointer"
                                       title="Edit {label.title} label"
                                     >
                                       <span>{label.title}</span>
@@ -1734,20 +1738,20 @@
                                 <!-- Add Label Button -->
                                 <button
                                   on:click|stopPropagation={() => toggleLabelDropdown(project.id)}
-                                  class="px-2 py-1 text-xs rounded-full border border-dashed border-gray-400 text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors bg-transparent"
+                                  class="px-2 py-1 _text-small rounded-full border border-dashed _border-gray-regular _text-gray-black hover:_border-gray-regular hover:_text-black transition-colors bg-transparent"
                                 >
                                   + Add label
                                 </button>
 
                               <!-- Dropdown -->
                               {#if activeDropdownProjectId === project.id}
-                                <div class="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 cursor-default">
+                                <div class="absolute left-0 top-full mt-1 w-64 bg-white border _border-gray-light rounded-lg shadow-lg z-50 cursor-default">
                                   <!-- Search Input -->
-                                  <div class="p-2 border-b border-gray-100">
+                                  <div class="p-2 border-b _border-gray-light">
                                     <input
                                       bind:value={labelSearchQuery}
                                       placeholder="Filter labels..."
-                                      class="w-full px-3 py-2 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                      class="w-full px-3 py-2 _text-regular-small border _border-gray-regular rounded focus:outline-none focus:ring-2 focus:_ring-blue focus:border-transparent"
                                       autofocus
                                       on:keydown={handleDropdownKeydown}
                                     />
@@ -1764,35 +1768,35 @@
                                       {#if addedLabelsForActiveProject.length > 0}
                                         <button
                                           on:click={toggleAddedSection}
-                                          class="w-full px-3 py-1 text-xs font-normal text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors"
+                                          class="w-full px-3 py-1 _text-small font-normal _text-gray _bg-gray-light border-b _border-gray-light flex items-center gap-2 hover:_bg-gray-regular transition-colors"
                                         >
                                           <ChevronRight class="w-5 h-5 transition-transform duration-200 {addedSectionCollapsed ? '' : 'rotate-90'}" />
-                                          <span>ADDED</span>
-                                          <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{addedLabelsForActiveProject.length}</span>
+                                          <span class="_text-small">ADDED</span>
+                                          <span class="_bg-gray-regular _text-gray-black px-1.5 py-0.5 rounded-full _text-small">{addedLabelsForActiveProject.length}</span>
                                         </button>
                                         {#if !addedSectionCollapsed}
                                           {#each addedLabelsForActiveProject as label}
                                           {@const projectCount = getProjectCountForLabel(label.id)}
                                           <div class="flex items-center group">
-                                            <div class="flex-1 px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-500">
+                                            <div class="flex-1 px-3 py-2 text-left _text-regular-small flex items-center gap-2 _text-gray">
                                               <div class="w-5 h-5 rounded-full" style="background-color: {label.color}"></div>
                                               <span>{label.title}</span>
                                             </div>
                                             <div class="flex items-center px-2">
-                                              <span class="text-gray-500" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
+                                              <span class="_text-gray" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
                                               <button
                                                 on:click|stopPropagation={() => handleEditLabel(label)}
-                                                class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                class="_icon-button-hover-blue _icon-small"
                                                 title="Edit label"
                                               >
-                                                <Pencil class="w-4 h-4" />
+                                                <Pencil />
                                               </button>
                                               <button
                                                 on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
-                                                class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                class="_icon-button-hover-red _icon-small"
                                                 title="Delete label"
                                               >
-                                                <Trash2 class="w-4 h-4" />
+                                                <Trash2 />
                                               </button>
                                             </div>
                                           </div>
@@ -1804,43 +1808,43 @@
                                       {#if filteredLabelsForActiveProject.length > 0}
                                         <button
                                           on:click={toggleAvailableSection}
-                                          class="w-full px-3 py-1 text-xs font-normal text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors"
+                                          class="w-full px-3 py-1 _text-small font-normal _text-gray _bg-gray-light border-b _border-gray-light flex items-center gap-2 hover:_bg-gray-regular transition-colors"
                                         >
                                           <ChevronRight class="w-5 h-5 transition-transform duration-200 {availableSectionCollapsed ? '' : 'rotate-90'}" />
-                                          <span>AVAILABLE</span>
-                                          <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{filteredLabelsForActiveProject.length}</span>
+                                          <span class="_text-small">AVAILABLE</span>
+                                          <span class="_bg-gray-regular _text-gray-black px-1.5 py-0.5 rounded-full _text-small">{filteredLabelsForActiveProject.length}</span>
                                         </button>
                                         {#if !availableSectionCollapsed}
                                           {#each filteredLabelsForActiveProject as label, index}
                                           {@const projectCount = getProjectCountForLabel(label.id)}
                                           {@const isSelected = selectedLabelIndex === index}
                                           <div
-                                            class="flex items-center group {isSelected ? 'bg-gray-200' : 'hover:bg-gray-200'}"
+                                            class="flex items-center group {isSelected ? '_dropdown-item-highlight' : 'hover:_dropdown-item-highlight'}"
                                             on:mouseenter={() => selectedLabelIndex = -1}
                                             data-label-index={index}
                                           >
                                             <button
                                               on:click|stopPropagation={() => handleAddLabelToProject(project.id, label.id)}
-                                              class="flex-1 px-3 py-2 text-left text-sm flex items-center gap-2"
+                                              class="flex-1 px-3 py-2 text-left _text-regular-small flex items-center gap-2"
                                             >
                                               <div class="w-5 h-5 rounded-full" style="background-color: {label.color}"></div>
                                               <span>{label.title}</span>
                                             </button>
                                             <div class="flex items-center px-2">
-                                              <span class="text-gray-500" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
+                                              <span class="_text-gray" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
                                               <button
                                                 on:click|stopPropagation={() => handleEditLabel(label)}
-                                                class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                class="_icon-button-hover-blue _icon-small"
                                                 title="Edit label"
                                               >
-                                                <Pencil class="w-4 h-4" />
+                                                <Pencil />
                                               </button>
                                               <button
                                                 on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
-                                                class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                class="_icon-button-hover-red _icon-small"
                                                 title="Delete label"
                                               >
-                                                <Trash2 class="w-4 h-4" />
+                                                <Trash2 />
                                               </button>
                                             </div>
                                           </div>
@@ -1851,7 +1855,7 @@
 
                                       <!-- Search Empty State -->
                                       {#if addedLabelsForActiveProject.length === 0 && filteredLabelsForActiveProject.length === 0 && !newLabelFromSearch}
-                                        <div class="px-3 py-4 text-sm text-gray-500 text-center">
+                                        <div class="px-3 py-4 _text-regular-small _text-gray text-center">
                                           No labels found matching "{labelSearchQuery}"
                                         </div>
                                       {/if}
@@ -1862,35 +1866,35 @@
                                       {#if addedLabelsForActiveProject.length > 0}
                                         <button
                                           on:click={toggleAddedSection}
-                                          class="w-full px-3 py-1 text-xs font-normal text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors"
+                                          class="w-full px-3 py-1 _text-small font-normal _text-gray _bg-gray-light border-b _border-gray-light flex items-center gap-2 hover:_bg-gray-regular transition-colors"
                                         >
                                           <ChevronRight class="w-5 h-5 transition-transform duration-200 {addedSectionCollapsed ? '' : 'rotate-90'}" />
-                                          <span>ADDED</span>
-                                          <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{addedLabelsForActiveProject.length}</span>
+                                          <span class="_text-small">ADDED</span>
+                                          <span class="_bg-gray-regular _text-gray-black px-1.5 py-0.5 rounded-full _text-small">{addedLabelsForActiveProject.length}</span>
                                         </button>
                                         {#if !addedSectionCollapsed}
                                           {#each addedLabelsForActiveProject as label}
                                           {@const projectCount = getProjectCountForLabel(label.id)}
                                           <div class="flex items-center group">
-                                            <div class="flex-1 px-3 py-2 text-left text-sm flex items-center gap-2 text-gray-500">
+                                            <div class="flex-1 px-3 py-2 text-left _text-regular-small flex items-center gap-2 _text-gray">
                                               <div class="w-5 h-5 rounded-full" style="background-color: {label.color}"></div>
                                               <span>{label.title}</span>
                                             </div>
                                             <div class="flex items-center px-2">
-                                              <span class="text-gray-500" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
+                                              <span class="_text-gray" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
                                               <button
                                                 on:click|stopPropagation={() => handleEditLabel(label)}
-                                                class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                class="_icon-button-hover-blue _icon-small"
                                                 title="Edit label"
                                               >
-                                                <Pencil class="w-4 h-4" />
+                                                <Pencil />
                                               </button>
                                               <button
                                                 on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
-                                                class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                class="_icon-button-hover-red _icon-small"
                                                 title="Delete label"
                                               >
-                                                <Trash2 class="w-4 h-4" />
+                                                <Trash2 />
                                               </button>
                                             </div>
                                           </div>
@@ -1902,43 +1906,43 @@
                                       {#if filteredLabelsForActiveProject.length > 0}
                                         <button
                                           on:click={toggleAvailableSection}
-                                          class="w-full px-3 py-1 text-xs font-normal text-gray-500 bg-gray-50 border-b border-gray-100 flex items-center gap-2 hover:bg-gray-100 transition-colors"
+                                          class="w-full px-3 py-1 _text-small font-normal _text-gray _bg-gray-light border-b _border-gray-light flex items-center gap-2 hover:_bg-gray-regular transition-colors"
                                         >
                                           <ChevronRight class="w-5 h-5 transition-transform duration-200 {availableSectionCollapsed ? '' : 'rotate-90'}" />
-                                          <span>AVAILABLE</span>
-                                          <span class="bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full text-xs">{filteredLabelsForActiveProject.length}</span>
+                                          <span class="_text-small">AVAILABLE</span>
+                                          <span class="_bg-gray-regular _text-gray-black px-1.5 py-0.5 rounded-full _text-small">{filteredLabelsForActiveProject.length}</span>
                                         </button>
                                         {#if !availableSectionCollapsed}
                                           {#each filteredLabelsForActiveProject as label, index}
                                           {@const projectCount = getProjectCountForLabel(label.id)}
                                           {@const isSelected = selectedLabelIndex === index}
                                           <div
-                                            class="flex items-center group {isSelected ? 'bg-gray-200' : 'hover:bg-gray-200'}"
+                                            class="flex items-center group {isSelected ? '_dropdown-item-highlight' : 'hover:_dropdown-item-highlight'}"
                                             on:mouseenter={() => selectedLabelIndex = -1}
                                             data-label-index={index}
                                           >
                                             <button
                                               on:click|stopPropagation={() => handleAddLabelToProject(project.id, label.id)}
-                                              class="flex-1 px-3 py-2 text-left text-sm flex items-center gap-2"
+                                              class="flex-1 px-3 py-2 text-left _text-regular-small flex items-center gap-2"
                                             >
                                               <div class="w-5 h-5 rounded-full" style="background-color: {label.color}"></div>
                                               <span>{label.title}</span>
                                             </button>
                                             <div class="flex items-center px-2">
-                                              <span class="text-gray-500" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
+                                              <span class="_text-gray" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
                                               <button
                                                 on:click|stopPropagation={() => handleEditLabel(label)}
-                                                class="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                                class="_icon-button-hover-blue _icon-small"
                                                 title="Edit label"
                                               >
-                                                <Pencil class="w-4 h-4" />
+                                                <Pencil />
                                               </button>
                                               <button
                                                 on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
-                                                class="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                class="_icon-button-hover-red _icon-small"
                                                 title="Delete label"
                                               >
-                                                <Trash2 class="w-4 h-4" />
+                                                <Trash2 />
                                               </button>
                                             </div>
                                           </div>
@@ -1948,7 +1952,7 @@
 
                                       <!-- Empty State for Sectioned Mode -->
                                       {#if addedLabelsForActiveProject.length === 0 && filteredLabelsForActiveProject.length === 0}
-                                        <div class="px-3 py-4 text-sm text-gray-500 text-center">
+                                        <div class="px-3 py-4 _text-regular-small _text-gray text-center">
                                           No labels available to add
                                         </div>
                                       {/if}
@@ -1957,19 +1961,18 @@
                                     </div>
 
                                     <!-- Sticky Create New Label Button (outside scroll area) -->
-                                    <div class="border-t border-gray-100">
+                                    <div class="border-t _border-gray-light">
                                       <button
                                         on:click|stopPropagation={createLabelFromSearch}
                                         on:mouseenter={() => selectedLabelIndex = -1}
-                                        class="w-full px-3 py-2 text-left text-sm {selectedLabelIndex === filteredLabelsForActiveProject.length ? 'bg-blue-100' : 'bg-blue-50 hover:bg-blue-100'} text-blue-600 transition-all flex items-center gap-2"
+                                        class="w-full px-3 py-2 text-left _text-regular-small {selectedLabelIndex === filteredLabelsForActiveProject.length ? '_bg-blue-light' : '_bg-blue-light hover:_bg-blue-light'} _text-blue transition-all flex items-center gap-2"
                                         data-create-label-button="true"
                                       >
-                                        <span class="text-lg font-semibold">+</span>
                                         <span class="{selectedLabelIndex === filteredLabelsForActiveProject.length ? 'underline' : 'hover:underline'}">
                                           {#if labelSearchQuery.trim()}
-                                            Create new label: "{labelSearchQuery.trim()}"
+                                            + Create new label: "{labelSearchQuery.trim()}"
                                           {:else}
-                                            Create new label...
+                                            + Create new label...
                                           {/if}
                                         </span>
                                       </button>
@@ -1985,12 +1988,12 @@
 
                 <!-- Empty state -->
                 {#if (groupedProjects[status.id] || []).length === 0}
-                  <div class="text-center py-8 text-gray-500">
-                    <p>No projects</p>
+                  <div class="text-center py-8 _text-gray">
+                    <p class="_text-regular">No projects</p>
                     {#if status.title !== 'Closed'}
-                      <p class="text-xs mt-1">Drag projects here</p>
+                      <p class="_text-small mt-1">Drag projects here</p>
                     {:else}
-                      <p class="text-xs mt-1">Closed projects only</p>
+                      <p class="_text-small mt-1">Closed projects only</p>
                     {/if}
                   </div>
                 {/if}
@@ -2003,10 +2006,10 @@
         <!-- Empty state for no statuses -->
         {#if statuses.length === 0}
           <div class="text-center py-12">
-            <p class="text-gray-500 mb-4">No project statuses found</p>
+            <p class="_text-regular _text-gray mb-4">No project statuses found</p>
             <button
               on:click={loadDashboardData}
-              class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              class="px-4 py-2 _bg-blue-regular _text-white rounded hover:_bg-blue-dark"
             >
               Reload
             </button>
@@ -2017,12 +2020,12 @@
       <div class="flex items-center justify-center min-h-[400px]">
         <div class="text-center">
           <h2 class="text-xl font-semibold mb-4">Welcome to GitHub Projects Dashboard</h2>
-          <p class="text-gray-600 mb-6">Sign in with GitHub to manage your projects</p>
+          <p class="_text-gray-black mb-6">Sign in with GitHub to manage your projects</p>
           <button
             on:click={login}
-            class="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 flex items-center gap-2 mx-auto"
+            class="px-6 py-3 _bg-black _text-white rounded-lg hover:_bg-black-hover flex items-center gap-2 mx-auto whitespace-nowrap"
           >
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <svg fill="currentColor" viewBox="0 0 20 20" class="w-10 h-10">
               <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd"/>
             </svg>
             Sign in with GitHub
@@ -2035,7 +2038,7 @@
   <!-- Custom Tooltip -->
   {#if tooltipVisible}
     <div
-      class="fixed pointer-events-none z-50 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg"
+      class="fixed pointer-events-none z-50 px-2 py-1 _text-small _text-white _bg-black rounded shadow-lg"
       style="left: {tooltipX}px; top: {tooltipY}px;"
     >
       {tooltipText}
@@ -2065,20 +2068,18 @@
         <span class="font-semibold">{labelToDelete?.title}</span>
       </div>
 
-      <p class="text-gray-700">
+      <p class="_text-regular _text-gray-black">
         Are you sure you want to delete this label?
       </p>
 
-      <p class="text-sm text-gray-500">
+      <p class="_text-regular _text-gray">
         This label is used by <span class="font-semibold">{labelProjectCount}</span> project{labelProjectCount === 1 ? '' : 's'}
         and will be removed from {labelProjectCount === 1 ? 'it' : 'them'}.
       </p>
 
-      <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
-        <p class="text-sm text-amber-700">
-          ⚠️ This action cannot be undone.
-        </p>
-      </div>
+      <p class="_text-regular _text-gray mt-3">
+        This action cannot be undone.
+      </p>
     </div>
   </Modal>
 
@@ -2104,23 +2105,23 @@
     <div class="space-y-4">
       <!-- Label Title Input -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label class="block _text-regular font-medium _text-gray-black mb-2">
           Title
         </label>
         <input
           bind:value={editLabelTitle}
           placeholder="Enter label name..."
-          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 {isDuplicateLabelName ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} focus:border-transparent"
+          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 {isDuplicateLabelName ? '_border-red focus:_ring-red' : '_border-gray-regular focus:_ring-blue'} focus:border-transparent"
           disabled={editingLabel}
         />
         {#if labelNameError}
-          <p class="text-sm text-red-600 mt-1">{labelNameError}</p>
+          <p class="_text-regular _text-red mt-1">{labelNameError}</p>
         {/if}
       </div>
 
       <!-- Color Picker -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label class="block _text-regular font-medium _text-gray-black mb-2">
           Colour
         </label>
         <div class="flex items-center gap-1">
@@ -2134,42 +2135,42 @@
           />
           <label
             for="colorPicker"
-            class="flex-1 flex items-center gap-2 px-3 py-2 rounded-full text-sm cursor-pointer"
-            style="background-color: {editLabelColor}; color: {editLabelTextColor}"
+            class="flex-1 flex items-center gap-2 px-3 py-2 rounded-full _text-regular cursor-pointer {editLabelTextColor === 'black' ? '_text-black' : '_text-white'}"
+            style="background-color: {editLabelColor}"
           >
             <span>{editLabelTitle || 'Preview'}</span>
           </label>
           <label
             for="colorPicker"
-            class="p-2 rounded-lg cursor-pointer text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            class="_icon-button-hover-blue _icon-large p-2 rounded-lg cursor-pointer"
           >
-            <Pencil class="w-4 h-4" />
+            <Pencil />
           </label>
         </div>
       </div>
 
       <!-- Text Color Selection -->
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label class="block _text-regular font-medium _text-gray-black mb-2">
           Text Colour
         </label>
         <div class="flex items-center gap-3">
           <!-- Black Label Preview -->
-          <span class="px-3 py-1 text-sm font-bold rounded-full text-black bg-gray-100">Black</span>
+          <span class="px-3 py-1 _text-regular-small font-bold rounded-full _text-black _bg-gray-regular">Black</span>
 
           <!-- Toggle Switch -->
           <button
             type="button"
             on:click={() => handleTextColorChange(editLabelTextColor === 'white' ? 'black' : 'white')}
             disabled={editingLabel}
-            class="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            class="relative inline-flex h-6 w-11 items-center rounded-full _bg-gray-regular transition-colors focus:outline-none"
           >
-            <span class="sr-only">Toggle text color</span>
-            <span class="inline-block h-4 w-4 transform rounded-full bg-gray-600 transition-transform {editLabelTextColor === 'white' ? 'translate-x-6' : 'translate-x-1'} shadow-sm"></span>
+            <span class="sr-only _text-regular">Toggle text color</span>
+            <span class="inline-block h-4 w-4 transform rounded-full _bg-gray-black transition-transform {editLabelTextColor === 'white' ? 'translate-x-6' : 'translate-x-1'} shadow-sm"></span>
           </button>
 
           <!-- White Label Preview -->
-          <span class="px-3 py-1 text-sm font-bold rounded-full text-white bg-black">White</span>
+          <span class="px-3 py-1 _text-regular-small font-bold rounded-full _text-white _bg-black">White</span>
         </div>
       </div>
     </div>
@@ -2196,13 +2197,13 @@
   >
     <div class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label class="block _text-regular font-medium _text-gray-black mb-2">
           Name
         </label>
         <input
           bind:value={newColumnTitle}
           placeholder="Enter column name..."
-          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 {isDuplicateNewColumnName ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} focus:border-transparent"
+          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 {isDuplicateNewColumnName ? '_border-red focus:_ring-red' : '_border-gray-regular focus:_ring-blue'} focus:border-transparent"
           autofocus
           on:keydown={(e) => {
             if (e.key === 'Enter' && newColumnTitle.trim() && !creatingColumn && !isDuplicateNewColumnName) {
@@ -2211,11 +2212,11 @@
           }}
         />
         {#if newColumnNameError}
-          <p class="text-red-600 text-sm mt-1">{newColumnNameError}</p>
+          <p class="_text-red _text-regular mt-1">{newColumnNameError}</p>
         {/if}
       </div>
 
-      <div class="text-sm text-gray-500">
+      <div class="_text-regular _text-gray">
         {#if insertAfterStatusId}
           {@const afterStatus = statuses.find(s => s.id === insertAfterStatusId)}
           The new column will be created to the right of the "{afterStatus?.title || 'Unknown'}" column.
@@ -2245,15 +2246,13 @@
     on:close={cancelDeleteColumn}
   >
     <div class="space-y-4">
-      <p class="text-gray-700">
+      <p class="_text-regular _text-gray-black">
         Are you sure you want to delete the "<strong>{statusToDelete?.title}</strong>" column?
       </p>
 
-      <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
-        <p class="text-sm text-amber-700">
-          ⚠️ All projects in this column will be moved to "No Status". This action cannot be undone.
-        </p>
-      </div>
+      <p class="_text-regular _text-gray mt-3">
+        All projects in this column will be moved to "No Status". This action cannot be undone.
+      </p>
     </div>
   </Modal>
 
@@ -2278,13 +2277,13 @@
   >
     <div class="space-y-4">
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-2">
+        <label class="block _text-regular font-medium _text-gray-black mb-2">
           Name
         </label>
         <input
           bind:value={editColumnTitle}
           placeholder="Enter column name..."
-          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 {isDuplicateEditColumnName ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'} focus:border-transparent"
+          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 {isDuplicateEditColumnName ? '_border-red focus:_ring-red' : '_border-gray-regular focus:_ring-blue'} focus:border-transparent"
           autofocus
           on:keydown={(e) => {
             if (e.key === 'Enter' && editColumnTitle.trim() && !editingColumn && !isDuplicateEditColumnName) {
@@ -2293,7 +2292,7 @@
           }}
         />
         {#if editColumnNameError}
-          <p class="text-red-600 text-sm mt-1">{editColumnNameError}</p>
+          <p class="_text-red _text-regular mt-1">{editColumnNameError}</p>
         {/if}
       </div>
     </div>
