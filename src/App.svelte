@@ -12,7 +12,8 @@
   import relativeTime from 'dayjs/plugin/relativeTime';
   import customParseFormat from 'dayjs/plugin/customParseFormat';
   import Modal from './components/Modal.svelte';
-  import IconButton from './components/IconButton.svelte';
+  import ButtonFrameless from './components/ButtonFrameless.svelte';
+  import Tooltip from './components/Tooltip.svelte';
   import { CaseSensitive, Hash, ListOrdered, CalendarSync, CalendarPlus, CalendarX2, ArrowUpNarrowWide, ArrowUpWideNarrow, ArrowDownWideNarrow, ArrowDownNarrowWide, Trash2, Pencil, Plus, ArrowRight, ArrowLeft, X, ChevronRight, Loader, Search } from 'lucide-svelte';
 
   let statuses: Status[] = [];
@@ -253,42 +254,7 @@
     return luminance > 0.5 ? 'black' : 'white';
   }
 
-  // Tooltip state management
-  let tooltipVisible = false;
-  let tooltipX = 0;
-  let tooltipY = 0;
-  let tooltipText = '';
-  let tooltipTimeout: number | null = null;
 
-  function showTooltip(event: MouseEvent, text: string) {
-    // Clear any existing timeout
-    if (tooltipTimeout) {
-      clearTimeout(tooltipTimeout);
-    }
-
-    tooltipText = text;
-
-    // Position tooltip relative to the target element
-    const target = event.target as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    tooltipX = rect.right + 0;
-    tooltipY = rect.bottom + 0;
-
-    // Show tooltip after short delay
-    tooltipTimeout = setTimeout(() => {
-      tooltipVisible = true;
-      tooltipTimeout = null;
-    }, 200);
-  }
-
-  function hideTooltip() {
-    // Clear any pending timeout
-    if (tooltipTimeout) {
-      clearTimeout(tooltipTimeout);
-      tooltipTimeout = null;
-    }
-    tooltipVisible = false;
-  }
 
   // Subscribe to GitHub projects data
   $: githubProjectsData = $githubProjects;
@@ -1324,13 +1290,13 @@
                 class="flex-1 px-3 py-2 border _border-gray-regular rounded-lg focus:outline-none focus:ring-2 focus:_ring-blue focus:border-transparent"
               />
               {#if searchQuery}
-                <IconButton
+                <ButtonFrameless
                   variant="red"
                   title="Clear search"
                   on:click={() => searchQuery = ''}
                 >
                   <X class="_icon-normal" />
-                </IconButton>
+                </ButtonFrameless>
               {/if}
             </div>
 
@@ -1432,50 +1398,50 @@
                     <!-- Arrow buttons for reordering (only for non-system statuses) -->
                     {#if !status.is_system}
                       <!-- Left arrow -->
-                      <IconButton
+                      <ButtonFrameless
                         variant="blue"
                         disabled={!canMoveLeft(status)}
                         title="Move column left"
                         on:click={() => moveColumnLeft(status)}
                       >
                         <ArrowLeft class="_icon-normal" />
-                      </IconButton>
+                      </ButtonFrameless>
 
                       <!-- Right arrow -->
-                      <IconButton
+                      <ButtonFrameless
                         variant="blue"
                         disabled={!canMoveRight(status)}
                         title="Move column right"
                         on:click={() => moveColumnRight(status)}
                       >
                         <ArrowRight class="_icon-normal" />
-                      </IconButton>
+                      </ButtonFrameless>
                     {/if}
 
 
                     <!-- Add Column button (not for Closed column) -->
                     {#if status.title !== 'Closed'}
-                      <IconButton
+                      <ButtonFrameless
                         variant="blue"
-                                                title="Add column after {status.title}"
+                        title="Add column after {status.title}"
                         on:click={() => {
                           insertAfterStatusId = status.id;
                           showCreateColumn = true;
                         }}
                       >
                         <Plus class="_icon-normal" />
-                      </IconButton>
+                      </ButtonFrameless>
                     {/if}
 
                     <!-- Delete button (only for non-system statuses) -->
                     {#if !status.is_system}
-                      <IconButton
+                      <ButtonFrameless
                         variant="red"
-                                                title="Delete column"
+                        title="Delete column"
                         on:click={() => showDeleteColumnConfirmation(status)}
                       >
                         <Trash2 class="_icon-normal" />
-                      </IconButton>
+                      </ButtonFrameless>
                     {/if}
                   </div>
                 </div>
@@ -1490,7 +1456,7 @@
                   <div class="flex items-center">
                   <!-- Sort Field dropdown -->
                   <div class="relative">
-                    <IconButton
+                    <ButtonFrameless
                       variant="blue"
                       title="Sort field"
                       on:click={() => {
@@ -1524,7 +1490,7 @@
                           {SORT_FIELD_LABELS.createdAt.toUpperCase()}
                         {/if}
                       </div>
-                    </IconButton>
+                    </ButtonFrameless>
 
                     {#if activeSortFieldDropdown === status.id}
                       <div
@@ -1609,7 +1575,7 @@
                   </div>
 
                   <!-- Sort Direction toggle -->
-                  <IconButton
+                  <ButtonFrameless
                     variant="blue"
                                         title="Toggle sort direction"
                     on:click={() => {
@@ -1626,7 +1592,7 @@
                         {SORT_DIRECTION_LABELS.desc.toUpperCase()}
                       {/if}
                     </div>
-                  </IconButton>
+                  </ButtonFrameless>
                   </div>
                 </div>
               </div>
@@ -1687,27 +1653,27 @@
                         <div class="mt-1 _text-small _text-gray space-y-0.5">
                           {#if githubProject.isClosed && githubProject.closedAt}
                             <div>
-                              Closed: <span
-                                class="cursor-pointer underline decoration-1 decoration-gray-300"
-                                on:mouseenter={(e) => showTooltip(e, formatTooltip(githubProject.closedAt))}
-                                on:mouseleave={hideTooltip}
-                              >{formatTimestamp(githubProject.closedAt)}</span>
+                              Closed: <Tooltip text={formatTooltip(githubProject.closedAt)} speed="fast">
+                                <span class="cursor-pointer underline decoration-1 decoration-gray-300">
+                                  {formatTimestamp(githubProject.closedAt)}
+                                </span>
+                              </Tooltip>
                             </div>
                           {:else if githubProject.updatedAt}
                             <div>
-                              Last updated: <span
-                                class="cursor-pointer underline decoration-1 decoration-gray-300"
-                                on:mouseenter={(e) => showTooltip(e, formatTooltip(githubProject.updatedAt))}
-                                on:mouseleave={hideTooltip}
-                              >{formatTimestamp(githubProject.updatedAt)}</span>
+                              Last updated: <Tooltip text={formatTooltip(githubProject.updatedAt)} speed="fast">
+                                <span class="cursor-pointer underline decoration-1 decoration-gray-300">
+                                  {formatTimestamp(githubProject.updatedAt)}
+                                </span>
+                              </Tooltip>
                             </div>
                           {/if}
                           <div>
-                            Created: <span
-                              class="cursor-pointer underline decoration-1 decoration-gray-300"
-                              on:mouseenter={(e) => showTooltip(e, formatTooltip(githubProject.createdAt))}
-                              on:mouseleave={hideTooltip}
-                            >{formatTimestamp(githubProject.createdAt)}</span>
+                            Created: <Tooltip text={formatTooltip(githubProject.createdAt)} speed="fast">
+                              <span class="cursor-pointer underline decoration-1 decoration-gray-300">
+                                {formatTimestamp(githubProject.createdAt)}
+                              </span>
+                            </Tooltip>
                           </div>
                         </div>
                       </div>
@@ -1789,20 +1755,20 @@
                                             </div>
                                             <div class="flex items-center px-2">
                                               <span class="_text-gray" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
-                                              <IconButton
+                                              <ButtonFrameless
                                                 variant="blue"
-                                                                                                title="Edit label"
+                                                title="Edit label"
                                                 on:click={(e) => { e.stopPropagation(); handleEditLabel(label); }}
                                               >
                                                 <Pencil class="_icon-small" />
-                                              </IconButton>
-                                              <IconButton
+                                              </ButtonFrameless>
+                                              <ButtonFrameless
                                                 variant="red"
-                                                                                                title="Delete label"
+                                                title="Delete label"
                                                 on:click={(e) => { e.stopPropagation(); handleDeleteLabelFromDropdown(label); }}
                                               >
                                                 <Trash2 class="_icon-small" />
-                                              </IconButton>
+                                              </ButtonFrameless>
                                             </div>
                                           </div>
                                           {/each}
@@ -1837,20 +1803,20 @@
                                             </button>
                                             <div class="flex items-center px-2">
                                               <span class="_text-gray" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
-                                              <IconButton
+                                              <ButtonFrameless
                                                 variant="blue"
-                                                                                                title="Edit label"
+                                                title="Edit label"
                                                 on:click={(e) => { e.stopPropagation(); handleEditLabel(label); }}
                                               >
                                                 <Pencil class="_icon-small" />
-                                              </IconButton>
-                                              <IconButton
+                                              </ButtonFrameless>
+                                              <ButtonFrameless
                                                 variant="red"
-                                                                                                title="Delete label"
+                                                title="Delete label"
                                                 on:click={(e) => { e.stopPropagation(); handleDeleteLabelFromDropdown(label); }}
                                               >
                                                 <Trash2 class="_icon-small" />
-                                              </IconButton>
+                                              </ButtonFrameless>
                                             </div>
                                           </div>
                                           {/each}
@@ -1887,20 +1853,20 @@
                                             </div>
                                             <div class="flex items-center px-2">
                                               <span class="_text-gray" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
-                                              <IconButton
+                                              <ButtonFrameless
                                                 variant="blue"
-                                                                                                title="Edit label"
+                                                title="Edit label"
                                                 on:click={(e) => { e.stopPropagation(); handleEditLabel(label); }}
                                               >
                                                 <Pencil class="_icon-small" />
-                                              </IconButton>
-                                              <IconButton
+                                              </ButtonFrameless>
+                                              <ButtonFrameless
                                                 variant="red"
-                                                                                                title="Delete label"
+                                                title="Delete label"
                                                 on:click={(e) => { e.stopPropagation(); handleDeleteLabelFromDropdown(label); }}
                                               >
                                                 <Trash2 class="_icon-small" />
-                                              </IconButton>
+                                              </ButtonFrameless>
                                             </div>
                                           </div>
                                           {/each}
@@ -1935,20 +1901,20 @@
                                             </button>
                                             <div class="flex items-center px-2">
                                               <span class="_text-gray" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
-                                              <IconButton
+                                              <ButtonFrameless
                                                 variant="blue"
-                                                                                                title="Edit label"
+                                                title="Edit label"
                                                 on:click={(e) => { e.stopPropagation(); handleEditLabel(label); }}
                                               >
                                                 <Pencil class="_icon-small" />
-                                              </IconButton>
-                                              <IconButton
+                                              </ButtonFrameless>
+                                              <ButtonFrameless
                                                 variant="red"
-                                                                                                title="Delete label"
+                                                title="Delete label"
                                                 on:click={(e) => { e.stopPropagation(); handleDeleteLabelFromDropdown(label); }}
                                               >
                                                 <Trash2 class="_icon-small" />
-                                              </IconButton>
+                                              </ButtonFrameless>
                                             </div>
                                           </div>
                                           {/each}
@@ -2040,15 +2006,6 @@
     {/if}
   </div>
 
-  <!-- Custom Tooltip -->
-  {#if tooltipVisible}
-    <div
-      class="fixed pointer-events-none z-50 px-2 py-1 _text-small _text-white _bg-black rounded shadow-lg"
-      style="left: {tooltipX}px; top: {tooltipY}px;"
-    >
-      {tooltipText}
-    </div>
-  {/if}
 
   <!-- Label Delete Confirmation Modal -->
   <Modal
@@ -2145,13 +2102,15 @@
           >
             <span>{editLabelTitle || 'Preview'}</span>
           </label>
-          <IconButton
+          <ButtonFrameless
             variant="blue"
-                        title="Choose color"
+            title="Choose color"
+            padding="p-2"
+            rounded="rounded-lg"
             on:click={() => document.getElementById('colorPicker')?.click()}
           >
             <Pencil class="_icon-large" />
-          </IconButton>
+          </ButtonFrameless>
         </div>
       </div>
 

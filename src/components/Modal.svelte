@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { X } from 'lucide-svelte';
-  import IconButton from './IconButton.svelte';
+  import ButtonFrameless from './ButtonFrameless.svelte';
 
   export let show: boolean = false;
   export let title: string = '';
@@ -85,13 +85,13 @@
           {/if}
 
           {#if showCloseButton}
-            <IconButton
+            <ButtonFrameless
               variant="neutral"
               disabled={primaryButton?.loading}
               on:click={handleClose}
             >
               <X class="_icon-large" />
-            </IconButton>
+            </ButtonFrameless>
           {/if}
         </div>
       {/if}
