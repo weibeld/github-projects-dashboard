@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { X } from 'lucide-svelte';
+  import IconButton from './IconButton.svelte';
 
   export let show: boolean = false;
   export let title: string = '';
@@ -84,13 +85,13 @@
           {/if}
 
           {#if showCloseButton}
-            <button
-              on:click={handleClose}
-              class="_icon-button-hover-neutral _icon-large"
+            <IconButton
+              variant="neutral"
               disabled={primaryButton?.loading}
+              on:click={handleClose}
             >
-              <X />
-            </button>
+              <X class="_icon-large" />
+            </IconButton>
           {/if}
         </div>
       {/if}

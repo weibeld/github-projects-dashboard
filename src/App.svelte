@@ -12,6 +12,7 @@
   import relativeTime from 'dayjs/plugin/relativeTime';
   import customParseFormat from 'dayjs/plugin/customParseFormat';
   import Modal from './components/Modal.svelte';
+  import IconButton from './components/IconButton.svelte';
   import { CaseSensitive, Hash, ListOrdered, CalendarSync, CalendarPlus, CalendarX2, ArrowUpNarrowWide, ArrowUpWideNarrow, ArrowDownWideNarrow, ArrowDownNarrowWide, Trash2, Pencil, Plus, ArrowRight, ArrowLeft, X, ChevronRight, Loader, Search } from 'lucide-svelte';
 
   let statuses: Status[] = [];
@@ -1323,13 +1324,13 @@
                 class="flex-1 px-3 py-2 border _border-gray-regular rounded-lg focus:outline-none focus:ring-2 focus:_ring-blue focus:border-transparent"
               />
               {#if searchQuery}
-                <button
-                  on:click={() => searchQuery = ''}
-                  class="_icon-button-hover-red _icon-normal"
+                <IconButton
+                  variant="red"
                   title="Clear search"
+                  on:click={() => searchQuery = ''}
                 >
-                  <X />
-                </button>
+                  <X class="_icon-normal" />
+                </IconButton>
               {/if}
             </div>
 
@@ -1431,50 +1432,50 @@
                     <!-- Arrow buttons for reordering (only for non-system statuses) -->
                     {#if !status.is_system}
                       <!-- Left arrow -->
-                      <button
-                        on:click={() => moveColumnLeft(status)}
+                      <IconButton
+                        variant="blue"
                         disabled={!canMoveLeft(status)}
-                        class="{!canMoveLeft(status) ? '_icon-button-disabled' : '_icon-button-hover-blue'} _icon-normal _text-regular font-bold"
                         title="Move column left"
+                        on:click={() => moveColumnLeft(status)}
                       >
-                        <ArrowLeft />
-                      </button>
+                        <ArrowLeft class="_icon-normal" />
+                      </IconButton>
 
                       <!-- Right arrow -->
-                      <button
-                        on:click={() => moveColumnRight(status)}
+                      <IconButton
+                        variant="blue"
                         disabled={!canMoveRight(status)}
-                        class="{!canMoveRight(status) ? '_icon-button-disabled' : '_icon-button-hover-blue'} _icon-normal _text-regular font-bold"
                         title="Move column right"
+                        on:click={() => moveColumnRight(status)}
                       >
-                        <ArrowRight />
-                      </button>
+                        <ArrowRight class="_icon-normal" />
+                      </IconButton>
                     {/if}
 
 
                     <!-- Add Column button (not for Closed column) -->
                     {#if status.title !== 'Closed'}
-                      <button
+                      <IconButton
+                        variant="blue"
+                                                title="Add column after {status.title}"
                         on:click={() => {
                           insertAfterStatusId = status.id;
                           showCreateColumn = true;
                         }}
-                        class="_icon-button-hover-blue _icon-normal"
-                        title="Add column after {status.title}"
                       >
-                        <Plus />
-                      </button>
+                        <Plus class="_icon-normal" />
+                      </IconButton>
                     {/if}
 
                     <!-- Delete button (only for non-system statuses) -->
                     {#if !status.is_system}
-                      <button
+                      <IconButton
+                        variant="red"
+                                                title="Delete column"
                         on:click={() => showDeleteColumnConfirmation(status)}
-                        class="_icon-button-hover-red _icon-normal"
-                        title="Delete column"
                       >
-                        <Trash2 />
-                      </button>
+                        <Trash2 class="_icon-normal" />
+                      </IconButton>
                     {/if}
                   </div>
                 </div>
@@ -1489,7 +1490,9 @@
                   <div class="flex items-center">
                   <!-- Sort Field dropdown -->
                   <div class="relative">
-                    <button
+                    <IconButton
+                      variant="blue"
+                      title="Sort field"
                       on:click={() => {
                         if (activeSortFieldDropdown === status.id) {
                           activeSortFieldDropdown = null;
@@ -1498,30 +1501,30 @@
                           selectedSortFieldIndex = -1;
                         }
                       }}
-                      class="_icon-button-hover-blue _icon-normal _text-small cursor-pointer flex items-center gap-1"
-                      title="Sort field"
                     >
-                      <!-- Display appropriate icon based on current sort field -->
-                      {#if (status.sort_field || 'updatedAt') === 'title'}
-                        <CaseSensitive />
-                        {SORT_FIELD_LABELS.title.toUpperCase()}
-                      {:else if (status.sort_field || 'updatedAt') === 'number'}
-                        <Hash />
-                        {SORT_FIELD_LABELS.number.toUpperCase()}
-                      {:else if (status.sort_field || 'updatedAt') === 'items'}
-                        <ListOrdered />
-                        {SORT_FIELD_LABELS.items.toUpperCase()}
-                      {:else if (status.sort_field || 'updatedAt') === 'updatedAt'}
-                        <CalendarSync />
-                        {SORT_FIELD_LABELS.updatedAt.toUpperCase()}
-                      {:else if (status.sort_field || 'updatedAt') === 'closedAt'}
-                        <CalendarX2 />
-                        {SORT_FIELD_LABELS.closedAt.toUpperCase()}
-                      {:else}
-                        <CalendarPlus />
-                        {SORT_FIELD_LABELS.createdAt.toUpperCase()}
-                      {/if}
-                    </button>
+                      <div class="flex items-center gap-1 _text-small">
+                        <!-- Display appropriate icon based on current sort field -->
+                        {#if (status.sort_field || 'updatedAt') === 'title'}
+                          <CaseSensitive class="_icon-normal" />
+                          {SORT_FIELD_LABELS.title.toUpperCase()}
+                        {:else if (status.sort_field || 'updatedAt') === 'number'}
+                          <Hash class="_icon-normal" />
+                          {SORT_FIELD_LABELS.number.toUpperCase()}
+                        {:else if (status.sort_field || 'updatedAt') === 'items'}
+                          <ListOrdered class="_icon-normal" />
+                          {SORT_FIELD_LABELS.items.toUpperCase()}
+                        {:else if (status.sort_field || 'updatedAt') === 'updatedAt'}
+                          <CalendarSync class="_icon-normal" />
+                          {SORT_FIELD_LABELS.updatedAt.toUpperCase()}
+                        {:else if (status.sort_field || 'updatedAt') === 'closedAt'}
+                          <CalendarX2 class="_icon-normal" />
+                          {SORT_FIELD_LABELS.closedAt.toUpperCase()}
+                        {:else}
+                          <CalendarPlus class="_icon-normal" />
+                          {SORT_FIELD_LABELS.createdAt.toUpperCase()}
+                        {/if}
+                      </div>
+                    </IconButton>
 
                     {#if activeSortFieldDropdown === status.id}
                       <div
@@ -1534,9 +1537,9 @@
                             selectedSortFieldIndex = -1;
                           }}
                           on:mouseenter={() => selectedSortFieldIndex = -1}
-                          class="_icon-normal w-full px-3 py-2 _text-small text-left first:rounded-t-lg flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 0 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
+                          class="w-full px-3 py-2 _text-small text-left first:rounded-t-lg flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 0 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                         >
-                          <CaseSensitive />
+                          <CaseSensitive class="_icon-normal" />
                           {SORT_FIELD_LABELS.title.toUpperCase()}
                         </button>
                         <button
@@ -1546,9 +1549,9 @@
                             selectedSortFieldIndex = -1;
                           }}
                           on:mouseenter={() => selectedSortFieldIndex = -1}
-                          class="_icon-normal w-full px-3 py-2 _text-small text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 1 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
+                          class="w-full px-3 py-2 _text-small text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 1 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                         >
-                          <Hash />
+                          <Hash class="_icon-normal" />
                           {SORT_FIELD_LABELS.number.toUpperCase()}
                         </button>
                         <button
@@ -1558,9 +1561,9 @@
                             selectedSortFieldIndex = -1;
                           }}
                           on:mouseenter={() => selectedSortFieldIndex = -1}
-                          class="_icon-normal w-full px-3 py-2 _text-small text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 2 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
+                          class="w-full px-3 py-2 _text-small text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 2 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                         >
-                          <ListOrdered />
+                          <ListOrdered class="_icon-normal" />
                           {SORT_FIELD_LABELS.items.toUpperCase()}
                         </button>
                         <button
@@ -1570,9 +1573,9 @@
                             selectedSortFieldIndex = -1;
                           }}
                           on:mouseenter={() => selectedSortFieldIndex = -1}
-                          class="_icon-normal w-full px-3 py-2 _text-small text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 3 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
+                          class="w-full px-3 py-2 _text-small text-left flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 3 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                         >
-                          <CalendarSync />
+                          <CalendarSync class="_icon-normal" />
                           {SORT_FIELD_LABELS.updatedAt.toUpperCase()}
                         </button>
                         <button
@@ -1582,9 +1585,9 @@
                             selectedSortFieldIndex = -1;
                           }}
                           on:mouseenter={() => selectedSortFieldIndex = -1}
-                          class="_icon-normal w-full px-3 py-2 _text-small text-left {status.title === 'Closed' ? '' : 'last:rounded-b-lg'} flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 4 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
+                          class="w-full px-3 py-2 _text-small text-left {status.title === 'Closed' ? '' : 'last:rounded-b-lg'} flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 4 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                         >
-                          <CalendarPlus />
+                          <CalendarPlus class="_icon-normal" />
                           {SORT_FIELD_LABELS.createdAt.toUpperCase()}
                         </button>
                         {#if status.title === 'Closed'}
@@ -1595,9 +1598,9 @@
                               selectedSortFieldIndex = -1;
                             }}
                             on:mouseenter={() => selectedSortFieldIndex = -1}
-                            class="_icon-normal w-full px-3 py-2 _text-small text-left last:rounded-b-lg flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 5 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
+                            class="w-full px-3 py-2 _text-small text-left last:rounded-b-lg flex items-center gap-2 focus:outline-none transition-colors {selectedSortFieldIndex === 5 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                           >
-                            <CalendarX2 />
+                            <CalendarX2 class="_icon-normal" />
                             {SORT_FIELD_LABELS.closedAt.toUpperCase()}
                           </button>
                         {/if}
@@ -1606,22 +1609,24 @@
                   </div>
 
                   <!-- Sort Direction toggle -->
-                  <button
+                  <IconButton
+                    variant="blue"
+                                        title="Toggle sort direction"
                     on:click={() => {
                       const newDirection = status.sort_direction === 'asc' ? 'desc' : 'asc';
                       handleSortingChange(status.id, status.sort_field || 'updatedAt', newDirection);
                     }}
-                    class="_icon-button-hover-blue _icon-normal _text-small cursor-pointer flex items-center gap-1"
-                    title="Toggle sort direction"
                   >
-                    {#if status.sort_direction === 'asc'}
-                      <ArrowUpNarrowWide />
-                      {SORT_DIRECTION_LABELS.asc.toUpperCase()}
-                    {:else}
-                      <ArrowDownWideNarrow />
-                      {SORT_DIRECTION_LABELS.desc.toUpperCase()}
-                    {/if}
-                  </button>
+                    <div class="flex items-center gap-1 _text-small">
+                      {#if status.sort_direction === 'asc'}
+                        <ArrowUpNarrowWide class="_icon-normal" />
+                        {SORT_DIRECTION_LABELS.asc.toUpperCase()}
+                      {:else}
+                        <ArrowDownWideNarrow class="_icon-normal" />
+                        {SORT_DIRECTION_LABELS.desc.toUpperCase()}
+                      {/if}
+                    </div>
+                  </IconButton>
                   </div>
                 </div>
               </div>
@@ -1784,20 +1789,20 @@
                                             </div>
                                             <div class="flex items-center px-2">
                                               <span class="_text-gray" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
-                                              <button
-                                                on:click|stopPropagation={() => handleEditLabel(label)}
-                                                class="_icon-button-hover-blue _icon-small"
-                                                title="Edit label"
+                                              <IconButton
+                                                variant="blue"
+                                                                                                title="Edit label"
+                                                on:click={(e) => { e.stopPropagation(); handleEditLabel(label); }}
                                               >
-                                                <Pencil />
-                                              </button>
-                                              <button
-                                                on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
-                                                class="_icon-button-hover-red _icon-small"
-                                                title="Delete label"
+                                                <Pencil class="_icon-small" />
+                                              </IconButton>
+                                              <IconButton
+                                                variant="red"
+                                                                                                title="Delete label"
+                                                on:click={(e) => { e.stopPropagation(); handleDeleteLabelFromDropdown(label); }}
                                               >
-                                                <Trash2 />
-                                              </button>
+                                                <Trash2 class="_icon-small" />
+                                              </IconButton>
                                             </div>
                                           </div>
                                           {/each}
@@ -1832,20 +1837,20 @@
                                             </button>
                                             <div class="flex items-center px-2">
                                               <span class="_text-gray" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
-                                              <button
-                                                on:click|stopPropagation={() => handleEditLabel(label)}
-                                                class="_icon-button-hover-blue _icon-small"
-                                                title="Edit label"
+                                              <IconButton
+                                                variant="blue"
+                                                                                                title="Edit label"
+                                                on:click={(e) => { e.stopPropagation(); handleEditLabel(label); }}
                                               >
-                                                <Pencil />
-                                              </button>
-                                              <button
-                                                on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
-                                                class="_icon-button-hover-red _icon-small"
-                                                title="Delete label"
+                                                <Pencil class="_icon-small" />
+                                              </IconButton>
+                                              <IconButton
+                                                variant="red"
+                                                                                                title="Delete label"
+                                                on:click={(e) => { e.stopPropagation(); handleDeleteLabelFromDropdown(label); }}
                                               >
-                                                <Trash2 />
-                                              </button>
+                                                <Trash2 class="_icon-small" />
+                                              </IconButton>
                                             </div>
                                           </div>
                                           {/each}
@@ -1882,20 +1887,20 @@
                                             </div>
                                             <div class="flex items-center px-2">
                                               <span class="_text-gray" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
-                                              <button
-                                                on:click|stopPropagation={() => handleEditLabel(label)}
-                                                class="_icon-button-hover-blue _icon-small"
-                                                title="Edit label"
+                                              <IconButton
+                                                variant="blue"
+                                                                                                title="Edit label"
+                                                on:click={(e) => { e.stopPropagation(); handleEditLabel(label); }}
                                               >
-                                                <Pencil />
-                                              </button>
-                                              <button
-                                                on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
-                                                class="_icon-button-hover-red _icon-small"
-                                                title="Delete label"
+                                                <Pencil class="_icon-small" />
+                                              </IconButton>
+                                              <IconButton
+                                                variant="red"
+                                                                                                title="Delete label"
+                                                on:click={(e) => { e.stopPropagation(); handleDeleteLabelFromDropdown(label); }}
                                               >
-                                                <Trash2 />
-                                              </button>
+                                                <Trash2 class="_icon-small" />
+                                              </IconButton>
                                             </div>
                                           </div>
                                           {/each}
@@ -1930,20 +1935,20 @@
                                             </button>
                                             <div class="flex items-center px-2">
                                               <span class="_text-gray" style="font-size: 10px;">{projectCount} project{projectCount === 1 ? '' : 's'}</span>
-                                              <button
-                                                on:click|stopPropagation={() => handleEditLabel(label)}
-                                                class="_icon-button-hover-blue _icon-small"
-                                                title="Edit label"
+                                              <IconButton
+                                                variant="blue"
+                                                                                                title="Edit label"
+                                                on:click={(e) => { e.stopPropagation(); handleEditLabel(label); }}
                                               >
-                                                <Pencil />
-                                              </button>
-                                              <button
-                                                on:click|stopPropagation={() => handleDeleteLabelFromDropdown(label)}
-                                                class="_icon-button-hover-red _icon-small"
-                                                title="Delete label"
+                                                <Pencil class="_icon-small" />
+                                              </IconButton>
+                                              <IconButton
+                                                variant="red"
+                                                                                                title="Delete label"
+                                                on:click={(e) => { e.stopPropagation(); handleDeleteLabelFromDropdown(label); }}
                                               >
-                                                <Trash2 />
-                                              </button>
+                                                <Trash2 class="_icon-small" />
+                                              </IconButton>
                                             </div>
                                           </div>
                                           {/each}
@@ -2140,12 +2145,13 @@
           >
             <span>{editLabelTitle || 'Preview'}</span>
           </label>
-          <label
-            for="colorPicker"
-            class="_icon-button-hover-blue _icon-large p-2 rounded-lg cursor-pointer"
+          <IconButton
+            variant="blue"
+                        title="Choose color"
+            on:click={() => document.getElementById('colorPicker')?.click()}
           >
-            <Pencil />
-          </label>
+            <Pencil class="_icon-large" />
+          </IconButton>
         </div>
       </div>
 

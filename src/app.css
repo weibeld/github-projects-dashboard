@@ -174,15 +174,15 @@
   /*--------------------------------------------------------------------------*/
   /* Icon Sizing */
   /*--------------------------------------------------------------------------*/
-  ._icon-small > * {
+  ._icon-small {
     @apply w-4 h-4;
   }
 
-  ._icon-normal > * {
+  ._icon-normal {
     @apply w-5 h-5;
   }
 
-  ._icon-large > * {
+  ._icon-large {
     @apply w-6 h-6;
   }
 
@@ -190,23 +190,23 @@
   /* Icon Buttons */
   /*--------------------------------------------------------------------------*/
   ._icon-button {
-    @apply p-1 _text-gray-button rounded transition-colors focus:outline-none;
+    @apply p-1 transition-colors focus:outline-none;
   }
 
   ._icon-button-hover-blue {
-    @apply _icon-button hover:_text-blue hover:_bg-blue-light;
+    @apply _icon-button _text-gray-button hover:_text-blue hover:_bg-blue-light;
   }
 
   ._icon-button-hover-red {
-    @apply _icon-button hover:_text-red hover:_bg-red-light;
+    @apply _icon-button _text-gray-button hover:_text-red hover:_bg-red-light;
   }
 
   ._icon-button-hover-neutral {
-    @apply _icon-button hover:_text-black;
+    @apply _icon-button _text-gray-button hover:_text-black;
   }
 
   ._icon-button-disabled {
-    @apply _icon-button _text-gray-button-disabled hover:_bg-gray-light cursor-not-allowed;
+    @apply _text-gray-button-disabled hover:_bg-gray-light cursor-not-allowed;
   }
 
 }
