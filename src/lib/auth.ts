@@ -1,4 +1,4 @@
-import { writable, readonly } from 'svelte/store';
+import { writable, readonly, derived } from 'svelte/store';
 import { supabase, Session } from './supabase';
 import { logRaw, logFn, logFnReturn, logStore } from './log';
 
@@ -19,10 +19,6 @@ function deletePersistentValue(name: string): void {
 }
 
 // Detect ongoing login on page load
-function isRedirectFromOAuth(): boolean {
-  logFn('isRedirectFromOAuth');
-  return logFnReturn('isRedirectFromOAuth', window.location.hash.includes('access_token'));
-}
 
 type GitHubUserInfo = {
   userName: string;
@@ -39,24 +35,25 @@ const GITHUB_USER_INFO = 'github_user_info';
 
 // Internal read-write
 const _isLoggedIn = writable(getPersistentValue(FLAG_IS_LOGGED_IN) !== null);
-const _isLoggingInInit = writable(false);
-const _isLoggingInAfterOAuth = writable(isRedirectFromOAuth());
+const _isLoggingIn = writable(false);
 const _isLoggingOut = writable(false);
 const _githubUserInfo = writable<GitHubUserInfo>(getPersistentValue(GITHUB_USER_INFO, true));
 
 // External read-only
 export const isLoggedIn = readonly(_isLoggedIn);
-export const isLoggingInInit = readonly(_isLoggingInInit);
-export const isLoggingInAfterOAuth = readonly(_isLoggingInAfterOAuth);
+export const isLoggingIn = readonly(_isLoggingIn);
 export const isLoggingOut = readonly(_isLoggingOut);
 export const githubUserInfo = readonly(_githubUserInfo);
 
 // Logging store changes
 logStore(isLoggedIn, 'isLoggedIn');
-logStore(isLoggingInInit, 'isLoggingInInit');
-logStore(isLoggingInAfterOAuth, 'isLoggingInAfterOAuth');
+logStore(isLoggingIn, 'isLoggingIn');
 logStore(isLoggingOut, 'isLoggingOut');
 logStore(githubUserInfo, 'githubUserInfo');
+
+function setIsLoggingIn(state: boolean): void {
+  _isLoggingIn.set(state);
+}
 
 function setIsLoggingOut(state: boolean): void {
   _isLoggingOut.set(state);
@@ -68,13 +65,6 @@ function setIsLoggedIn(state: boolean): void {
   else deletePersistentValue(FLAG_IS_LOGGED_IN);
 }
 
-function setIsLoggingInInit(state: boolean): void {
-  _isLoggingInInit.set(state);
-}
-
-function setIsLoggingInAfterOAuth(state: boolean): void {
-  _isLoggingInAfterOAuth.set(state);
-}
 
 function setGitHubUserInfo(session: Session): void {
   const m = session.user.user_metadata;
@@ -105,8 +95,8 @@ export async function setupAuth(): void {
       logRaw('onAuthStateChange Handler', 'INITIAL_SESSION', session);
       //saveGitHubApiToken(session.provider_token);
       setGitHubUserInfo(session);
-      setIsLoggingInAfterOAuth(false);
       setIsLoggedIn(true);
+      setIsLoggingIn(false);
     }
     // Executed when logout is complete (no reload)
     if (event === 'SIGNED_OUT') {
@@ -129,7 +119,7 @@ export async function setupAuth(): void {
 /*----------------------------------------------------------------------------*/
 export async function login(): Promise<void> {
   logFn('login');
-  setIsLoggingInInit(true);
+  setIsLoggingIn(true);
   await supabase.auth.signInWithOAuth({  // Triggers redirect/page load
     provider: 'github',
     options: {

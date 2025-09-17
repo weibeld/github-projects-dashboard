@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { X } from 'lucide-svelte';
   import ButtonFrameless from './ButtonFrameless.svelte';
+  import ButtonFramed from './ButtonFramed.svelte';
 
   export let show: boolean = false;
   export let title: string = '';
@@ -16,6 +17,7 @@
     variant?: 'blue' | 'red';
     disabled?: boolean;
     loading?: boolean;
+    loadingText?: string;
   } | null = null;
 
   export let secondaryButton: {
@@ -60,11 +62,6 @@
     lg: 'max-w-2xl'
   };
 
-  $: buttonVariants = {
-    blue: '_bg-blue-regular _text-white hover:_bg-blue-dark',
-    red: '_bg-red-regular _text-white hover:_bg-red-dark',
-    outline: '_text-gray-black border _border-gray-regular hover:_bg-gray-light'
-  };
 </script>
 
 {#if show}
@@ -105,23 +102,25 @@
       {#if primaryButton || secondaryButton}
         <div class="flex justify-end gap-3">
           {#if secondaryButton}
-            <button
-              on:click={handleSecondary}
+            <ButtonFramed
+              variant={secondaryButton.variant || 'outline'}
               disabled={secondaryButton.disabled || primaryButton?.loading}
-              class="px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors {buttonVariants[secondaryButton.variant || 'outline']}"
+              on:click={handleSecondary}
             >
               {secondaryButton.text}
-            </button>
+            </ButtonFramed>
           {/if}
 
           {#if primaryButton}
-            <button
+            <ButtonFramed
+              variant={primaryButton.variant || 'blue'}
+              disabled={primaryButton.disabled}
+              loading={primaryButton.loading}
+              loadingText={primaryButton.loadingText}
               on:click={handlePrimary}
-              disabled={primaryButton.disabled || primaryButton.loading}
-              class="px-4 py-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors {buttonVariants[primaryButton.variant || 'blue']}"
             >
-              {primaryButton.loading ? 'Loading...' : primaryButton.text}
-            </button>
+              {primaryButton.text}
+            </ButtonFramed>
           {/if}
         </div>
       {/if}

@@ -1,7 +1,7 @@
 <script lang='ts'>
   import { onMount } from 'svelte';
   import { flip } from 'svelte/animate';
-  import { setupAuth, login, logout, isLoggedIn, isLoggingOut } from './lib/auth';
+  import { setupAuth, login, logout, isLoggedIn, isLoggingIn, isLoggingOut } from './lib/auth';
   import { loadProjectsFromGitHub, githubProjects } from './lib/github';
   import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, createStatus, createStatusAfter, deleteStatus, updateStatusTitle, updateStatusPositions, updateProjectStatus, fetchLabels, createLabel, deleteLabel, addProjectLabel, removeProjectLabel, updateStatusSorting, sortProjects, SORT_FIELD_LABELS, SORT_DIRECTION_LABELS } from './lib/database';
   import { supabase } from './lib/supabase';
@@ -13,6 +13,7 @@
   import customParseFormat from 'dayjs/plugin/customParseFormat';
   import Modal from './components/Modal.svelte';
   import ButtonFrameless from './components/ButtonFrameless.svelte';
+  import ButtonFramed from './components/ButtonFramed.svelte';
   import Tooltip from './components/Tooltip.svelte';
   import { CaseSensitive, Hash, ListOrdered, CalendarSync, CalendarPlus, CalendarX2, ArrowUpNarrowWide, ArrowUpWideNarrow, ArrowDownWideNarrow, ArrowDownNarrowWide, Trash2, Pencil, Plus, ArrowRight, ArrowLeft, X, ChevronRight, Loader, Search } from 'lucide-svelte';
 
@@ -1240,13 +1241,14 @@
       <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold _text-black">GitHub Projects Dashboard</h1>
       {#if $isLoggedIn}
-        <button
+        <ButtonFramed
+          variant="red"
+          loading={$isLoggingOut}
+          loadingText="Logging out..."
           on:click={logout}
-          disabled={$isLoggingOut}
-          class="px-4 py-2 _bg-red-regular _text-white rounded hover:_bg-red-dark disabled:opacity-50"
         >
-          {$isLoggingOut ? 'Logging out...' : 'Logout'}
-        </button>
+          Logout
+        </ButtonFramed>
       {/if}
       </div>
     </div>
@@ -1267,12 +1269,13 @@
       {:else if error}
         <div class="_bg-red-light border _border-red rounded-lg p-4 mb-6">
           <p class="_text-regular _text-red">Error: {error}</p>
-          <button
+          <ButtonFramed
+            variant="red"
+            class="mt-2"
             on:click={loadDashboardData}
-            class="mt-2 px-4 py-2 _bg-red-regular _text-white rounded hover:_bg-red-dark"
           >
             Retry
-          </button>
+          </ButtonFramed>
         </div>
       {:else}
 
@@ -1401,7 +1404,7 @@
                       <ButtonFrameless
                         variant="blue"
                         disabled={!canMoveLeft(status)}
-                        title="Move column left"
+                        title="Move column to the left"
                         on:click={() => moveColumnLeft(status)}
                       >
                         <ArrowLeft class="_icon-normal" />
@@ -1411,7 +1414,7 @@
                       <ButtonFrameless
                         variant="blue"
                         disabled={!canMoveRight(status)}
-                        title="Move column right"
+                        title="Move column to the right"
                         on:click={() => moveColumnRight(status)}
                       >
                         <ArrowRight class="_icon-normal" />
@@ -1423,7 +1426,7 @@
                     {#if status.title !== 'Closed'}
                       <ButtonFrameless
                         variant="blue"
-                        title="Add column after {status.title}"
+                        title="Add new column to the right"
                         on:click={() => {
                           insertAfterStatusId = status.id;
                           showCreateColumn = true;
@@ -1458,7 +1461,7 @@
                   <div class="relative">
                     <ButtonFrameless
                       variant="blue"
-                      title="Sort field"
+                      title="Sort by"
                       on:click={() => {
                         if (activeSortFieldDropdown === status.id) {
                           activeSortFieldDropdown = null;
@@ -1577,7 +1580,7 @@
                   <!-- Sort Direction toggle -->
                   <ButtonFrameless
                     variant="blue"
-                                        title="Toggle sort direction"
+                                        title="Sort direction"
                     on:click={() => {
                       const newDirection = status.sort_direction === 'asc' ? 'desc' : 'asc';
                       handleSortingChange(status.id, status.sort_field || 'updatedAt', newDirection);
@@ -1978,12 +1981,12 @@
         {#if statuses.length === 0}
           <div class="text-center py-12">
             <p class="_text-regular _text-gray mb-4">No project statuses found</p>
-            <button
+            <ButtonFramed
+              variant="blue"
               on:click={loadDashboardData}
-              class="px-4 py-2 _bg-blue-regular _text-white rounded hover:_bg-blue-dark"
             >
               Reload
-            </button>
+            </ButtonFramed>
           </div>
         {/if}
       {/if}
@@ -1992,15 +1995,16 @@
         <div class="text-center">
           <h2 class="text-xl font-semibold mb-4">Welcome to GitHub Projects Dashboard</h2>
           <p class="_text-gray-black mb-6">Sign in with GitHub to manage your projects</p>
-          <button
+          <ButtonFramed
+            variant="black"
+            size="large"
+            class="mx-auto"
+            loading={$isLoggingIn}
+            loadingText="Logging in..."
             on:click={login}
-            class="px-6 py-3 _bg-black _text-white rounded-lg hover:_bg-black-hover flex items-center gap-2 mx-auto whitespace-nowrap"
           >
-            <svg fill="currentColor" viewBox="0 0 20 20" class="w-10 h-10">
-              <path fill-rule="evenodd" d="M10 0C4.477 0 0 4.484 0 10.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0110 4.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.942.359.31.678.921.678 1.856 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0020 10.017C20 4.484 15.522 0 10 0z" clip-rule="evenodd"/>
-            </svg>
             Sign in with GitHub
-          </button>
+          </ButtonFramed>
         </div>
       </div>
     {/if}
@@ -2054,7 +2058,8 @@
       text: labelToEdit ? 'Save Changes' : 'Create Label',
       variant: 'blue',
       disabled: !editLabelTitle.trim() || isDuplicateLabelName,
-      loading: editingLabel
+      loading: editingLabel,
+      loadingText: 'Saving...'
     }}
     secondaryButton={{
       text: 'Cancel',
@@ -2150,7 +2155,8 @@
       text: 'Create Column',
       variant: 'blue',
       disabled: !newColumnTitle.trim() || isDuplicateNewColumnName,
-      loading: creatingColumn
+      loading: creatingColumn,
+      loadingText: 'Creating...'
     }}
     secondaryButton={{
       text: 'Cancel',
@@ -2200,7 +2206,8 @@
     primaryButton={{
       text: 'Delete Column',
       variant: 'red',
-      loading: deletingColumn
+      loading: deletingColumn,
+      loadingText: 'Deleting...'
     }}
     secondaryButton={{
       text: 'Cancel',
@@ -2230,7 +2237,8 @@
       text: 'Save Changes',
       variant: 'blue',
       disabled: !editColumnTitle.trim() || isDuplicateEditColumnName,
-      loading: editingColumn
+      loading: editingColumn,
+      loadingText: 'Saving...'
     }}
     secondaryButton={{
       text: 'Cancel',
