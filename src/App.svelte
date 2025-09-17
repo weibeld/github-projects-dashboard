@@ -14,6 +14,7 @@
   import Modal from './components/Modal.svelte';
   import ButtonFrameless from './components/ButtonFrameless.svelte';
   import ButtonFramed from './components/ButtonFramed.svelte';
+  import InputField from './components/InputField.svelte';
   import Tooltip from './components/Tooltip.svelte';
   import { CaseSensitive, Hash, ListOrdered, CalendarSync, CalendarPlus, CalendarX2, ArrowUpNarrowWide, ArrowUpWideNarrow, ArrowDownWideNarrow, ArrowDownNarrowWide, Trash2, Pencil, Plus, ArrowRight, ArrowLeft, X, ChevronRight, Loader, Search } from 'lucide-svelte';
 
@@ -155,7 +156,6 @@
     });
   })();
 
-  $: labelNameError = isDuplicateLabelName ? 'A label with this name already exists' : '';
 
   // Column name duplicate validation (for creating new columns)
   $: isDuplicateNewColumnName = (() => {
@@ -179,8 +179,6 @@
     });
   })();
 
-  $: newColumnNameError = isDuplicateNewColumnName ? 'A column with this name already exists' : '';
-  $: editColumnNameError = isDuplicateEditColumnName ? 'A column with this name already exists' : '';
 
   // Track when we just opened edit modal for existing label (to preserve their text color choice)
   let justOpenedEditModal = false;
@@ -1287,10 +1285,10 @@
               <div class="flex-shrink-0 _icon-normal _text-gray">
                 <Search />
               </div>
-              <input
+              <InputField
                 bind:value={searchQuery}
                 placeholder="Search projects... (e.g., &quot;app&quot;, &quot;label:frontend&quot;, &quot;updated:>1 month ago&quot;)"
-                class="flex-1 px-3 py-2 border _border-gray-regular rounded-lg focus:outline-none focus:ring-2 focus:_ring-blue focus:border-transparent"
+                class="flex-1"
               />
               {#if searchQuery}
                 <ButtonFrameless
@@ -1722,10 +1720,10 @@
                                 <div class="absolute left-0 top-full mt-1 w-64 bg-white border _border-gray-light rounded-lg shadow-lg z-50 cursor-default">
                                   <!-- Search Input -->
                                   <div class="p-2 border-b _border-gray-light">
-                                    <input
+                                    <InputField
                                       bind:value={labelSearchQuery}
                                       placeholder="Filter labels..."
-                                      class="w-full px-3 py-2 _text-regular-small border _border-gray-regular rounded focus:outline-none focus:ring-2 focus:_ring-blue focus:border-transparent"
+                                      size="small"
                                       autofocus
                                       on:keydown={handleDropdownKeydown}
                                     />
@@ -2075,15 +2073,14 @@
         <label class="block _text-regular font-medium _text-gray-black mb-2">
           Title
         </label>
-        <input
+        <InputField
           bind:value={editLabelTitle}
           placeholder="Enter label name..."
-          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 {isDuplicateLabelName ? '_border-red focus:_ring-red' : '_border-gray-regular focus:_ring-blue'} focus:border-transparent"
           disabled={editingLabel}
+          errorMessage={isDuplicateLabelName ? 'A label with this name already exists' : ''}
+          autofocus
+          selectAll
         />
-        {#if labelNameError}
-          <p class="_text-regular _text-red mt-1">{labelNameError}</p>
-        {/if}
       </div>
 
       <!-- Color Picker -->
@@ -2171,10 +2168,10 @@
         <label class="block _text-regular font-medium _text-gray-black mb-2">
           Name
         </label>
-        <input
+        <InputField
           bind:value={newColumnTitle}
           placeholder="Enter column name..."
-          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 {isDuplicateNewColumnName ? '_border-red focus:_ring-red' : '_border-gray-regular focus:_ring-blue'} focus:border-transparent"
+          errorMessage={isDuplicateNewColumnName ? 'A column with this name already exists' : ''}
           autofocus
           on:keydown={(e) => {
             if (e.key === 'Enter' && newColumnTitle.trim() && !creatingColumn && !isDuplicateNewColumnName) {
@@ -2182,9 +2179,6 @@
             }
           }}
         />
-        {#if newColumnNameError}
-          <p class="_text-red _text-regular mt-1">{newColumnNameError}</p>
-        {/if}
       </div>
 
       <div class="_text-regular _text-gray">
@@ -2253,20 +2247,18 @@
         <label class="block _text-regular font-medium _text-gray-black mb-2">
           Name
         </label>
-        <input
+        <InputField
           bind:value={editColumnTitle}
           placeholder="Enter column name..."
-          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 {isDuplicateEditColumnName ? '_border-red focus:_ring-red' : '_border-gray-regular focus:_ring-blue'} focus:border-transparent"
+          errorMessage={isDuplicateEditColumnName ? 'A column with this name already exists' : ''}
           autofocus
+          selectAll
           on:keydown={(e) => {
             if (e.key === 'Enter' && editColumnTitle.trim() && !editingColumn && !isDuplicateEditColumnName) {
               handleEditColumn();
             }
           }}
         />
-        {#if editColumnNameError}
-          <p class="_text-red _text-regular mt-1">{editColumnNameError}</p>
-        {/if}
       </div>
     </div>
   </Modal>
