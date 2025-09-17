@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, tick } from 'svelte';
   import { X } from 'lucide-svelte';
   import ButtonFrameless from './ButtonFrameless.svelte';
   import ButtonFramed from './ButtonFramed.svelte';
@@ -10,6 +10,7 @@
   export let showCloseButton: boolean = true;
   export let closeOnBackdrop: boolean = true;
   export let closeOnEscape: boolean = true;
+  export let enableNoInputFieldKeyHandling: boolean = false;
 
   // Button configurations
   export let primaryButton: {
@@ -32,6 +33,8 @@
     close: void;
   }>();
 
+  let modalElement: HTMLDivElement;
+
   function handlePrimary() {
     dispatch('primary');
   }
@@ -48,6 +51,10 @@
     if (event.key === 'Escape' && closeOnEscape) {
       handleClose();
     }
+    if (event.key === 'Enter' && primaryButton && !primaryButton.disabled && !primaryButton.loading) {
+      event.preventDefault();
+      handlePrimary();
+    }
   }
 
   function handleBackdropClick(event: MouseEvent) {
@@ -62,6 +69,13 @@
     lg: 'max-w-2xl'
   };
 
+  // Focus modal when it opens (for modals without autofocus inputs)
+  $: if (show && modalElement && enableNoInputFieldKeyHandling) {
+    tick().then(() => {
+      modalElement.focus();
+    });
+  }
+
 </script>
 
 {#if show}
@@ -71,7 +85,7 @@
     on:click={handleBackdropClick}
     on:keydown={handleKeydown}
   >
-    <div class="bg-white rounded-lg shadow-xl p-6 {sizeClasses[size]} w-full mx-4">
+    <div bind:this={modalElement} class="bg-white rounded-lg shadow-xl p-6 {sizeClasses[size]} w-full mx-4" tabindex="-1">
       <!-- Header -->
       {#if title || showCloseButton}
         <div class="flex items-center justify-between mb-6">

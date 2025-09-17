@@ -54,6 +54,7 @@
   let editLabelColor = '';
   let editLabelTextColor: 'white' | 'black' = 'white';
   let editingLabel = false;
+  let deletingLabel = false;
   let projectIdForNewLabel: string | null = null; // Track which project to add new label to
 
   // Collapsible section state
@@ -944,14 +945,19 @@
 
   // Confirm and delete label from modal
   async function confirmDeleteLabel() {
-    if (!labelToDelete) return;
+    if (!labelToDelete || deletingLabel) return;
 
-    await deleteLabelDirectly(labelToDelete);
+    deletingLabel = true;
+    try {
+      await deleteLabelDirectly(labelToDelete);
 
-    // Close modal
-    showDeleteConfirmation = false;
-    labelToDelete = null;
-    labelProjectCount = 0;
+      // Close modal
+      showDeleteConfirmation = false;
+      labelToDelete = null;
+      labelProjectCount = 0;
+    } finally {
+      deletingLabel = false;
+    }
   }
 
   // Cancel label deletion
@@ -2014,9 +2020,12 @@
     show={showDeleteConfirmation && labelToDelete !== null}
     title="Delete Label"
     size="md"
+    enableNoInputFieldKeyHandling={true}
     primaryButton={{
       text: 'Delete Label',
-      variant: 'red'
+      variant: 'red',
+      loading: deletingLabel,
+      loadingText: 'Deleting...'
     }}
     secondaryButton={{
       text: 'Cancel',
@@ -2173,11 +2182,6 @@
           placeholder="Enter column name..."
           errorMessage={isDuplicateNewColumnName ? 'A column with this name already exists' : ''}
           autofocus
-          on:keydown={(e) => {
-            if (e.key === 'Enter' && newColumnTitle.trim() && !creatingColumn && !isDuplicateNewColumnName) {
-              handleCreateColumn();
-            }
-          }}
         />
       </div>
 
@@ -2197,6 +2201,7 @@
     show={showDeleteColumn && statusToDelete !== null}
     title="Delete Column"
     size="md"
+    enableNoInputFieldKeyHandling={true}
     primaryButton={{
       text: 'Delete Column',
       variant: 'red',
@@ -2253,11 +2258,6 @@
           errorMessage={isDuplicateEditColumnName ? 'A column with this name already exists' : ''}
           autofocus
           selectAll
-          on:keydown={(e) => {
-            if (e.key === 'Enter' && editColumnTitle.trim() && !editingColumn && !isDuplicateEditColumnName) {
-              handleEditColumn();
-            }
-          }}
         />
       </div>
     </div>
