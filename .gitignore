@@ -2,3 +2,7 @@ node_modules/
 dist/
 .claude/settings.local.json
 tmp
+
+# Playwright test artifacts
+test-results/
+playwright-report/

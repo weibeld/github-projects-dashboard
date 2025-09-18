@@ -105,3 +105,12 @@ export async function loadProjectsFromGitHub() {
   const data: GitHubApiData[] = (await response.json())?.data?.viewer?.projectsV2?.nodes;
   setGitHubProjects(data);
 }
+
+// Test mode function to set mock GitHub projects
+export function setTestModeGitHubProjects(mockProjects: GitHubProject[]): void {
+  const data: Record<ProjectID, GitHubProject> = {};
+  for (const project of mockProjects) {
+    data[project.id] = project;
+  }
+  _githubProjects.set(data);
+}

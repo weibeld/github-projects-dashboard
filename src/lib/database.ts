@@ -2,6 +2,7 @@ import { supabase } from './api/supabase';
 import { get } from 'svelte/store';
 import { githubUserInfo } from './auth';
 import type { GitHubProject } from './api/github';
+import { isTestMode, mockFetchColumns, mockCreateColumn, mockCreateColumnAfter, mockUpdateColumnTitle, mockUpdateColumnSorting, mockDeleteColumn, mockUpdateColumnPositions, mockFetchProjects, mockUpdateProjectColumn, mockAddProjectLabel, mockRemoveProjectLabel, mockFetchLabels, mockCreateLabel, mockDeleteLabel } from '../tests';
 
 // Database types
 export type SortField = 'title' | 'number' | 'items' | 'updatedAt' | 'closedAt' | 'createdAt';
@@ -77,6 +78,10 @@ export async function initializeUserColumns() {
 
 // Fetch all columns for the current user
 export async function fetchColumns(): Promise<Column[]> {
+  if (isTestMode()) {
+    return mockFetchColumns();
+  }
+
   const userId = getUserId();
   if (!userId) return [];
 
@@ -92,6 +97,10 @@ export async function fetchColumns(): Promise<Column[]> {
 
 // Update sorting preferences for a column
 export async function updateColumnSorting(columnId: string, sortField: SortField, sortDirection: SortDirection): Promise<void> {
+  if (isTestMode()) {
+    return mockUpdateColumnSorting(columnId, sortField, sortDirection);
+  }
+
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
@@ -110,6 +119,10 @@ export async function updateColumnSorting(columnId: string, sortField: SortField
 
 // Update column title
 export async function updateColumnTitle(columnId: string, title: string): Promise<void> {
+  if (isTestMode()) {
+    return mockUpdateColumnTitle(columnId, title);
+  }
+
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
@@ -187,6 +200,10 @@ export function sortProjects(projects: Project[], githubProjects: Record<string,
 
 // Create a new column
 export async function createColumn(title: string): Promise<Column> {
+  if (isTestMode()) {
+    return mockCreateColumn(title);
+  }
+
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
@@ -240,6 +257,10 @@ export async function createColumn(title: string): Promise<Column> {
 
 // Create a new column after a specific column
 export async function createColumnAfter(title: string, afterColumnId: string): Promise<Column> {
+  if (isTestMode()) {
+    return mockCreateColumnAfter(title, afterColumnId);
+  }
+
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
@@ -292,6 +313,10 @@ export async function createColumnAfter(title: string, afterColumnId: string): P
 
 // Delete a column (only non-system columns)
 export async function deleteColumn(columnId: string) {
+  if (isTestMode()) {
+    return mockDeleteColumn(columnId);
+  }
+
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
@@ -367,6 +392,10 @@ export async function deleteColumn(columnId: string) {
 
 // Fetch all labels for the current user
 export async function fetchLabels(): Promise<Label[]> {
+  if (isTestMode()) {
+    return mockFetchLabels();
+  }
+
   const userId = getUserId();
   if (!userId) return [];
 
@@ -382,6 +411,10 @@ export async function fetchLabels(): Promise<Label[]> {
 
 // Create a new label
 export async function createLabel(title: string, color: string, textColor: 'white' | 'black' = 'white'): Promise<Label> {
+  if (isTestMode()) {
+    return mockCreateLabel(title, color, textColor);
+  }
+
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
@@ -402,6 +435,10 @@ export async function createLabel(title: string, color: string, textColor: 'whit
 
 // Delete a label
 export async function deleteLabel(labelId: string) {
+  if (isTestMode()) {
+    return mockDeleteLabel(labelId);
+  }
+
   const { error } = await supabase
     .from('labels')
     .delete()
@@ -412,6 +449,10 @@ export async function deleteLabel(labelId: string) {
 
 // Fetch all projects for the current user with their labels
 export async function fetchProjects(): Promise<Project[]> {
+  if (isTestMode()) {
+    return mockFetchProjects();
+  }
+
   const userId = getUserId();
   if (!userId) return [];
 
@@ -503,6 +544,10 @@ export async function syncProjects(githubProjects: GitHubProject[]) {
 
 // Update project column (for drag and drop)
 export async function updateProjectColumn(projectId: string, columnId: string, position: number) {
+  if (isTestMode()) {
+    return mockUpdateProjectColumn(projectId, columnId, position);
+  }
+
   const { error } = await supabase
     .from('projects')
     .update({
@@ -517,6 +562,10 @@ export async function updateProjectColumn(projectId: string, columnId: string, p
 
 // Add label to project
 export async function addProjectLabel(projectId: string, labelId: string) {
+  if (isTestMode()) {
+    return mockAddProjectLabel(projectId, labelId);
+  }
+
   const { error } = await supabase
     .from('project_labels')
     .insert({
@@ -529,6 +578,10 @@ export async function addProjectLabel(projectId: string, labelId: string) {
 
 // Remove label from project
 export async function removeProjectLabel(projectId: string, labelId: string) {
+  if (isTestMode()) {
+    return mockRemoveProjectLabel(projectId, labelId);
+  }
+
   const { error } = await supabase
     .from('project_labels')
     .delete()
@@ -540,6 +593,10 @@ export async function removeProjectLabel(projectId: string, labelId: string) {
 
 // Update multiple column positions (for column reordering)
 export async function updateColumnPositions(columnPositions: Array<{id: string, position: number}>): Promise<void> {
+  if (isTestMode()) {
+    return mockUpdateColumnPositions(columnPositions);
+  }
+
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 

@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { flip } from 'svelte/animate';
   import { setupAuth, login, logout, isLoggedIn, isLoggingIn, isLoggingOut } from './lib/auth';
-  import { githubProjects } from './lib/api/github';
+  import { githubProjects, setTestModeGitHubProjects } from './lib/api/github';
   import { sortProjects, SORT_FIELD_LABELS, SORT_DIRECTION_LABELS } from './lib/database';
   import type { Column, Project, Label, SortField, SortDirection } from './lib/database';
   import type { GitHubProject } from './lib/api/github';
@@ -19,6 +19,9 @@
   import { filterProjects } from './lib/utils/searchUtils';
   import { loadDashboardData } from './lib/utils/dataLoader';
   import { isDuplicateLabelName, isDuplicateColumnName } from './lib/utils/validation';
+
+  // Import test mode utilities
+  import { isTestMode, initTestModeAuth, mockColumns, mockProjects, mockLabels, mockGitHubProjects, mockGitHubUserInfo, mockFetchProjects } from './tests';
 
   // Import UI state stores
   import {
@@ -114,6 +117,9 @@
   let loading = false;
   let error = '';
   let filteredProjects: Project[] = [];
+
+  // Authentication state that considers test mode
+  $: isAuthenticated = isTestMode() || $isLoggedIn;
 
   // Create store wrappers for arrays
   const columnsStore = { set: (value: Column[]) => { columns = value; } };
@@ -231,7 +237,56 @@
 
 
   onMount(() => {
-    setupAuth();
+
+    // Check if we're in test mode
+    const testModeActive = isTestMode();
+
+    if (testModeActive) {
+
+      // Initialize test mode authentication
+      initTestModeAuth();
+
+      // Set mock data using database functions to ensure proper joins
+      columns = mockColumns;
+      mockFetchProjects().then(mockProjects => {
+        projects = mockProjects;
+      });
+      labels = mockLabels;
+
+      // Debug logging
+
+      // Set mock GitHub projects
+      setTestModeGitHubProjects(mockGitHubProjects);
+
+      // Set authenticated state
+      loading = false;
+      error = '';
+
+      // Skip real auth setup
+    } else {
+      // Normal authentication flow
+      setupAuth();
+
+      // Load data when user becomes logged in
+      isLoggedIn.subscribe(async (loggedIn) => {
+        if (loggedIn) {
+          loading = true;
+          error = '';
+
+          try {
+            const result = await loadDashboardData();
+            columns = result.columns;
+            projects = result.projects;
+            labels = result.labels;
+          } catch (err) {
+            error = err instanceof Error ? err.message : 'Failed to load data';
+            console.error('Dashboard error:', err);
+          } finally {
+            loading = false;
+          }
+        }
+      });
+    }
 
     // Global error handler for unhandled promise rejections
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
@@ -239,26 +294,6 @@
       error = 'Something went wrong. Please try again.';
     };
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
-
-    // Load data when user becomes logged in
-    isLoggedIn.subscribe(async (loggedIn) => {
-      if (loggedIn) {
-        loading = true;
-        error = '';
-
-        try {
-          const result = await loadDashboardData();
-          columns = result.columns;
-          projects = result.projects;
-          labels = result.labels;
-        } catch (err) {
-          error = err instanceof Error ? err.message : 'Failed to load data';
-          console.error('Dashboard error:', err);
-        } finally {
-          loading = false;
-        }
-      }
-    });
 
     // Handle click outside to close label dropdown and sort dropdowns
     const handleClickOutside = (event: MouseEvent) => {
@@ -307,7 +342,7 @@
     <div class="max-w-7xl mx-auto px-4 py-4">
       <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold _text-black">GitHub Projects Dashboard</h1>
-      {#if $isLoggedIn}
+      {#if isAuthenticated}
         <ButtonFramed
           variant="red"
           loading={$isLoggingOut}
@@ -323,7 +358,7 @@
 
   <!-- Main Content -->
   <div class="px-4 py-8 mx-auto">
-    {#if $isLoggedIn}
+    {#if isAuthenticated}
       {#if loading}
         <div class="flex items-center justify-center min-h-[400px]">
           <div class="text-center">
@@ -392,6 +427,7 @@
                 class="_bg-gray-light rounded-lg shadow transition-all duration-200 flex-shrink-0"
                 style="width: 380px;"
                 animate:flip={{ duration: 300 }}
+                data-testid="column"
               >
               <!-- Column Header -->
               <div class="px-4 py-3 border-b _border-gray-light">
@@ -642,6 +678,7 @@
                       on:dragstart={(e) => !isClosedColumn && handleDragStart(e, project)}
                       on:dragend={handleDragEnd}
                       animate:flip={{ duration: 400 }}
+                      data-testid="project-card"
                     >
                       <!-- Project Title -->
                       <div class="flex-1 min-w-0">
