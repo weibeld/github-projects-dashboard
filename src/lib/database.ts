@@ -2,7 +2,7 @@ import { supabase } from './api/supabase';
 import { get } from 'svelte/store';
 import { githubUserInfo } from './auth';
 import type { GitHubProject } from './api/github';
-import { isTestMode, mockFetchColumns, mockCreateColumn, mockCreateColumnAfter, mockUpdateColumnTitle, mockUpdateColumnSorting, mockDeleteColumn, mockUpdateColumnPositions, mockFetchProjects, mockUpdateProjectColumn, mockAddProjectLabel, mockRemoveProjectLabel, mockFetchLabels, mockCreateLabel, mockDeleteLabel } from '../tests';
+import { isTestMode, mockFetchColumns, mockCreateColumn, mockCreateColumnAfter, mockUpdateColumnTitle, mockUpdateColumnSorting, mockDeleteColumn, mockUpdateColumnPositions, mockFetchProjects, mockUpdateProjectColumn, mockAddProjectLabel, mockRemoveProjectLabel, mockFetchLabels, mockCreateLabel, mockDeleteLabel } from '../../tests/helpers';
 
 // Database types
 export type SortField = 'title' | 'number' | 'items' | 'updatedAt' | 'closedAt' | 'createdAt';

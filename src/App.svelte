@@ -21,7 +21,7 @@
   import { isDuplicateLabelName, isDuplicateColumnName } from './lib/utils/validation';
 
   // Import test mode utilities
-  import { isTestMode, initTestModeAuth, mockColumns, mockProjects, mockLabels, mockGitHubProjects, mockGitHubUserInfo, mockFetchProjects } from './tests';
+  import { isTestMode, initTestModeAuth, mockGitHubProjects, mockGitHubUserInfo, mockFetchProjects, mockFetchColumns, mockFetchLabels } from '../tests/helpers';
 
   // Import UI state stores
   import {
@@ -247,11 +247,15 @@
       initTestModeAuth();
 
       // Set mock data using database functions to ensure proper joins
-      columns = mockColumns;
+      mockFetchColumns().then(mockColumns => {
+        columns = mockColumns;
+      });
       mockFetchProjects().then(mockProjects => {
         projects = mockProjects;
       });
-      labels = mockLabels;
+      mockFetchLabels().then(mockLabels => {
+        labels = mockLabels;
+      });
 
       // Debug logging
 

@@ -3,10 +3,63 @@
  * This file can be easily removed when testing is no longer needed
  */
 
-import type { Column, Project, Label, SortField, SortDirection } from '../lib/database';
-import type { GitHubProject } from '../lib/api/github';
-import databaseMock from './mock-data/database.json';
-import githubApiMock from './mock-data/github.json';
+import type { Column, Project, Label, SortField, SortDirection } from '../../src/lib/database';
+import type { GitHubProject } from '../../src/lib/api/github';
+import { Page } from '@playwright/test';
+
+// ===== PLAYWRIGHT TEST UTILITIES =====
+
+export async function waitForAppLoad(page: Page) {
+  // Wait for the main dashboard to be visible
+  await page.waitForSelector('[data-testid="column"]', { timeout: 10000 });
+}
+
+// ===== MOCK DATA LOADER =====
+
+// For now, just use the pretest data as default
+// TODO: In the future, this can be enhanced to load different datasets
+export function loadMockData(testName: string) {
+  console.log(`Loading mock data for test: ${testName}`);
+  // For now, we're using pretest data by default
+  // This can be extended in the future to support different datasets
+  return currentMockData;
+}
+
+// Default fallback mock data
+function getDefaultMockData() {
+  return {
+    userInfo: {
+      userName: "test-user",
+      userEmail: "test@example.com",
+      userAvatarUrl: "https://github.com/identicons/test-user.png"
+    },
+    columns: [
+      {
+        id: "col-no-status",
+        user_id: "test-user",
+        title: "No Status",
+        position: 0,
+        is_system: true,
+        sort_field: "updatedAt",
+        sort_direction: "desc"
+      },
+      {
+        id: "col-closed",
+        user_id: "test-user",
+        title: "Closed",
+        position: 1,
+        is_system: true,
+        sort_field: "closedAt",
+        sort_direction: "desc"
+      }
+    ],
+    projects: [],
+    labels: [],
+    project_labels: []
+  };
+}
+
+// ===== TEST MODE DETECTION =====
 
 // Check if test mode is enabled
 export function isTestMode(): boolean {
@@ -22,28 +75,47 @@ export function isTestMode(): boolean {
   return hasTestTrue || (isLocalhost && hasTestParam);
 }
 
-// Mock user info for tests (from database mock)
-export const mockGitHubUserInfo = databaseMock.userInfo;
+// ===== MOCK DATA SETUP =====
+
+// Import the pretest data directly
+import pretestData from './suites/pretest.json' with { type: 'json' };
+
+// Initialize with pretest data by default
+let currentMockData: any = pretestData;
+
+// Set mock data for the current test
+export function setMockData(mockData: any) {
+  currentMockData = mockData;
+  // Reset in-memory stores with new data
+  testColumns = [...(currentMockData.columns as Column[])];
+  testProjects = [...(currentMockData.projects as Project[])];
+  testLabels = [...(currentMockData.labels as Label[])];
+  testProjectLabels = [...(currentMockData.project_labels as ProjectLabel[])];
+}
+
+// Mock user info for tests
+export const mockGitHubUserInfo = currentMockData.userInfo;
 
 // Mock database data exported with proper typing
-export const mockColumns: Column[] = databaseMock.columns as Column[];
-export const mockProjects: Project[] = databaseMock.projects as Project[];
-export const mockLabels: Label[] = databaseMock.labels as Label[];
+export const mockColumns: Column[] = currentMockData.columns as Column[];
+export const mockProjects: Project[] = currentMockData.projects as Project[];
+export const mockLabels: Label[] = currentMockData.labels as Label[];
 
-// Mock GitHub API data with Date object conversion
-export const mockGitHubProjects: GitHubProject[] = githubApiMock.projects.map(project => ({
-  ...project,
-  updatedAt: new Date(project.updatedAt),
-  createdAt: new Date(project.createdAt),
-  closedAt: project.closedAt ? new Date(project.closedAt) : null
-}));
+// Mock GitHub API data converted to proper types
+export const mockGitHubProjects: GitHubProject[] = currentMockData.githubProjects ?
+  currentMockData.githubProjects.map((project: any) => ({
+    ...project,
+    updatedAt: new Date(project.updatedAt),
+    createdAt: new Date(project.createdAt),
+    closedAt: project.closedAt ? new Date(project.closedAt) : null
+  })) : [];
 
 // Initialize test mode authentication state
 export function initTestModeAuth() {
   if (!isTestMode()) return false;
 
   // Set mock localStorage values
-  localStorage.setItem('github-user-info', JSON.stringify(mockGitHubUserInfo));
+  localStorage.setItem('github-user-info', JSON.stringify(currentMockData.userInfo));
 
   // Mock Supabase session
   const mockSession = {
@@ -81,7 +153,7 @@ interface ProjectLabel {
 let testColumns: Column[] = [...mockColumns];
 let testProjects: Project[] = [...mockProjects];
 let testLabels: Label[] = [...mockLabels];
-let testProjectLabels: ProjectLabel[] = [...(databaseMock.project_labels as ProjectLabel[])];
+let testProjectLabels: ProjectLabel[] = [...(currentMockData.project_labels as ProjectLabel[])];
 
 // Helper functions
 function generateId(): string {
@@ -290,7 +362,7 @@ export function resetTestData(): void {
   testColumns = [...mockColumns];
   testProjects = [...mockProjects];
   testLabels = [...mockLabels];
-  testProjectLabels = [...(databaseMock.project_labels as ProjectLabel[])];
+  testProjectLabels = [...(currentMockData.project_labels as ProjectLabel[])];
 }
 
 export function getTestData() {

@@ -91,5 +91,37 @@
       "project_id": "proj-4",
       "label_id": "test-label-1"
     }
+  ],
+  "githubProjects": [
+    {
+      "id": "proj-1",
+      "title": "Test Project 1",
+      "number": 1,
+      "url": "https://github.com/test/project-1",
+      "items": 5,
+      "updatedAt": "2024-01-15T10:30:00Z",
+      "createdAt": "2024-01-10T08:00:00Z",
+      "closedAt": "2024-01-15T10:30:00Z"
+    },
+    {
+      "id": "proj-2",
+      "title": "Test Project 2",
+      "number": 2,
+      "url": "https://github.com/test/project-2",
+      "items": 3,
+      "updatedAt": "2024-01-20T14:15:00Z",
+      "createdAt": "2024-01-18T09:30:00Z",
+      "closedAt": null
+    },
+    {
+      "id": "proj-4",
+      "title": "Test Project 4",
+      "number": 4,
+      "url": "https://github.com/test/project-4",
+      "items": 8,
+      "updatedAt": "2024-01-22T16:45:00Z",
+      "createdAt": "2024-01-20T11:00:00Z",
+      "closedAt": null
+    }
   ]
 }

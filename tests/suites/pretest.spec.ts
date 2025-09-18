@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { waitForAppLoad } from './test-utils';
+import { waitForAppLoad, loadMockData, setMockData } from '../helpers';
 
-test.describe('Smoke Tests', () => {
+test.describe('Pretest', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to test mode - bypasses authentication and loads mock data
     await page.goto('/?test=true');
