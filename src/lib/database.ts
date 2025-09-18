@@ -1,7 +1,7 @@
-import { supabase } from './supabase';
+import { supabase } from './api/supabase';
 import { get } from 'svelte/store';
 import { githubUserInfo } from './auth';
-import type { GitHubProject } from './github';
+import type { GitHubProject } from './api/github';
 
 // Database types
 export type SortField = 'title' | 'number' | 'items' | 'updatedAt' | 'closedAt' | 'createdAt';
@@ -258,27 +258,17 @@ export async function createStatusAfter(title: string, afterStatusId: string): P
 
   const newPosition = afterStatus.position + 1;
 
-  // Update positions of all statuses that come after the target position
-  const { error: updateError } = await supabase
-    .from('statuses')
-    .update({ position: supabase.rpc('position + 1') })
-    .eq('user_id', userId)
-    .gte('position', newPosition);
+  // Update positions of all statuses that come after the target position manually
+  const statusesToUpdate = allStatuses.filter(s => s.position >= newPosition);
+  for (const status of statusesToUpdate) {
+    const { error: individualUpdateError } = await supabase
+      .from('statuses')
+      .update({ position: status.position + 1 })
+      .eq('id', status.id);
 
-  if (updateError) {
-    // If RPC doesn't work, do it manually
-    console.warn('RPC position update failed, using manual approach:', updateError);
-
-    const statusesToUpdate = allStatuses.filter(s => s.position >= newPosition);
-    for (const status of statusesToUpdate) {
-      const { error: individualUpdateError } = await supabase
-        .from('statuses')
-        .update({ position: status.position + 1 })
-        .eq('id', status.id);
-
-      if (individualUpdateError) {
-        console.error('Failed to update status position:', individualUpdateError);
-      }
+    if (individualUpdateError) {
+      console.error('Failed to update status position:', individualUpdateError);
+      throw individualUpdateError;
     }
   }
 
@@ -351,35 +341,25 @@ export async function deleteStatus(statusId: string) {
   if (deleteError) throw deleteError;
 
   // Shift all statuses with higher positions down by 1 to compact gaps
-  const { error: compactError } = await supabase
+  // Get all statuses with higher positions
+  const { data: statusesToUpdate } = await supabase
     .from('statuses')
-    .update({ position: supabase.rpc('position - 1') })
+    .select('id, position')
     .eq('user_id', userId)
-    .gt('position', statusToDelete.position);
+    .gt('position', statusToDelete.position)
+    .order('position');
 
-  if (compactError) {
-    // If the RPC approach doesn't work, fall back to manual approach
-    console.warn('RPC position update failed, using manual approach:', compactError);
+  if (statusesToUpdate && statusesToUpdate.length > 0) {
+    // Update each status individually
+    for (const status of statusesToUpdate) {
+      const { error: individualUpdateError } = await supabase
+        .from('statuses')
+        .update({ position: status.position - 1 })
+        .eq('id', status.id);
 
-    // Get all statuses with higher positions
-    const { data: statusesToUpdate } = await supabase
-      .from('statuses')
-      .select('id, position')
-      .eq('user_id', userId)
-      .gt('position', statusToDelete.position)
-      .order('position');
-
-    if (statusesToUpdate && statusesToUpdate.length > 0) {
-      // Update each status individually
-      for (const status of statusesToUpdate) {
-        const { error: individualUpdateError } = await supabase
-          .from('statuses')
-          .update({ position: status.position - 1 })
-          .eq('id', status.id);
-
-        if (individualUpdateError) {
-          console.error('Failed to update status position:', individualUpdateError);
-        }
+      if (individualUpdateError) {
+        console.error('Failed to update status position:', individualUpdateError);
+        throw individualUpdateError;
       }
     }
   }

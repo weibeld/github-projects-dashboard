@@ -1,7 +1,6 @@
 import { writable, readonly, get } from 'svelte/store';
-import { logFn, logRaw, logErr, logStore } from './log';
-import { logout, githubUserInfo } from './auth';
-import type { ProjectID } from './commonTypes';
+import { logout, githubUserInfo } from '../auth';
+import type { ProjectID } from '../commonTypes';
 
 // TODO: include linked repositories
 export type GitHubProject = {
@@ -58,7 +57,6 @@ const graphQlQuery = `
 
 const _githubProjects = writable<Record<ProjectID, GitHubProject>>({});
 export const githubProjects = readonly(_githubProjects);
-logStore(githubProjects, 'githubProjects');
 
 function setGitHubProjects(projects: GitHubApiData[] | null | undefined): void {
   const data: Record<ProjectID, GitHubProject> = {};
@@ -84,7 +82,6 @@ function setGitHubProjects(projects: GitHubApiData[] | null | undefined): void {
 
 // TODO: include synchronisation with app data (appDataStore.ts)
 export async function loadProjectsFromGitHub() {
-  logFn('loadProjectsFromGitHub');
   const apiToken = get(githubUserInfo)?.apiToken;
   const response = await fetch('https://api.github.com/graphql', {
     method: 'POST',
@@ -106,6 +103,5 @@ export async function loadProjectsFromGitHub() {
     return;
   }
   const data: GitHubApiData[] = (await response.json())?.data?.viewer?.projectsV2?.nodes;
-  logRaw('Fetched projects:', data);
   setGitHubProjects(data);
 }

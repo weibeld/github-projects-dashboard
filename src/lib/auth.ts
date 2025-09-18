@@ -1,6 +1,5 @@
-import { writable, readonly, derived } from 'svelte/store';
-import { supabase, Session } from './supabase';
-import { logRaw, logFn, logFnReturn, logStore } from './log';
+import { writable, readonly } from 'svelte/store';
+import { supabase, Session } from './api/supabase';
 
 
 
@@ -45,11 +44,6 @@ export const isLoggingIn = readonly(_isLoggingIn);
 export const isLoggingOut = readonly(_isLoggingOut);
 export const githubUserInfo = readonly(_githubUserInfo);
 
-// Logging store changes
-logStore(isLoggedIn, 'isLoggedIn');
-logStore(isLoggingIn, 'isLoggingIn');
-logStore(isLoggingOut, 'isLoggingOut');
-logStore(githubUserInfo, 'githubUserInfo');
 
 function setIsLoggingIn(state: boolean): void {
   _isLoggingIn.set(state);
@@ -92,7 +86,6 @@ export async function setupAuth(): void {
   supabase.auth.onAuthStateChange(async (event, session) => {
     // Executed on page load after logging in
     if (event === 'INITIAL_SESSION' && session && session.provider_token) {
-      logRaw('onAuthStateChange Handler', 'INITIAL_SESSION', session);
       //saveGitHubApiToken(session.provider_token);
       setGitHubUserInfo(session);
       setIsLoggedIn(true);
@@ -100,7 +93,6 @@ export async function setupAuth(): void {
     }
     // Executed when logout is complete (no reload)
     if (event === 'SIGNED_OUT') {
-      logRaw('onAuthStateChange Handler', 'SIGNED_OUT');
       deletePersistentValue(GITHUB_USER_INFO);
       setIsLoggingOut(false);
       setIsLoggedIn(false);
@@ -118,7 +110,6 @@ export async function setupAuth(): void {
  *     Note: if called when the user is already logged in, triggers a new login
 /*----------------------------------------------------------------------------*/
 export async function login(): Promise<void> {
-  logFn('login');
   setIsLoggingIn(true);
   await supabase.auth.signInWithOAuth({  // Triggers redirect/page load
     provider: 'github',
@@ -138,7 +129,6 @@ export async function login(): Promise<void> {
  *   - Triggers the SIGNED_OUT event in the onAuthStateChange handler
 /*----------------------------------------------------------------------------*/
 export async function logout(): Promise<void> {
-  logFn('logout');
   setIsLoggingOut(true);
   await supabase.auth.signOut();  // Triggers SIGNED_OUT in onAuthStateChange
 }

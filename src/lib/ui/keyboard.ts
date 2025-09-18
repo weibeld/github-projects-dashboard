@@ -1,0 +1,134 @@
+import { get } from 'svelte/store';
+import type { Status, Label } from '../database';
+import {
+  selectedLabelIndex,
+  labelSearchQuery,
+  activeDropdownProjectId,
+  activeSortFieldDropdown,
+  selectedSortFieldIndex
+} from './uiState';
+import { handleAddLabelToProject, createLabelFromSearch, closeLabelDropdown } from '../actions/labelActions';
+import { handleSortingChange } from '../actions/statusActions';
+
+/**
+ * Scroll to selected label to ensure it's visible
+ */
+export function scrollToSelectedLabel() {
+  const index = get(selectedLabelIndex);
+  if (index === -1) return;
+
+  setTimeout(() => {
+    // Try to find label element first
+    let selectedElement = document.querySelector(`[data-label-index="${index}"]`) as HTMLElement;
+
+    // If not found, check if it's the "Create new label" button
+    if (!selectedElement) {
+      selectedElement = document.querySelector('[data-create-label-button="true"]') as HTMLElement;
+    }
+
+    if (selectedElement) {
+      selectedElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest'
+      });
+    }
+  }, 0);
+}
+
+/**
+ * Handle keyboard events for label dropdown navigation
+ */
+export function handleDropdownKeydown(
+  event: KeyboardEvent,
+  filteredLabelsForActiveProject: Label[],
+  projectsStore: { set: (value: any[]) => void }
+) {
+  const availableLabels = filteredLabelsForActiveProject;
+  const maxIndex = availableLabels.length; // availableLabels.length = "Create new label" button index
+
+  switch (event.key) {
+    case 'ArrowDown':
+    case 'Tab':
+      event.preventDefault();
+      if (event.shiftKey && event.key === 'Tab') {
+        // Shift+Tab = move up (like ArrowUp)
+        selectedLabelIndex.update(index => Math.max(index - 1, -1));
+      } else {
+        // Tab or ArrowDown = move down
+        selectedLabelIndex.update(index => Math.min(index + 1, maxIndex));
+      }
+      scrollToSelectedLabel();
+      break;
+    case 'ArrowUp':
+      event.preventDefault();
+      selectedLabelIndex.update(index => Math.max(index - 1, -1));
+      scrollToSelectedLabel();
+      break;
+    case 'Enter':
+      event.preventDefault();
+      const currentIndex = get(selectedLabelIndex);
+      const activeProjectId = get(activeDropdownProjectId);
+
+      if (currentIndex >= 0 && currentIndex < availableLabels.length && activeProjectId) {
+        // Selected a label
+        const selectedLabel = availableLabels[currentIndex];
+        handleAddLabelToProject(activeProjectId, selectedLabel.id, projectsStore);
+      } else if (currentIndex === availableLabels.length) {
+        // Selected "Create new label" button
+        createLabelFromSearch();
+      }
+      break;
+    case 'Escape':
+      event.preventDefault();
+      closeLabelDropdown();
+      break;
+  }
+}
+
+/**
+ * Handle keyboard events for sort field dropdown navigation
+ */
+export function handleSortFieldKeydown(
+  event: KeyboardEvent,
+  statusId: string,
+  statuses: Status[],
+  statusesStore: { set: (value: Status[]) => void }
+) {
+  const status = statuses.find(s => s.id === statusId);
+  const sortFieldOptions = status?.title === 'Closed'
+    ? ['title', 'number', 'items', 'updatedAt', 'createdAt', 'closedAt']
+    : ['title', 'number', 'items', 'updatedAt', 'createdAt'];
+  const maxIndex = sortFieldOptions.length - 1;
+
+  switch (event.key) {
+    case 'ArrowDown':
+    case 'Tab':
+      event.preventDefault();
+      if (event.shiftKey && event.key === 'Tab') {
+        selectedSortFieldIndex.update(index => index <= 0 ? maxIndex : index - 1);
+      } else {
+        selectedSortFieldIndex.update(index => index < 0 ? 0 : Math.min(index + 1, maxIndex));
+      }
+      break;
+    case 'ArrowUp':
+      event.preventDefault();
+      selectedSortFieldIndex.update(index => index <= 0 ? maxIndex : index - 1);
+      break;
+    case 'Enter':
+      event.preventDefault();
+      const currentIndex = get(selectedSortFieldIndex);
+      if (currentIndex >= 0) {
+        const status = statuses.find(s => s.id === statusId);
+        const field = sortFieldOptions[currentIndex];
+        handleSortingChange(statusId, field as any, status?.sort_direction || 'desc', statuses, statusesStore);
+        activeSortFieldDropdown.set(null);
+        selectedSortFieldIndex.set(-1);
+      }
+      break;
+    case 'Escape':
+      event.preventDefault();
+      activeSortFieldDropdown.set(null);
+      selectedSortFieldIndex.set(-1);
+      break;
+  }
+}
