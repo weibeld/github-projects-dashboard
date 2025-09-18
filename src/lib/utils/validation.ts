@@ -1,4 +1,4 @@
-import type { Label, Status } from '../database';
+import type { Label, Column } from '../database';
 
 /**
  * Check if a label name is duplicate
@@ -23,15 +23,15 @@ export function isDuplicateLabelName(
  */
 export function isDuplicateColumnName(
   title: string,
-  statuses: Status[],
-  currentStatusId?: string
+  columns: Column[],
+  currentColumnId?: string
 ): boolean {
   if (!title.trim()) return false;
 
   const trimmedTitle = title.trim();
-  return statuses.some(status => {
-    // When editing, exclude the current status from duplicate check
-    if (currentStatusId && status.id === currentStatusId) return false;
-    return status.title === trimmedTitle;
+  return columns.some(column => {
+    // When editing, exclude the current column from duplicate check
+    if (currentColumnId && column.id === currentColumnId) return false;
+    return column.title === trimmedTitle;
   });
 }

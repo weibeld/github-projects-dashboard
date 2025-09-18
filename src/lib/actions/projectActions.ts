@@ -1,24 +1,24 @@
-import { updateProjectStatus, fetchProjects } from '../database';
+import { updateProjectColumn, fetchProjects } from '../database';
 import type { Project } from '../database';
 
 /**
- * Update project status and position
+ * Update project column and position
  */
-export async function updateProjectStatusAndPosition(
+export async function updateProjectColumnAndPosition(
   projectId: string,
-  targetStatusId: string,
+  targetColumnId: string,
   newPosition: number,
   projectsStore: { set: (value: Project[]) => void },
-  optimisticUpdateFn: (projectId: string, statusId: string, position: number) => void
+  optimisticUpdateFn: (projectId: string, columnId: string, position: number) => void
 ): Promise<void> {
   try {
     // Apply optimistic update
-    optimisticUpdateFn(projectId, targetStatusId, newPosition);
+    optimisticUpdateFn(projectId, targetColumnId, newPosition);
 
     // Update in database
-    await updateProjectStatus(projectId, targetStatusId, newPosition);
+    await updateProjectColumn(projectId, targetColumnId, newPosition);
   } catch (err) {
-    console.error('Update project status error:', err);
+    console.error('Update project column error:', err);
 
     // On error, refresh from database to revert optimistic update
     try {

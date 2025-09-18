@@ -4,7 +4,7 @@
   import { setupAuth, login, logout, isLoggedIn, isLoggingIn, isLoggingOut } from './lib/auth';
   import { githubProjects } from './lib/api/github';
   import { sortProjects, SORT_FIELD_LABELS, SORT_DIRECTION_LABELS } from './lib/database';
-  import type { Status, Project, Label, SortField, SortDirection } from './lib/database';
+  import type { Column, Project, Label, SortField, SortDirection } from './lib/database';
   import type { GitHubProject } from './lib/api/github';
   import Modal from './components/Modal.svelte';
   import ButtonFrameless from './components/ButtonFrameless.svelte';
@@ -44,12 +44,12 @@
     showCreateColumn,
     newColumnTitle,
     creatingColumn,
-    insertAfterStatusId,
+    insertAfterColumnId,
     showDeleteColumn,
-    statusToDelete,
+    columnToDelete,
     deletingColumn,
     showEditColumn,
-    statusToEdit,
+    columnToEdit,
     editColumnTitle,
     editingColumn,
     justOpenedEditModal,
@@ -58,7 +58,7 @@
 
   // Import action functions
   import {
-    handleCreateStatus,
+    handleCreateColumn,
     showDeleteColumnConfirmation,
     confirmDeleteColumn,
     cancelDeleteColumn,
@@ -70,7 +70,7 @@
     canMoveLeft,
     canMoveRight,
     handleSortingChange
-  } from './lib/actions/statusActions';
+  } from './lib/actions/columnActions';
 
   import {
     toggleLabelDropdown,
@@ -107,7 +107,7 @@
     handleSortFieldKeydown
   } from './lib/ui/keyboard';
 
-  let statuses: Status[] = [];
+  let columns: Column[] = [];
   let projects: Project[] = [];
   let labels: Label[] = [];
   let githubProjectsMap: Record<string, GitHubProject> = {};
@@ -116,7 +116,7 @@
   let filteredProjects: Project[] = [];
 
   // Create store wrappers for arrays
-  const statusesStore = { set: (value: Status[]) => { statuses = value; } };
+  const columnsStore = { set: (value: Column[]) => { columns = value; } };
   const projectsStore = { set: (value: Project[]) => { projects = value; } };
   const labelsStore = { set: (value: Label[]) => { labels = value; } };
 
@@ -197,14 +197,14 @@
   // Column name duplicate validation (for creating new columns)
   $: isDuplicateNewColumnNameResult = isDuplicateColumnName(
     $newColumnTitle,
-    statuses
+    columns
   );
 
   // Column name duplicate validation (for editing existing columns)
   $: isDuplicateEditColumnNameResult = isDuplicateColumnName(
     $editColumnTitle,
-    statuses,
-    $statusToEdit?.id
+    columns,
+    $columnToEdit?.id
   );
 
   // Always automatically calculate optimal text color when background color changes
@@ -221,10 +221,10 @@
   // Apply search filtering using extracted utility
   $: filteredProjects = filterProjects($searchQuery, projects, githubProjectsMap);
 
-  // Reactive grouped projects - recomputed whenever filteredProjects or statuses change
-  $: groupedProjects = statuses.reduce((acc, status) => {
-    acc[status.id] = filteredProjects
-      .filter(p => p.status_id === status.id)
+  // Reactive grouped projects - recomputed whenever filteredProjects or columns change
+  $: groupedProjects = columns.reduce((acc, column) => {
+    acc[column.id] = filteredProjects
+      .filter(p => p.column_id === column.id)
       .sort((a, b) => a.position - b.position);
     return acc;
   }, {} as Record<string, Project[]>);
@@ -248,7 +248,7 @@
 
         try {
           const result = await loadDashboardData();
-          statuses = result.statuses;
+          columns = result.columns;
           projects = result.projects;
           labels = result.labels;
         } catch (err) {
@@ -288,7 +288,7 @@
           selectedSortFieldIndex.set(-1);
         }
       } else if ($activeSortFieldDropdown) {
-        handleSortFieldKeydown(event, $activeSortFieldDropdown, statuses, statusesStore);
+        handleSortFieldKeydown(event, $activeSortFieldDropdown, columns, columnsStore);
       }
     };
     document.addEventListener('keydown', handleKeydown);
@@ -387,7 +387,7 @@
         <!-- Project Dashboard -->
         <div class="overflow-x-auto">
           <div class="flex gap-6 min-w-full w-max pb-4 justify-center">
-            {#each statuses as status (status.id)}
+            {#each columns as column (column.id)}
               <div
                 class="_bg-gray-light rounded-lg shadow transition-all duration-200 flex-shrink-0"
                 style="width: 380px;"
@@ -398,27 +398,27 @@
                 <!-- Top line: Title and action buttons -->
                 <div class="flex items-center justify-between mb-2">
                   <div>
-                    {#if status.is_system}
-                      <h3 class="_text-regular font-semibold _text-black">{status.title}</h3>
+                    {#if column.is_system}
+                      <h3 class="_text-regular font-semibold _text-black">{column.title}</h3>
                     {:else}
                       <button
-                        on:click={() => showEditColumnModal(status)}
+                        on:click={() => showEditColumnModal(column)}
                         class="_text-regular font-semibold _text-black cursor-pointer text-left"
                         title="Click to edit column title"
                       >
-                        {status.title}
+                        {column.title}
                       </button>
                     {/if}
                   </div>
                   <div class="flex items-center gap-1">
-                    <!-- Arrow buttons for reordering (only for non-system statuses) -->
-                    {#if !status.is_system}
+                    <!-- Arrow buttons for reordering (only for non-system columns) -->
+                    {#if !column.is_system}
                       <!-- Left arrow -->
                       <ButtonFrameless
                         variant="blue"
-                        disabled={!canMoveLeft(status, statuses)}
+                        disabled={!canMoveLeft(column, columns)}
                         title="Move column to the left"
-                        on:click={() => moveColumnLeft(status, statuses, statusesStore)}
+                        on:click={() => moveColumnLeft(column, columns, columnsStore)}
                       >
                         <ArrowLeft class="_icon-normal" />
                       </ButtonFrameless>
@@ -426,9 +426,9 @@
                       <!-- Right arrow -->
                       <ButtonFrameless
                         variant="blue"
-                        disabled={!canMoveRight(status, statuses)}
+                        disabled={!canMoveRight(column, columns)}
                         title="Move column to the right"
-                        on:click={() => moveColumnRight(status, statuses, statusesStore)}
+                        on:click={() => moveColumnRight(column, columns, columnsStore)}
                       >
                         <ArrowRight class="_icon-normal" />
                       </ButtonFrameless>
@@ -436,12 +436,12 @@
 
 
                     <!-- Add Column button (not for Closed column) -->
-                    {#if status.title !== 'Closed'}
+                    {#if column.title !== 'Closed'}
                       <ButtonFrameless
                         variant="blue"
                         title="Add new column to the right"
                         on:click={() => {
-                          insertAfterStatusId.set(status.id);
+                          insertAfterColumnId.set(column.id);
                           showCreateColumn.set(true);
                         }}
                       >
@@ -449,12 +449,12 @@
                       </ButtonFrameless>
                     {/if}
 
-                    <!-- Delete button (only for non-system statuses) -->
-                    {#if !status.is_system}
+                    <!-- Delete button (only for non-system columns) -->
+                    {#if !column.is_system}
                       <ButtonFrameless
                         variant="red"
                         title="Delete column"
-                        on:click={() => showDeleteColumnConfirmation(status)}
+                        on:click={() => showDeleteColumnConfirmation(column)}
                       >
                         <Trash2 class="_icon-normal" />
                       </ButtonFrameless>
@@ -466,7 +466,7 @@
                 <div class="flex items-center justify-between">
                   <div class="flex items-center">
                     <span class="px-2 py-1 _bg-gray-regular _text-gray-black font-bold rounded-full _text-small">
-                      {(groupedProjects[status.id] || []).length}
+                      {(groupedProjects[column.id] || []).length}
                     </span>
                   </div>
                   <div class="flex items-center">
@@ -476,29 +476,29 @@
                       variant="blue"
                       title="Sort by"
                       on:click={() => {
-                        if ($activeSortFieldDropdown === status.id) {
+                        if ($activeSortFieldDropdown === column.id) {
                           activeSortFieldDropdown.set(null);
                         } else {
-                          activeSortFieldDropdown.set(status.id);
+                          activeSortFieldDropdown.set(column.id);
                           selectedSortFieldIndex.set(-1);
                         }
                       }}
                     >
                       <div class="flex items-center gap-1 _text-small">
                         <!-- Display appropriate icon based on current sort field -->
-                        {#if (status.sort_field || 'updatedAt') === 'title'}
+                        {#if (column.sort_field || 'updatedAt') === 'title'}
                           <CaseSensitive class="_icon-normal" />
                           {SORT_FIELD_LABELS.title.toUpperCase()}
-                        {:else if (status.sort_field || 'updatedAt') === 'number'}
+                        {:else if (column.sort_field || 'updatedAt') === 'number'}
                           <Hash class="_icon-normal" />
                           {SORT_FIELD_LABELS.number.toUpperCase()}
-                        {:else if (status.sort_field || 'updatedAt') === 'items'}
+                        {:else if (column.sort_field || 'updatedAt') === 'items'}
                           <ListOrdered class="_icon-normal" />
                           {SORT_FIELD_LABELS.items.toUpperCase()}
-                        {:else if (status.sort_field || 'updatedAt') === 'updatedAt'}
+                        {:else if (column.sort_field || 'updatedAt') === 'updatedAt'}
                           <CalendarSync class="_icon-normal" />
                           {SORT_FIELD_LABELS.updatedAt.toUpperCase()}
-                        {:else if (status.sort_field || 'updatedAt') === 'closedAt'}
+                        {:else if (column.sort_field || 'updatedAt') === 'closedAt'}
                           <CalendarX2 class="_icon-normal" />
                           {SORT_FIELD_LABELS.closedAt.toUpperCase()}
                         {:else}
@@ -508,13 +508,13 @@
                       </div>
                     </ButtonFrameless>
 
-                    {#if $activeSortFieldDropdown === status.id}
+                    {#if $activeSortFieldDropdown === column.id}
                       <div
                         class="absolute left-0 top-full mt-1 w-36 bg-white border _border-gray-light rounded-lg shadow-lg z-50"
                       >
                         <button
                           on:click={() => {
-                            handleSortingChange(status.id, 'title', status.sort_direction || 'desc', statuses, statusesStore);
+                            handleSortingChange(column.id, 'title', column.sort_direction || 'desc', columns, columnsStore);
                             activeSortFieldDropdown.set(null);
                             selectedSortFieldIndex.set(-1);
                           }}
@@ -526,7 +526,7 @@
                         </button>
                         <button
                           on:click={() => {
-                            handleSortingChange(status.id, 'number', status.sort_direction || 'desc', statuses, statusesStore);
+                            handleSortingChange(column.id, 'number', column.sort_direction || 'desc', columns, columnsStore);
                             activeSortFieldDropdown.set(null);
                             selectedSortFieldIndex.set(-1);
                           }}
@@ -538,7 +538,7 @@
                         </button>
                         <button
                           on:click={() => {
-                            handleSortingChange(status.id, 'items', status.sort_direction || 'desc', statuses, statusesStore);
+                            handleSortingChange(column.id, 'items', column.sort_direction || 'desc', columns, columnsStore);
                             activeSortFieldDropdown.set(null);
                             selectedSortFieldIndex.set(-1);
                           }}
@@ -550,7 +550,7 @@
                         </button>
                         <button
                           on:click={() => {
-                            handleSortingChange(status.id, 'updatedAt', status.sort_direction || 'desc', statuses, statusesStore);
+                            handleSortingChange(column.id, 'updatedAt', column.sort_direction || 'desc', columns, columnsStore);
                             activeSortFieldDropdown.set(null);
                             selectedSortFieldIndex.set(-1);
                           }}
@@ -562,20 +562,20 @@
                         </button>
                         <button
                           on:click={() => {
-                            handleSortingChange(status.id, 'createdAt', status.sort_direction || 'desc', statuses, statusesStore);
+                            handleSortingChange(column.id, 'createdAt', column.sort_direction || 'desc', columns, columnsStore);
                             activeSortFieldDropdown.set(null);
                             selectedSortFieldIndex.set(-1);
                           }}
                           on:mouseenter={() => selectedSortFieldIndex.set(-1)}
-                          class="w-full px-3 py-2 _text-small text-left {status.title === 'Closed' ? '' : 'last:rounded-b-lg'} flex items-center gap-2 focus:outline-none transition-colors {$selectedSortFieldIndex === 4 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
+                          class="w-full px-3 py-2 _text-small text-left {column.title === 'Closed' ? '' : 'last:rounded-b-lg'} flex items-center gap-2 focus:outline-none transition-colors {$selectedSortFieldIndex === 4 ? '_dropdown-item-highlight' : '_text-gray-button hover:_dropdown-item-highlight'}"
                         >
                           <CalendarPlus class="_icon-normal" />
                           {SORT_FIELD_LABELS.createdAt.toUpperCase()}
                         </button>
-                        {#if status.title === 'Closed'}
+                        {#if column.title === 'Closed'}
                           <button
                             on:click={() => {
-                              handleSortingChange(status.id, 'closedAt', status.sort_direction || 'desc', statuses, statusesStore);
+                              handleSortingChange(column.id, 'closedAt', column.sort_direction || 'desc', columns, columnsStore);
                               activeSortFieldDropdown.set(null);
                               selectedSortFieldIndex.set(-1);
                             }}
@@ -595,12 +595,12 @@
                     variant="blue"
                                         title="Sort direction"
                     on:click={() => {
-                      const newDirection = status.sort_direction === 'asc' ? 'desc' : 'asc';
-                      handleSortingChange(status.id, status.sort_field || 'updatedAt', newDirection, statuses, statusesStore);
+                      const newDirection = column.sort_direction === 'asc' ? 'desc' : 'asc';
+                      handleSortingChange(column.id, column.sort_field || 'updatedAt', newDirection, columns, columnsStore);
                     }}
                   >
                     <div class="flex items-center gap-1 _text-small">
-                      {#if status.sort_direction === 'asc'}
+                      {#if column.sort_direction === 'asc'}
                         <ArrowUpNarrowWide class="_icon-normal" />
                         {SORT_DIRECTION_LABELS.asc.toUpperCase()}
                       {:else}
@@ -616,28 +616,28 @@
               <!-- Project Cards -->
               <div
                 class="p-4 space-y-3 min-h-[200px] transition-all duration-200 {
-                  $dragOverColumn === status.id
-                    ? status.title === 'Closed'
+                  $dragOverColumn === column.id
+                    ? column.title === 'Closed'
                       ? '_bg-red-light border-2 border-dashed _border-red'
                       : '_bg-blue-light border-2 border-dashed _border-blue'
                     : ''
                 }"
                 role="region"
-                aria-label="Drop zone for {status.title} status"
-                on:dragover={(e) => handleDragOver(e, status.id, statuses)}
-                on:dragleave={(e) => handleDragLeave(e, status.id)}
-                on:drop={(e) => handleDrop(e, status.id, statuses, groupedProjects, projects, projectsStore)}
+                aria-label="Drop zone for {column.title} column"
+                on:dragover={(e) => handleDragOver(e, column.id, columns)}
+                on:dragleave={(e) => handleDragLeave(e, column.id)}
+                on:drop={(e) => handleDrop(e, column.id, columns, groupedProjects, projects, projectsStore)}
               >
-                {#each sortProjects(groupedProjects[status.id] || [], githubProjectsMap, status).filter(project => githubProjectsMap[project.id]) as project (project.id)}
+                {#each sortProjects(groupedProjects[column.id] || [], githubProjectsMap, column).filter(project => githubProjectsMap[project.id]) as project (project.id)}
                   {@const githubProject = githubProjectsMap[project.id]}
                   {@const isDragging = $draggedProject?.id === project.id}
-                  {@const isClosedColumn = status.title === 'Closed'}
+                  {@const isClosedColumn = column.title === 'Closed'}
                   {@const isDropdownOpen = $activeDropdownProjectId === project.id}
                     <div
                       class="_bg-white rounded-lg p-3 transition-all duration-200 {isDragging ? 'opacity-50 scale-95' : 'hover:shadow-md'} {!isClosedColumn && !isDropdownOpen ? 'cursor-grab active:cursor-grabbing' : ''}"
                       draggable={!isClosedColumn && !isDropdownOpen}
                       role={!isClosedColumn ? "button" : undefined}
-                      aria-label={!isClosedColumn ? `Drag ${githubProject.title} to another status` : undefined}
+                      aria-label={!isClosedColumn ? `Drag ${githubProject.title} to another column` : undefined}
                       tabindex={!isClosedColumn ? "0" : undefined}
                       on:dragstart={(e) => !isClosedColumn && handleDragStart(e, project)}
                       on:dragend={handleDragEnd}
@@ -974,10 +974,10 @@
                 {/each}
 
                 <!-- Empty state -->
-                {#if (groupedProjects[status.id] || []).length === 0}
+                {#if (groupedProjects[column.id] || []).length === 0}
                   <div class="text-center py-8 _text-gray">
                     <p class="_text-regular">No projects</p>
-                    {#if status.title !== 'Closed'}
+                    {#if column.title !== 'Closed'}
                       <p class="_text-small mt-1">Drag projects here</p>
                     {:else}
                       <p class="_text-small mt-1">Closed projects only</p>
@@ -990,10 +990,10 @@
           </div>
         </div>
 
-        <!-- Empty state for no statuses -->
-        {#if statuses.length === 0}
+        <!-- Empty state for no columns -->
+        {#if columns.length === 0}
           <div class="text-center py-12">
-            <p class="_text-regular _text-gray mb-4">No project statuses found</p>
+            <p class="_text-regular _text-gray mb-4">No project columns found</p>
             <ButtonFramed
               variant="blue"
               on:click={loadDashboardData}
@@ -1177,9 +1177,9 @@
       text: 'Cancel',
       variant: 'outline'
     }}
-    on:primary={() => handleCreateStatus(statusesStore)}
-    on:secondary={() => { showCreateColumn.set(false); newColumnTitle.set(''); insertAfterStatusId.set(null); }}
-    on:close={() => { showCreateColumn.set(false); newColumnTitle.set(''); insertAfterStatusId.set(null); }}
+    on:primary={() => handleCreateColumn(columnsStore)}
+    on:secondary={() => { showCreateColumn.set(false); newColumnTitle.set(''); insertAfterColumnId.set(null); }}
+    on:close={() => { showCreateColumn.set(false); newColumnTitle.set(''); insertAfterColumnId.set(null); }}
   >
     <div class="space-y-4">
       <div>
@@ -1195,9 +1195,9 @@
       </div>
 
       <div class="_text-regular _text-gray">
-        {#if $insertAfterStatusId}
-          {@const afterStatus = statuses.find(s => s.id === $insertAfterStatusId)}
-          The new column will be created to the right of the "{afterStatus?.title || 'Unknown'}" column.
+        {#if $insertAfterColumnId}
+          {@const afterColumn = columns.find(s => s.id === $insertAfterColumnId)}
+          The new column will be created to the right of the "{afterColumn?.title || 'Unknown'}" column.
         {:else}
           The new column will be created to the left of the "Closed" column.
         {/if}
@@ -1207,7 +1207,7 @@
 
   <!-- Delete Column Confirmation Modal -->
   <Modal
-    show={$showDeleteColumn && $statusToDelete !== null}
+    show={$showDeleteColumn && $columnToDelete !== null}
     title="Delete Column"
     size="md"
     enableNoInputFieldKeyHandling={true}
@@ -1221,13 +1221,13 @@
       text: 'Cancel',
       variant: 'outline'
     }}
-    on:primary={() => confirmDeleteColumn(statusesStore, projectsStore)}
+    on:primary={() => confirmDeleteColumn(columnsStore, projectsStore)}
     on:secondary={cancelDeleteColumn}
     on:close={cancelDeleteColumn}
   >
     <div class="space-y-4">
       <p class="_text-regular _text-gray-black">
-        Are you sure you want to delete the "<strong>{$statusToDelete?.title}</strong>" column?
+        Are you sure you want to delete the "<strong>{$columnToDelete?.title}</strong>" column?
       </p>
 
       <p class="_text-regular _text-gray mt-3">
@@ -1252,7 +1252,7 @@
       text: 'Cancel',
       variant: 'outline'
     }}
-    on:primary={() => handleEditColumn(statusesStore)}
+    on:primary={() => handleEditColumn(columnsStore)}
     on:secondary={cancelEditColumn}
     on:close={cancelEditColumn}
   >

@@ -4,8 +4,8 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Create statuses table
-CREATE TABLE IF NOT EXISTS statuses (
+-- Create columns table
+CREATE TABLE IF NOT EXISTS columns (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id TEXT NOT NULL,
   title TEXT NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS labels (
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY, -- GitHub Project ID
   user_id TEXT NOT NULL,
-  status_id UUID NOT NULL REFERENCES statuses(id) ON DELETE RESTRICT,
+  column_id UUID NOT NULL REFERENCES columns(id) ON DELETE RESTRICT,
   position INTEGER NOT NULL DEFAULT 0, -- For ordering within a status column
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -53,15 +53,15 @@ CREATE TABLE IF NOT EXISTS project_labels (
 );
 
 -- Create indexes for performance
-CREATE INDEX idx_statuses_user_id ON statuses(user_id);
+CREATE INDEX idx_columns_user_id ON columns(user_id);
 CREATE INDEX idx_labels_user_id ON labels(user_id);
 CREATE INDEX idx_projects_user_id ON projects(user_id);
-CREATE INDEX idx_projects_status_id ON projects(status_id);
+CREATE INDEX idx_projects_column_id ON projects(column_id);
 CREATE INDEX idx_project_labels_project_id ON project_labels(project_id);
 CREATE INDEX idx_project_labels_label_id ON project_labels(label_id);
 
 -- Enable Row Level Security
-ALTER TABLE statuses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE columns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE labels ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_labels ENABLE ROW LEVEL SECURITY;
@@ -69,17 +69,17 @@ ALTER TABLE project_labels ENABLE ROW LEVEL SECURITY;
 -- Create RLS policies
 -- Users can only see and modify their own data
 
--- Statuses policies
-CREATE POLICY "Users can view own statuses" ON statuses
+-- Columns policies
+CREATE POLICY "Users can view own columns" ON columns
   FOR SELECT USING ((auth.jwt() -> 'user_metadata' ->> 'user_name') = user_id);
 
-CREATE POLICY "Users can insert own statuses" ON statuses
+CREATE POLICY "Users can insert own columns" ON columns
   FOR INSERT WITH CHECK ((auth.jwt() -> 'user_metadata' ->> 'user_name') = user_id);
 
-CREATE POLICY "Users can update own statuses" ON statuses
+CREATE POLICY "Users can update own columns" ON columns
   FOR UPDATE USING ((auth.jwt() -> 'user_metadata' ->> 'user_name') = user_id);
 
-CREATE POLICY "Users can delete own non-system statuses" ON statuses
+CREATE POLICY "Users can delete own non-system columns" ON columns
   FOR DELETE USING (
     (auth.jwt() -> 'user_metadata' ->> 'user_name') = user_id
     AND is_system = false
@@ -139,48 +139,48 @@ CREATE POLICY "Users can delete own project labels" ON project_labels
     )
   );
 
--- Function to initialize default statuses for a new user
-CREATE OR REPLACE FUNCTION initialize_user_statuses(p_user_id TEXT)
+-- Function to initialize default columns for a new user
+CREATE OR REPLACE FUNCTION initialize_user_columns(p_user_id TEXT)
 RETURNS void AS $$
 DECLARE
   no_status_id UUID;
   closed_id UUID;
 BEGIN
-  -- Check if user already has statuses
-  IF EXISTS (SELECT 1 FROM statuses WHERE user_id = p_user_id) THEN
+  -- Check if user already has columns
+  IF EXISTS (SELECT 1 FROM columns WHERE user_id = p_user_id) THEN
     RETURN;
   END IF;
 
-  -- Create 'No Status' status
-  INSERT INTO statuses (user_id, title, position, is_system, sort_field, sort_direction)
+  -- Create 'No Status' column
+  INSERT INTO columns (user_id, title, position, is_system, sort_field, sort_direction)
   VALUES (p_user_id, 'No Status', 0, true, 'updatedAt', 'desc')
   RETURNING id INTO no_status_id;
 
-  -- Create 'Closed' status
-  INSERT INTO statuses (user_id, title, position, is_system, sort_field, sort_direction)
+  -- Create 'Closed' column
+  INSERT INTO columns (user_id, title, position, is_system, sort_field, sort_direction)
   VALUES (p_user_id, 'Closed', 1, true, 'closedAt', 'desc')
   RETURNING id INTO closed_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Function to get or create status ID
-CREATE OR REPLACE FUNCTION get_or_create_status_id(p_user_id TEXT, p_title TEXT)
+-- Function to get or create column ID
+CREATE OR REPLACE FUNCTION get_or_create_column_id(p_user_id TEXT, p_title TEXT)
 RETURNS UUID AS $$
 DECLARE
-  status_id UUID;
+  column_id UUID;
 BEGIN
-  SELECT id INTO status_id FROM statuses
+  SELECT id INTO column_id FROM columns
   WHERE user_id = p_user_id AND title = p_title;
 
-  IF status_id IS NULL THEN
-    INSERT INTO statuses (user_id, title, position, is_system)
+  IF column_id IS NULL THEN
+    INSERT INTO columns (user_id, title, position, is_system)
     VALUES (p_user_id, p_title,
-      (SELECT COALESCE(MAX(position), -1) + 1 FROM statuses WHERE user_id = p_user_id),
+      (SELECT COALESCE(MAX(position), -1) + 1 FROM columns WHERE user_id = p_user_id),
       p_title IN ('No Status', 'Closed')
     )
-    RETURNING id INTO status_id;
+    RETURNING id INTO column_id;
   END IF;
 
-  RETURN status_id;
+  RETURN column_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;

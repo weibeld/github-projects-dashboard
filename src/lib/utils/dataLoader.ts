@@ -1,18 +1,18 @@
-import { initializeUserStatuses, syncProjects, fetchStatuses, fetchProjects, fetchLabels } from '../database';
+import { initializeUserColumns, syncProjects, fetchColumns, fetchProjects, fetchLabels } from '../database';
 import { loadProjectsFromGitHub, githubProjects } from '../api/github';
 import { get } from 'svelte/store';
-import type { Status, Project, Label } from '../database';
+import type { Column, Project, Label } from '../database';
 
 /**
  * Load all dashboard data when user logs in
  */
 export async function loadDashboardData(): Promise<{
-  statuses: Status[];
+  columns: Column[];
   projects: Project[];
   labels: Label[];
 }> {
-  // Initialize user statuses if needed
-  await initializeUserStatuses();
+  // Initialize user columns if needed
+  await initializeUserColumns();
 
   // Fetch GitHub projects
   await loadProjectsFromGitHub();
@@ -26,11 +26,11 @@ export async function loadDashboardData(): Promise<{
   }
 
   // Fetch updated data
-  const [statuses, projects, labels] = await Promise.all([
-    fetchStatuses(),
+  const [columns, projects, labels] = await Promise.all([
+    fetchColumns(),
     fetchProjects(),
     fetchLabels()
   ]);
 
-  return { statuses, projects, labels };
+  return { columns, projects, labels };
 }

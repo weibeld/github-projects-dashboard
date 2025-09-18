@@ -25,7 +25,7 @@ export const SORT_DIRECTION_LABELS: Record<SortDirection, string> = {
 export const DEFAULT_SORT_FIELD: SortField = 'updatedAt';
 export const DEFAULT_SORT_DIRECTION: SortDirection = 'desc';
 
-export interface Status {
+export interface Column {
   id: string;
   user_id: string;
   title: string;
@@ -50,7 +50,7 @@ export interface Label {
 export interface Project {
   id: string; // GitHub project ID
   user_id: string;
-  status_id: string;
+  column_id: string;
   position: number;
   created_at?: string;
   updated_at?: string;
@@ -63,25 +63,25 @@ function getUserId(): string | null {
   return userInfo?.userName || null;
 }
 
-// Initialize default statuses for a new user
-export async function initializeUserStatuses() {
+// Initialize default columns for a new user
+export async function initializeUserColumns() {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
-  const { error } = await supabase.rpc('initialize_user_statuses', {
+  const { error } = await supabase.rpc('initialize_user_columns', {
     p_user_id: userId
   });
 
   if (error) throw error;
 }
 
-// Fetch all statuses for the current user
-export async function fetchStatuses(): Promise<Status[]> {
+// Fetch all columns for the current user
+export async function fetchColumns(): Promise<Column[]> {
   const userId = getUserId();
   if (!userId) return [];
 
   const { data, error } = await supabase
-    .from('statuses')
+    .from('columns')
     .select('*')
     .eq('user_id', userId)
     .order('position');
@@ -90,48 +90,48 @@ export async function fetchStatuses(): Promise<Status[]> {
   return data || [];
 }
 
-// Update sorting preferences for a status
-export async function updateStatusSorting(statusId: string, sortField: SortField, sortDirection: SortDirection): Promise<void> {
+// Update sorting preferences for a column
+export async function updateColumnSorting(columnId: string, sortField: SortField, sortDirection: SortDirection): Promise<void> {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
   const { error } = await supabase
-    .from('statuses')
+    .from('columns')
     .update({
       sort_field: sortField,
       sort_direction: sortDirection,
       updated_at: new Date().toISOString()
     })
-    .eq('id', statusId)
+    .eq('id', columnId)
     .eq('user_id', userId);
 
   if (error) throw error;
 }
 
-// Update status title
-export async function updateStatusTitle(statusId: string, title: string): Promise<void> {
+// Update column title
+export async function updateColumnTitle(columnId: string, title: string): Promise<void> {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
   const { error } = await supabase
-    .from('statuses')
+    .from('columns')
     .update({
       title,
       updated_at: new Date().toISOString()
     })
-    .eq('id', statusId)
+    .eq('id', columnId)
     .eq('user_id', userId);
 
   if (error) throw error;
 }
 
-// Sort projects based on status sorting preferences
-export function sortProjects(projects: Project[], githubProjects: Record<string, GitHubProject>, status: Status): Project[] {
+// Sort projects based on column sorting preferences
+export function sortProjects(projects: Project[], githubProjects: Record<string, GitHubProject>, column: Column): Project[] {
   if (!projects || projects.length === 0) return projects;
 
   // Context-aware sort field validation and defaults
-  let sortField = status.sort_field || 'updatedAt';
-  const sortDirection = status.sort_direction || 'desc';
+  let sortField = column.sort_field || 'updatedAt';
+  const sortDirection = column.sort_direction || 'desc';
 
 
   return [...projects].sort((a, b) => {
@@ -185,44 +185,44 @@ export function sortProjects(projects: Project[], githubProjects: Record<string,
   });
 }
 
-// Create a new status
-export async function createStatus(title: string): Promise<Status> {
+// Create a new column
+export async function createColumn(title: string): Promise<Column> {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
-  // Get all statuses to find the "Closed" status position
-  const { data: allStatuses } = await supabase
-    .from('statuses')
+  // Get all columns to find the "Closed" column position
+  const { data: allColumns } = await supabase
+    .from('columns')
     .select('id, title, position')
     .eq('user_id', userId)
     .order('position');
 
-  if (!allStatuses) throw new Error('Failed to fetch statuses');
+  if (!allColumns) throw new Error('Failed to fetch columns');
 
-  // Find "Closed" status
-  const closedStatus = allStatuses.find(s => s.title === 'Closed');
+  // Find "Closed" column
+  const closedColumn = allColumns.find(s => s.title === 'Closed');
 
-  // If no "Closed" status exists, use max position + 1
+  // If no "Closed" column exists, use max position + 1
   let newPosition: number;
-  if (closedStatus) {
-    // Insert new status before "Closed"
-    newPosition = closedStatus.position;
+  if (closedColumn) {
+    // Insert new column before "Closed"
+    newPosition = closedColumn.position;
 
-    // Update "Closed" status to be last
+    // Update "Closed" column to be last
     const { error: updateError } = await supabase
-      .from('statuses')
-      .update({ position: closedStatus.position + 1 })
-      .eq('id', closedStatus.id);
+      .from('columns')
+      .update({ position: closedColumn.position + 1 })
+      .eq('id', closedColumn.id);
 
     if (updateError) throw updateError;
   } else {
     // Fallback: use max position + 1
-    const maxPosition = Math.max(...allStatuses.map(s => s.position), -1);
+    const maxPosition = Math.max(...allColumns.map(s => s.position), -1);
     newPosition = maxPosition + 1;
   }
 
   const { data, error } = await supabase
-    .from('statuses')
+    .from('columns')
     .insert({
       user_id: userId,
       title,
@@ -238,43 +238,43 @@ export async function createStatus(title: string): Promise<Status> {
   return data;
 }
 
-// Create a new status after a specific status
-export async function createStatusAfter(title: string, afterStatusId: string): Promise<Status> {
+// Create a new column after a specific column
+export async function createColumnAfter(title: string, afterColumnId: string): Promise<Column> {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
-  // Get all statuses to find positions
-  const { data: allStatuses } = await supabase
-    .from('statuses')
+  // Get all columns to find positions
+  const { data: allColumns } = await supabase
+    .from('columns')
     .select('id, title, position')
     .eq('user_id', userId)
     .order('position');
 
-  if (!allStatuses) throw new Error('Failed to fetch statuses');
+  if (!allColumns) throw new Error('Failed to fetch columns');
 
-  // Find the status to insert after
-  const afterStatus = allStatuses.find(s => s.id === afterStatusId);
-  if (!afterStatus) throw new Error('Status to insert after not found');
+  // Find the column to insert after
+  const afterColumn = allColumns.find(s => s.id === afterColumnId);
+  if (!afterColumn) throw new Error('Column to insert after not found');
 
-  const newPosition = afterStatus.position + 1;
+  const newPosition = afterColumn.position + 1;
 
-  // Update positions of all statuses that come after the target position manually
-  const statusesToUpdate = allStatuses.filter(s => s.position >= newPosition);
-  for (const status of statusesToUpdate) {
+  // Update positions of all columns that come after the target position manually
+  const columnsToUpdate = allColumns.filter(s => s.position >= newPosition);
+  for (const column of columnsToUpdate) {
     const { error: individualUpdateError } = await supabase
-      .from('statuses')
-      .update({ position: status.position + 1 })
-      .eq('id', status.id);
+      .from('columns')
+      .update({ position: column.position + 1 })
+      .eq('id', column.id);
 
     if (individualUpdateError) {
-      console.error('Failed to update status position:', individualUpdateError);
+      console.error('Failed to update column position:', individualUpdateError);
       throw individualUpdateError;
     }
   }
 
-  // Create the new status
+  // Create the new column
   const { data, error } = await supabase
-    .from('statuses')
+    .from('columns')
     .insert({
       user_id: userId,
       title,
@@ -290,75 +290,75 @@ export async function createStatusAfter(title: string, afterStatusId: string): P
   return data;
 }
 
-// Delete a status (only non-system statuses)
-export async function deleteStatus(statusId: string) {
+// Delete a column (only non-system columns)
+export async function deleteColumn(columnId: string) {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
-  // Get the status to be deleted to find its position
-  const { data: statusToDelete } = await supabase
-    .from('statuses')
+  // Get the column to be deleted to find its position
+  const { data: columnToDelete } = await supabase
+    .from('columns')
     .select('position, is_system')
-    .eq('id', statusId)
+    .eq('id', columnId)
     .eq('user_id', userId)
     .single();
 
-  if (!statusToDelete) {
-    throw new Error('Status not found');
+  if (!columnToDelete) {
+    throw new Error('Column not found');
   }
 
-  if (statusToDelete.is_system) {
-    throw new Error('Cannot delete system status');
+  if (columnToDelete.is_system) {
+    throw new Error('Cannot delete system column');
   }
 
-  // First, move all projects from this status to "No Status"
-  const { data: noStatusData } = await supabase
-    .from('statuses')
+  // First, move all projects from this column to "No Status"
+  const { data: noStatusColumnData } = await supabase
+    .from('columns')
     .select('id')
     .eq('user_id', userId)
     .eq('title', 'No Status')
     .single();
 
-  if (!noStatusData) {
+  if (!noStatusColumnData) {
     throw new Error('No Status column not found');
   }
 
   // Move projects to "No Status"
   const { error: updateError } = await supabase
     .from('projects')
-    .update({ status_id: noStatusData.id })
-    .eq('status_id', statusId)
+    .update({ column_id: noStatusColumnData.id })
+    .eq('column_id', columnId)
     .eq('user_id', userId);
 
   if (updateError) throw updateError;
 
-  // Now delete the status
+  // Now delete the column
   const { error: deleteError } = await supabase
-    .from('statuses')
+    .from('columns')
     .delete()
-    .eq('id', statusId);
+    .eq('id', columnId);
 
   if (deleteError) throw deleteError;
 
-  // Shift all statuses with higher positions down by 1 to compact gaps
-  // Get all statuses with higher positions
-  const { data: statusesToUpdate } = await supabase
-    .from('statuses')
+  // Shift all columns with higher positions down by 1 to compact gaps
+  // Get all columns with higher positions
+  const { data: columnsToUpdate } = await supabase
+    .from('columns')
     .select('id, position')
     .eq('user_id', userId)
-    .gt('position', statusToDelete.position)
+    .gt('position', columnToDelete.position)
     .order('position');
 
-  if (statusesToUpdate && statusesToUpdate.length > 0) {
-    // Update each status individually
-    for (const status of statusesToUpdate) {
+  if (columnsToUpdate && columnsToUpdate.length > 0) {
+    // Update each column individually
+    for (const column of columnsToUpdate) {
       const { error: individualUpdateError } = await supabase
-        .from('statuses')
-        .update({ position: status.position - 1 })
-        .eq('id', status.id);
+        .from('columns')
+        .update({ position: column.position - 1 })
+        .eq('id', column.id);
 
       if (individualUpdateError) {
-        console.error('Failed to update status position:', individualUpdateError);
+        console.error('Failed to update column position:', individualUpdateError);
         throw individualUpdateError;
       }
     }
@@ -439,19 +439,19 @@ export async function syncProjects(githubProjects: GitHubProject[]) {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
-  // Get or create status IDs
-  const { data: statuses } = await supabase
-    .from('statuses')
+  // Get or create column IDs
+  const { data: columns } = await supabase
+    .from('columns')
     .select('id, title')
     .eq('user_id', userId);
 
-  if (!statuses) throw new Error('No statuses found');
+  if (!columns) throw new Error('No columns found');
 
-  const noStatusId = statuses.find(s => s.title === 'No Status')?.id;
-  const closedId = statuses.find(s => s.title === 'Closed')?.id;
+  const noStatusColumnId = columns.find(s => s.title === 'No Status')?.id;
+  const closedColumnId = columns.find(s => s.title === 'Closed')?.id;
 
-  if (!noStatusId || !closedId) {
-    throw new Error('Default statuses not found. Run initializeUserStatuses first.');
+  if (!noStatusColumnId || !closedColumnId) {
+    throw new Error('Default columns not found. Run initializeUserColumns first.');
   }
 
   // Get existing projects
@@ -466,14 +466,14 @@ export async function syncProjects(githubProjects: GitHubProject[]) {
   const projectsToUpsert = githubProjects.map(gp => ({
     id: gp.id,
     user_id: userId,
-    status_id: existingIds.has(gp.id)
-      ? undefined // Keep existing status if project already exists
-      : gp.isClosed ? closedId : noStatusId,
+    column_id: existingIds.has(gp.id)
+      ? undefined // Keep existing column if project already exists
+      : gp.isClosed ? closedColumnId : noStatusColumnId,
     position: 0
   }));
 
-  // Filter out undefined status_id for updates
-  const newProjects = projectsToUpsert.filter(p => p.status_id !== undefined);
+  // Filter out undefined column_id for updates
+  const newProjects = projectsToUpsert.filter(p => p.column_id !== undefined);
 
   if (newProjects.length > 0) {
     const { error } = await supabase
@@ -501,12 +501,12 @@ export async function syncProjects(githubProjects: GitHubProject[]) {
   }
 }
 
-// Update project status (for drag and drop)
-export async function updateProjectStatus(projectId: string, statusId: string, position: number) {
+// Update project column (for drag and drop)
+export async function updateProjectColumn(projectId: string, columnId: string, position: number) {
   const { error } = await supabase
     .from('projects')
     .update({
-      status_id: statusId,
+      column_id: columnId,
       position,
       updated_at: new Date().toISOString()
     })
@@ -538,20 +538,20 @@ export async function removeProjectLabel(projectId: string, labelId: string) {
   if (error) throw error;
 }
 
-// Update multiple status positions (for column reordering)
-export async function updateStatusPositions(statusPositions: Array<{id: string, position: number}>): Promise<void> {
+// Update multiple column positions (for column reordering)
+export async function updateColumnPositions(columnPositions: Array<{id: string, position: number}>): Promise<void> {
   const userId = getUserId();
   if (!userId) throw new Error('User not authenticated');
 
-  // Update each status position
-  for (const statusPos of statusPositions) {
+  // Update each column position
+  for (const columnPos of columnPositions) {
     const { error } = await supabase
-      .from('statuses')
+      .from('columns')
       .update({
-        position: statusPos.position,
+        position: columnPos.position,
         updated_at: new Date().toISOString()
       })
-      .eq('id', statusPos.id)
+      .eq('id', columnPos.id)
       .eq('user_id', userId);
 
     if (error) throw error;

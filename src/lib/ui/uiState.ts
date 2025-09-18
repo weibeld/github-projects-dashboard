@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { Label, Status } from '../database';
+import type { Label, Column } from '../database';
 
 // Label dropdown management
 export const activeDropdownProjectId = writable<string | null>(null);
@@ -36,16 +36,16 @@ export const availableSectionCollapsed = writable<boolean>(false);
 export const showCreateColumn = writable<boolean>(false);
 export const newColumnTitle = writable<string>('');
 export const creatingColumn = writable<boolean>(false);
-export const insertAfterStatusId = writable<string | null>(null); // Track which status to insert after
+export const insertAfterColumnId = writable<string | null>(null); // Track which column to insert after
 
 // Column deletion state
 export const showDeleteColumn = writable<boolean>(false);
-export const statusToDelete = writable<Status | null>(null);
+export const columnToDelete = writable<Column | null>(null);
 export const deletingColumn = writable<boolean>(false);
 
 // Column editing state
 export const showEditColumn = writable<boolean>(false);
-export const statusToEdit = writable<Status | null>(null);
+export const columnToEdit = writable<Column | null>(null);
 export const editColumnTitle = writable<string>('');
 export const editingColumn = writable<boolean>(false);
 
@@ -76,17 +76,17 @@ export function resetLabelEditState() {
 
 export function resetColumnEditState() {
   showEditColumn.set(false);
-  statusToEdit.set(null);
+  columnToEdit.set(null);
   editColumnTitle.set('');
 }
 
 export function resetColumnCreateState() {
   showCreateColumn.set(false);
   newColumnTitle.set('');
-  insertAfterStatusId.set(null);
+  insertAfterColumnId.set(null);
 }
 
 export function resetColumnDeleteState() {
   showDeleteColumn.set(false);
-  statusToDelete.set(null);
+  columnToDelete.set(null);
 }

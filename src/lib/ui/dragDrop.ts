@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
-import type { Project, Status } from '../database';
-import { updateProjectStatusAndPosition } from '../actions/projectActions';
+import type { Project, Column } from '../database';
+import { updateProjectColumnAndPosition } from '../actions/projectActions';
 
 // Drag and drop state
 export const draggedProject = writable<Project | null>(null);
@@ -28,13 +28,13 @@ export function handleDragEnd() {
 /**
  * Handle drag over
  */
-export function handleDragOver(event: DragEvent, statusId: string, statuses: Status[]) {
+export function handleDragOver(event: DragEvent, columnId: string, columns: Column[]) {
   event.preventDefault();
-  dragOverColumn.set(statusId);
+  dragOverColumn.set(columnId);
 
-  // Don't allow drops into Closed column (assuming it's a system status)
-  const targetStatus = statuses.find(s => s.id === statusId);
-  if (targetStatus?.title === 'Closed') {
+  // Don't allow drops into Closed column (assuming it's a system column)
+  const targetColumn = columns.find(s => s.id === columnId);
+  if (targetColumn?.title === 'Closed') {
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'none';
     }
@@ -49,14 +49,14 @@ export function handleDragOver(event: DragEvent, statusId: string, statuses: Sta
 /**
  * Handle drag leave
  */
-export function handleDragLeave(event: DragEvent, statusId: string) {
+export function handleDragLeave(event: DragEvent, columnId: string) {
   // Only clear if we're actually leaving the drop zone
   const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
   const x = event.clientX;
   const y = event.clientY;
 
   if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
-    dragOverColumn.update(current => current === statusId ? null : current);
+    dragOverColumn.update(current => current === columnId ? null : current);
   }
 }
 
@@ -65,8 +65,8 @@ export function handleDragLeave(event: DragEvent, statusId: string) {
  */
 export async function handleDrop(
   event: DragEvent,
-  targetStatusId: string,
-  statuses: Status[],
+  targetColumnId: string,
+  columns: Column[],
   groupedProjects: Record<string, Project[]>,
   projects: Project[],
   projectsStore: { set: (value: Project[]) => void }
@@ -83,37 +83,37 @@ export async function handleDrop(
   }
 
   // Don't allow drops into Closed column
-  const targetStatus = statuses.find(s => s.id === targetStatusId);
-  if (targetStatus?.title === 'Closed') {
+  const targetColumn = columns.find(s => s.id === targetColumnId);
+  if (targetColumn?.title === 'Closed') {
     draggedProject.set(null);
     throw new Error('Cannot drop into Closed column');
   }
 
   // Don't process if dropping in same column
-  if (draggedProj.status_id === targetStatusId) {
+  if (draggedProj.column_id === targetColumnId) {
     draggedProject.set(null);
     throw new Error('Cannot drop in same column');
   }
 
   try {
     // Calculate new position (add to end of target column)
-    const targetProjects = groupedProjects[targetStatusId] || [];
+    const targetProjects = groupedProjects[targetColumnId] || [];
     const newPosition = targetProjects.length;
 
     // Optimistic update function
-    const optimisticUpdate = (projectId: string, statusId: string, position: number) => {
+    const optimisticUpdate = (projectId: string, columnId: string, position: number) => {
       const updatedProjects = projects.map(p =>
         p.id === projectId
-          ? { ...p, status_id: statusId, position: position }
+          ? { ...p, column_id: columnId, position: position }
           : p
       );
       projectsStore.set(updatedProjects);
     };
 
-    // Update project status and position
-    await updateProjectStatusAndPosition(
+    // Update project column and position
+    await updateProjectColumnAndPosition(
       draggedProj.id,
-      targetStatusId,
+      targetColumnId,
       newPosition,
       projectsStore,
       optimisticUpdate

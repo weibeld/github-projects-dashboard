@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import type { Status, Label } from '../database';
+import type { Column, Label } from '../database';
 import {
   selectedLabelIndex,
   labelSearchQuery,
@@ -8,7 +8,7 @@ import {
   selectedSortFieldIndex
 } from './uiState';
 import { handleAddLabelToProject, createLabelFromSearch, closeLabelDropdown } from '../actions/labelActions';
-import { handleSortingChange } from '../actions/statusActions';
+import { handleSortingChange } from '../actions/columnActions';
 
 /**
  * Scroll to selected label to ensure it's visible
@@ -90,12 +90,12 @@ export function handleDropdownKeydown(
  */
 export function handleSortFieldKeydown(
   event: KeyboardEvent,
-  statusId: string,
-  statuses: Status[],
-  statusesStore: { set: (value: Status[]) => void }
+  columnId: string,
+  columns: Column[],
+  columnsStore: { set: (value: Column[]) => void }
 ) {
-  const status = statuses.find(s => s.id === statusId);
-  const sortFieldOptions = status?.title === 'Closed'
+  const column = columns.find(s => s.id === columnId);
+  const sortFieldOptions = column?.title === 'Closed'
     ? ['title', 'number', 'items', 'updatedAt', 'createdAt', 'closedAt']
     : ['title', 'number', 'items', 'updatedAt', 'createdAt'];
   const maxIndex = sortFieldOptions.length - 1;
@@ -118,9 +118,9 @@ export function handleSortFieldKeydown(
       event.preventDefault();
       const currentIndex = get(selectedSortFieldIndex);
       if (currentIndex >= 0) {
-        const status = statuses.find(s => s.id === statusId);
+        const column = columns.find(s => s.id === columnId);
         const field = sortFieldOptions[currentIndex];
-        handleSortingChange(statusId, field as any, status?.sort_direction || 'desc', statuses, statusesStore);
+        handleSortingChange(columnId, field as any, column?.sort_direction || 'desc', columns, columnsStore);
         activeSortFieldDropdown.set(null);
         selectedSortFieldIndex.set(-1);
       }
