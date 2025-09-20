@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { waitForAppLoad, loadMockData, setMockData } from '../helpers';
+import { waitForAppLoad } from '../helpers';
 
 test.describe('Pretest', () => {
   test.beforeEach(async ({ page }) => {

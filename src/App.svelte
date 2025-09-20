@@ -1,11 +1,18 @@
 <script lang='ts'>
   import { onMount } from 'svelte';
   import { flip } from 'svelte/animate';
-  import { setupAuth, login, logout, isLoggedIn, isLoggingIn, isLoggingOut } from './lib/auth';
-  import { githubProjects, setTestModeGitHubProjects } from './lib/api/github';
-  import { sortProjects, SORT_FIELD_LABELS, SORT_DIRECTION_LABELS } from './lib/database';
-  import type { Column, Project, Label, SortField, SortDirection } from './lib/database';
-  import type { GitHubProject } from './lib/api/github';
+  import {
+    login,
+    logout,
+    isLoggedIn,
+    isLoggingIn,
+    isLoggingOut,
+    initializeAuth,
+    githubProjects,
+    sortProjects
+  } from './lib/business';
+  import type { Column, Project, Label, SortField, SortDirection, GitHubProject } from './lib/business/types';
+  import { SORT_FIELD_LABELS, SORT_DIRECTION_LABELS } from './lib/business/types';
   import Modal from './components/Modal.svelte';
   import ButtonFrameless from './components/ButtonFrameless.svelte';
   import ButtonFramed from './components/ButtonFramed.svelte';
@@ -20,8 +27,9 @@
   import { loadDashboardData } from './lib/utils/dataLoader';
   import { isDuplicateLabelName, isDuplicateColumnName } from './lib/utils/validation';
 
-  // Import test mode utilities
-  import { isTestMode, initTestModeAuth, mockGitHubProjects, mockGitHubUserInfo, mockFetchProjects, mockFetchColumns, mockFetchLabels } from '../tests/helpers';
+  // Import mock mode utilities
+  import { isMockMode } from './lib/base/mockMode';
+  import { initTestModeAuth } from '../tests/helpers';
 
   // Import UI state stores
   import {
@@ -57,41 +65,26 @@
     editingColumn,
     justOpenedEditModal,
     searchQuery
-  } from './lib/ui/uiState';
+  } from './lib/utils/ui/uiState';
 
-  // Import action functions
+  // Import business functions
   import {
-    handleCreateColumn,
-    showDeleteColumnConfirmation,
-    confirmDeleteColumn,
-    cancelDeleteColumn,
-    showEditColumnModal,
-    handleEditColumn,
-    cancelEditColumn,
+    createColumn,
+    deleteColumn,
+    updateColumnTitle,
     moveColumnLeft,
     moveColumnRight,
     canMoveLeft,
     canMoveRight,
-    handleSortingChange
-  } from './lib/actions/columnActions';
-
-  import {
-    toggleLabelDropdown,
-    closeLabelDropdown,
+    updateColumnSortField,
+    updateColumnSortDirection,
+    createLabel,
+    deleteLabel,
+    addLabelToProject,
+    removeLabelFromProject,
     getFilteredLabels,
-    handleAddLabelToProject,
-    getProjectCountForLabel,
-    handleDeleteLabelFromDropdown,
-    confirmDeleteLabel,
-    cancelDeleteLabel,
-    handleEditLabel,
-    cancelEditLabel,
-    createLabelFromSearch,
-    toggleAddedSection,
-    toggleAvailableSection,
-    saveEditLabel,
-    handleRemoveProjectLabel
-  } from './lib/actions/labelActions';
+    getProjectCountForLabel
+  } from './lib/business';
 
   // Import drag and drop functionality
   import {
@@ -102,13 +95,13 @@
     handleDragOver,
     handleDragLeave,
     handleDrop
-  } from './lib/ui/dragDrop';
+  } from './lib/utils/ui/dragDrop';
 
   // Import keyboard navigation
   import {
     handleDropdownKeydown,
     handleSortFieldKeydown
-  } from './lib/ui/keyboard';
+  } from './lib/utils/ui/keyboard';
 
   let columns: Column[] = [];
   let projects: Project[] = [];
@@ -238,59 +231,36 @@
 
   onMount(() => {
 
-    // Check if we're in test mode
-    const testModeActive = isTestMode();
+    // Check if we're in mock mode
+    const mockModeActive = isMockMode();
 
-    if (testModeActive) {
-
-      // Initialize test mode authentication
+    if (mockModeActive) {
+      // Initialize mock mode authentication
       initTestModeAuth();
-
-      // Set mock data using database functions to ensure proper joins
-      mockFetchColumns().then(mockColumns => {
-        columns = mockColumns;
-      });
-      mockFetchProjects().then(mockProjects => {
-        projects = mockProjects;
-      });
-      mockFetchLabels().then(mockLabels => {
-        labels = mockLabels;
-      });
-
-      // Debug logging
-
-      // Set mock GitHub projects
-      setTestModeGitHubProjects(mockGitHubProjects);
-
-      // Set authenticated state
-      loading = false;
-      error = '';
-
-      // Skip real auth setup
     } else {
       // Normal authentication flow
       setupAuth();
-
-      // Load data when user becomes logged in
-      isLoggedIn.subscribe(async (loggedIn) => {
-        if (loggedIn) {
-          loading = true;
-          error = '';
-
-          try {
-            const result = await loadDashboardData();
-            columns = result.columns;
-            projects = result.projects;
-            labels = result.labels;
-          } catch (err) {
-            error = err instanceof Error ? err.message : 'Failed to load data';
-            console.error('Dashboard error:', err);
-          } finally {
-            loading = false;
-          }
-        }
-      });
     }
+
+    // Unified data loading logic for both test and normal modes
+    isLoggedIn.subscribe(async (loggedIn) => {
+      if (loggedIn) {
+        loading = true;
+        error = '';
+
+        try {
+          const result = await loadDashboardData();
+          columns = result.columns;
+          projects = result.projects;
+          labels = result.labels;
+        } catch (err) {
+          error = err instanceof Error ? err.message : 'Failed to load data';
+          console.error('Dashboard error:', err);
+        } finally {
+          loading = false;
+        }
+      }
+    });
 
     // Global error handler for unhandled promise rejections
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {

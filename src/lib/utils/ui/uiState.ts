@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { Label, Column } from '../database';
+import type { Label, Column } from '../../business/types';
 
 // Label dropdown management
 export const activeDropdownProjectId = writable<string | null>(null);

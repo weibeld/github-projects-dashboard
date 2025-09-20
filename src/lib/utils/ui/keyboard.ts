@@ -1,5 +1,5 @@
 import { get } from 'svelte/store';
-import type { Column, Label } from '../database';
+import type { Column, Label } from '../../business/types';
 import {
   selectedLabelIndex,
   labelSearchQuery,
@@ -7,8 +7,7 @@ import {
   activeSortFieldDropdown,
   selectedSortFieldIndex
 } from './uiState';
-import { handleAddLabelToProject, createLabelFromSearch, closeLabelDropdown } from '../actions/labelActions';
-import { handleSortingChange } from '../actions/columnActions';
+import { addLabelToProject, createLabel, removeLabelFromProject, updateColumnSortField, updateColumnSortDirection } from '../../business';
 
 /**
  * Scroll to selected label to ensure it's visible

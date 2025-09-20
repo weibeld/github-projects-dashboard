@@ -9,7 +9,8 @@ CREATE TABLE IF NOT EXISTS columns (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id TEXT NOT NULL,
   title TEXT NOT NULL,
-  position INTEGER NOT NULL,
+  prev_column_id UUID REFERENCES columns(id) ON DELETE SET NULL,
+  next_column_id UUID REFERENCES columns(id) ON DELETE SET NULL,
   is_system BOOLEAN DEFAULT false, -- For 'No Status' and 'Closed' which can't be deleted
   sort_field TEXT DEFAULT 'number', -- Sorting field: title, number, items, updated, closed, created
   sort_direction TEXT DEFAULT 'desc', -- Sorting direction: asc, desc
@@ -37,7 +38,6 @@ CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY, -- GitHub Project ID
   user_id TEXT NOT NULL,
   column_id UUID NOT NULL REFERENCES columns(id) ON DELETE RESTRICT,
-  position INTEGER NOT NULL DEFAULT 0, -- For ordering within a status column
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(id, user_id)
@@ -138,49 +138,3 @@ CREATE POLICY "Users can delete own project labels" ON project_labels
       AND projects.user_id = (auth.jwt() -> 'user_metadata' ->> 'user_name')
     )
   );
-
--- Function to initialize default columns for a new user
-CREATE OR REPLACE FUNCTION initialize_user_columns(p_user_id TEXT)
-RETURNS void AS $$
-DECLARE
-  no_status_id UUID;
-  closed_id UUID;
-BEGIN
-  -- Check if user already has columns
-  IF EXISTS (SELECT 1 FROM columns WHERE user_id = p_user_id) THEN
-    RETURN;
-  END IF;
-
-  -- Create 'No Status' column
-  INSERT INTO columns (user_id, title, position, is_system, sort_field, sort_direction)
-  VALUES (p_user_id, 'No Status', 0, true, 'updatedAt', 'desc')
-  RETURNING id INTO no_status_id;
-
-  -- Create 'Closed' column
-  INSERT INTO columns (user_id, title, position, is_system, sort_field, sort_direction)
-  VALUES (p_user_id, 'Closed', 1, true, 'closedAt', 'desc')
-  RETURNING id INTO closed_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Function to get or create column ID
-CREATE OR REPLACE FUNCTION get_or_create_column_id(p_user_id TEXT, p_title TEXT)
-RETURNS UUID AS $$
-DECLARE
-  column_id UUID;
-BEGIN
-  SELECT id INTO column_id FROM columns
-  WHERE user_id = p_user_id AND title = p_title;
-
-  IF column_id IS NULL THEN
-    INSERT INTO columns (user_id, title, position, is_system)
-    VALUES (p_user_id, p_title,
-      (SELECT COALESCE(MAX(position), -1) + 1 FROM columns WHERE user_id = p_user_id),
-      p_title IN ('No Status', 'Closed')
-    )
-    RETURNING id INTO column_id;
-  END IF;
-
-  RETURN column_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;

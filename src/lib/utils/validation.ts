@@ -1,4 +1,4 @@
-import type { Label, Column } from '../database';
+import type { Label, Column } from '../business/types';
 
 /**
  * Check if a label name is duplicate

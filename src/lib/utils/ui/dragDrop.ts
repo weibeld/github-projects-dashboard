@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
-import type { Project, Column } from '../database';
-import { updateProjectColumnAndPosition } from '../actions/projectActions';
+import type { Project, Column } from '../../business/types';
+import { moveProjectToColumn } from '../../business';
 
 // Drag and drop state
 export const draggedProject = writable<Project | null>(null);
@@ -96,25 +96,20 @@ export async function handleDrop(
   }
 
   try {
-    // Calculate new position (add to end of target column)
-    const targetProjects = groupedProjects[targetColumnId] || [];
-    const newPosition = targetProjects.length;
-
     // Optimistic update function
-    const optimisticUpdate = (projectId: string, columnId: string, position: number) => {
+    const optimisticUpdate = (projectId: string, columnId: string) => {
       const updatedProjects = projects.map(p =>
         p.id === projectId
-          ? { ...p, column_id: columnId, position: position }
+          ? { ...p, column_id: columnId }
           : p
       );
       projectsStore.set(updatedProjects);
     };
 
-    // Update project column and position
-    await updateProjectColumnAndPosition(
+    // Update project column
+    await moveProjectToColumn(
       draggedProj.id,
       targetColumnId,
-      newPosition,
       projectsStore,
       optimisticUpdate
     );

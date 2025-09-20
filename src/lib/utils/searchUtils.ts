@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import { parse, filter } from 'liqe';
-import type { Project, Label } from '../database';
-import type { GitHubProject } from '../api/github';
+import type { Project, Label } from '../business/types';
+import type { GitHubProject } from '../business/types';
 
 /**
  * Function to preprocess relative and absolute dates in search queries
@@ -94,7 +94,7 @@ export function filterProjects(
         ...project,
         // All searchable text fields (for naked terms and explicit field searches)
         title: githubProject?.title || '',
-        description: githubProject?.shortDescription || '',
+        description: '',
         visibility: githubProject?.visibility || '',
         // Concatenated labels string for label field searches
         label: projectLabels.join(' ').toLowerCase(),

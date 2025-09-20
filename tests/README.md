@@ -24,14 +24,18 @@ Test mode is activated by appending `?test=true` to the URL. For example:
 
 ## Mock Data
 
-The mock data contains the following data structures:
+Each test suite's JSON file can contain the following data structures:
 
-- **`userInfo`:** user information
-- **`columns`:** mock columns (as saved in database)
+- **`columns`:** custom columns only (system columns are added automatically)
 - **`projects`:** mock projects (as saved in database)
 - **`labels`:** set of mock labels (as saved in database)
 - **`project_labels`:** project ← label assignments (as saved in database)
 - **`githubProjects`:** mock GitHub Projects data (from GitHub API)
+
+**Note:** The following are automatically enforced for all test suites:
+- **User ID:** All mock data uses `mock-user` as the consistent user ID
+- **System columns:** "No Status" and "Closed" columns are automatically created by `ensureSystemColumns()`
+- Custom columns from the suite are positioned between the system columns
 
 ## Usage
 
