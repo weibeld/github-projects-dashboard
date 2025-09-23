@@ -1,39 +1,31 @@
 // Base layer types - Shared between base clients
 
-// ===== PRIMITIVE TYPES =====
-export type ProjectID = string;
-
-// ===== AUTH TYPES =====
-export interface UserInfo {
-  id: string;
-  userName: string;
-  avatarUrl?: string | null;
-  email?: string | null;
-}
-
-export interface AuthSession {
+// ===== AUTH CLIENT TYPES =====
+export interface AuthClientSession {
   access_token: string;
-  user: { id: string };
+  user: {
+    id: string;
+    userName: string;
+    avatarUrl?: string | null;
+    email?: string | null;
+  };
 }
 
-// ===== DATABASE TYPES =====
-export type SortField = 'title' | 'number' | 'items' | 'updatedAt' | 'closedAt' | 'createdAt';
-export type SortDirection = 'asc' | 'desc';
-
-export interface Column {
+// ===== DATABASE CLIENT TYPES =====
+export interface DatabaseClientColumn {
   id: string;
   user_id: string;
   title: string;
   prev_column_id?: string | null;
   next_column_id?: string | null;
   is_system: boolean;
-  sort_field?: SortField;
-  sort_direction?: SortDirection;
+  sort_field?: string;
+  sort_direction?: string;
   created_at?: string;
   updated_at?: string;
 }
 
-export interface Label {
+export interface DatabaseClientLabel {
   id: string;
   user_id: string;
   title: string;
@@ -43,23 +35,23 @@ export interface Label {
   updated_at?: string;
 }
 
-export interface Project {
+export interface DatabaseClientProject {
   id: string; // GitHub project ID
   user_id: string;
   column_id: string;
   created_at?: string;
   updated_at?: string;
-  labels?: Label[]; // Joined from project_labels
+  labels?: DatabaseClientLabel[]; // Joined from project_labels
 }
 
-export interface ProjectLabel {
+export interface DatabaseClientProjectLabel {
   project_id: string;
   label_id: string;
 }
 
-// ===== GITHUB TYPES =====
-export type GitHubProject = {
-  id: ProjectID;
+// ===== GITHUB CLIENT TYPES =====
+export type GitHubClientProject = {
+  id: string;
   number: number;
   title: string;
   url: string;
@@ -71,20 +63,3 @@ export type GitHubProject = {
   items: number;
 };
 
-// ===== CONSTANTS =====
-export const SORT_FIELD_LABELS: Record<SortField, string> = {
-  title: 'Title',
-  number: 'Project ID',
-  items: 'Items',
-  updatedAt: 'Updated',
-  closedAt: 'Closed',
-  createdAt: 'Created'
-};
-
-export const SORT_DIRECTION_LABELS: Record<SortDirection, string> = {
-  asc: 'Asc',
-  desc: 'Desc'
-};
-
-export const DEFAULT_SORT_FIELD: SortField = 'updatedAt';
-export const DEFAULT_SORT_DIRECTION: SortDirection = 'desc';

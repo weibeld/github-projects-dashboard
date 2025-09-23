@@ -27,9 +27,8 @@
   import { loadDashboardData } from './lib/utils/dataLoader';
   import { isDuplicateLabelName, isDuplicateColumnName } from './lib/utils/validation';
 
-  // Import mock mode utilities
-  import { isMockMode } from './lib/base/mockMode';
-  import { initTestModeAuth } from '../tests/helpers';
+  // Import mock setup
+  import { setupMockMode } from './lib/base/mock/index';
 
   // Import UI state stores
   import {
@@ -230,17 +229,8 @@
 
 
   onMount(() => {
-
-    // Check if we're in mock mode
-    const mockModeActive = isMockMode();
-
-    if (mockModeActive) {
-      // Initialize mock mode authentication
-      initTestModeAuth();
-    } else {
-      // Normal authentication flow
-      setupAuth();
-    }
+    // Setup mock mode if enabled
+    setupMockMode();
 
     // Unified data loading logic for both test and normal modes
     isLoggedIn.subscribe(async (loggedIn) => {

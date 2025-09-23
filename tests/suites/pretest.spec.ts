@@ -4,7 +4,7 @@ import { waitForAppLoad } from '../helpers';
 test.describe('Pretest', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to test mode - bypasses authentication and loads mock data
-    await page.goto('/?test=true');
+    await page.goto('/?mock-data=/Users/dw/Desktop/github-projects-dashboard/tests/suites/pretest-data');
     await waitForAppLoad(page);
   });
 

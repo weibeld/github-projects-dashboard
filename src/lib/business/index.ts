@@ -8,7 +8,8 @@ import * as githubClient from '../base/githubClient';
 
 // Business types - re-export for application code
 export * from './types';
-import type { Column, Label, Project, SortField, SortDirection, ProjectID, GitHubProject, UserInfo } from '../base/types';
+import type { DatabaseClientColumn, DatabaseClientLabel, DatabaseClientProject, GitHubClientProject } from '../base/types';
+import type { SortField, SortDirection } from './types';
 
 // ===== AUTH BUSINESS LOGIC =====
 
@@ -16,17 +17,14 @@ import type { Column, Label, Project, SortField, SortDirection, ProjectID, GitHu
 export const isLoggedIn = writable(false);
 export const isLoggingIn = writable(false);
 export const isLoggingOut = writable(false);
-export const currentUser = writable<UserInfo | null>(null);
 
 // Auth business functions
 export async function login(): Promise<void> {
   try {
     isLoggingIn.set(true);
-    const session = await authClient.authLogin();
+    await authClient.login();
 
-    // Update auth state
-    const user = await authClient.authGetCurrentUser();
-    currentUser.set(user);
+    // Update auth state (session available after OAuth redirect)
     isLoggedIn.set(true);
   } finally {
     isLoggingIn.set(false);
@@ -36,10 +34,9 @@ export async function login(): Promise<void> {
 export async function logout(): Promise<void> {
   try {
     isLoggingOut.set(true);
-    await authClient.authLogout();
+    await authClient.logout();
 
     // Clear auth state
-    currentUser.set(null);
     isLoggedIn.set(false);
 
     // Clear data stores
@@ -55,10 +52,8 @@ export async function initializeAuth(): Promise<void> {
   try {
     isLoggingIn.set(true);
 
-    const session = authClient.authGetCurrentSession();
+    const session = authClient.getSession();
     if (session) {
-      const user = await authClient.authGetCurrentUser();
-      currentUser.set(user);
       isLoggedIn.set(true);
     }
   } finally {
@@ -67,19 +62,18 @@ export async function initializeAuth(): Promise<void> {
 }
 
 export function getCurrentUserId(): string | null {
-  return authClient.authGetUserId();
+  const session = authClient.getSession();
+  return session?.user?.id || null;
 }
 
 // ===== DATA BUSINESS LOGIC =====
 
 // Data stores - in-memory reactive state
-export const columns = writable<Column[]>([]);
-export const projects = writable<Project[]>([]);
-export const labels = writable<Label[]>([]);
-export const githubProjects = writable<Record<ProjectID, GitHubProject>>({});
+export const columns = writable<DatabaseClientColumn[]>([]);
+export const projects = writable<DatabaseClientProject[]>([]);
+export const labels = writable<DatabaseClientLabel[]>([]);
+export const githubProjects = writable<Record<string, GitHubClientProject>>({});
 
-// Re-export GitHub mock data setter for testing
-export const setMockGitHubData = githubClient.setMockGitHubData;
 
 // Derived stores for data relationships
 export const projectsWithLabels = derived(
@@ -99,7 +93,7 @@ export async function loadAllData(): Promise<void> {
   if (!userId) throw new Error('User not authenticated');
 
   // Ensure system columns exist
-  await dbClient.ensureSystemColumns();
+  await dbClient.ensureSystemColumns(userId);
 
   // Load all data in parallel
   const [columnsData, projectsData, labelsData] = await Promise.all([
@@ -116,16 +110,16 @@ export async function loadAllData(): Promise<void> {
 
 // Load GitHub projects from API
 export async function loadProjectsFromGitHub(): Promise<void> {
-  const session = authClient.authGetCurrentSession();
+  const session = authClient.getSession();
   if (!session) {
     throw new Error('No active session');
   }
 
   try {
-    const projectsArray = await githubClient.githubFetchProjects(session.access_token);
+    const projectsArray = await githubClient.queryGitHubProjects(session.access_token);
 
     // Convert array to Record for store
-    const data: Record<ProjectID, GitHubProject> = {};
+    const data: Record<string, GitHubClientProject> = {};
     for (const p of projectsArray) {
       data[p.id] = p;
     }
@@ -345,7 +339,7 @@ export async function moveProjectToColumn(projectId: string, columnId: string): 
 /**
  * Sort projects based on column sorting preferences
  */
-export function sortProjects(projects: Project[], githubProjects: Record<string, GitHubProject>, column: Column): Project[] {
+export function sortProjects(projects: DatabaseClientProject[], githubProjects: Record<string, GitHubClientProject>, column: DatabaseClientColumn): DatabaseClientProject[] {
   if (!projects || projects.length === 0) return projects;
 
   // Context-aware sort field validation and defaults
@@ -407,7 +401,7 @@ export function sortProjects(projects: Project[], githubProjects: Record<string,
  * Sync GitHub projects with database
  * TODO: Implement proper database client calls instead of direct supabase access
  */
-export async function syncProjects(githubProjects: GitHubProject[]): Promise<void> {
+export async function syncProjects(githubProjects: GitHubClientProject[]): Promise<void> {
   // TODO: Implement this function using only database client functions
   // This will be implemented when we build out the complete business logic
   throw new Error('syncProjects not yet implemented - will be done during business logic implementation');
@@ -416,14 +410,14 @@ export async function syncProjects(githubProjects: GitHubProject[]): Promise<voi
 // ===== HELPER FUNCTIONS =====
 
 // Column movement helpers
-export function canMoveLeft(column: Column, columns: Column[]): boolean {
+export function canMoveLeft(column: DatabaseClientColumn, columns: DatabaseClientColumn[]): boolean {
   if (column.is_system || !columns || columns.length === 0) return false;
   const currentIndex = columns.findIndex(s => s.id === column.id);
   const noStatusColumnIndex = columns.findIndex(s => s.title === 'No Status');
   return currentIndex > noStatusColumnIndex + 1;
 }
 
-export function canMoveRight(column: Column, columns: Column[]): boolean {
+export function canMoveRight(column: DatabaseClientColumn, columns: DatabaseClientColumn[]): boolean {
   if (column.is_system || !columns || columns.length === 0) return false;
   const currentIndex = columns.findIndex(s => s.id === column.id);
   const closedColumnIndex = columns.findIndex(s => s.title === 'Closed');
@@ -431,7 +425,7 @@ export function canMoveRight(column: Column, columns: Column[]): boolean {
 }
 
 // Label filtering helpers
-export function getFilteredLabels(projectId: string, projects: Project[], labels: Label[], searchQuery: string = ''): Label[] {
+export function getFilteredLabels(projectId: string, projects: DatabaseClientProject[], labels: DatabaseClientLabel[], searchQuery: string = ''): DatabaseClientLabel[] {
   const projectLabelIds = new Set(projects.find(p => p.id === projectId)?.labels?.map(l => l.id) || []);
   let availableLabels = labels.filter(l => !projectLabelIds.has(l.id));
 
@@ -444,7 +438,7 @@ export function getFilteredLabels(projectId: string, projects: Project[], labels
   return availableLabels;
 }
 
-export function getProjectCountForLabel(labelId: string, projects: Project[]): number {
+export function getProjectCountForLabel(labelId: string, projects: DatabaseClientProject[]): number {
   return projects.filter(project =>
     project.labels && project.labels.some(label => label.id === labelId)
   ).length;

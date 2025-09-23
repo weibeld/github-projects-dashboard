@@ -4,58 +4,124 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-- `npm run dev` - Start development server with Vite
-- `npm run build` - Build production bundle
-- `npm run preview` - Preview production build
+- `npm run dev` - Start development server with TypeScript checking + Vite
+- `npm run build` - Build production bundle with TypeScript checking
+- `npm run typecheck` - Run TypeScript type checking only
+- `npm run test` - Run E2E tests with TypeScript checking + Playwright
+- `npm run test:ui` - Run E2E tests with Playwright UI
+- `npm run test:headed` - Run E2E tests in headed mode
+- `npm run test:debug` - Run E2E tests in debug mode
+- `npm run test:chrome/firefox/safari` - Run tests in specific browsers
 
 ## Architecture Overview
 
-This is a GitHub Projects Dashboard built with SvelteKit 5, TypeScript, and Tailwind CSS. The app connects to GitHub's API via Supabase OAuth to fetch and manage user's GitHub Projects in a Kanban-style interface.
+This is a GitHub Projects Dashboard built with Svelte 5, TypeScript, and Tailwind CSS. The app uses a clean layered architecture with strict TypeScript checking and comprehensive E2E testing.
 
 ### Core Architecture
 
-**State Management**: Uses Svelte 5's runes and stores pattern with a centralized metadata store that manages:
-- Projects with custom statuses and labels
-- Views with column configurations and filtering
-- Authentication state across page reloads
+**Layered Architecture** (following clean architecture principles as defined in README.md):
 
-**Authentication Flow**: Supabase OAuth with GitHub provider, storing session state in localStorage for persistence across page reloads. Authentication states are managed through reactive stores (`isLoggedIn`, `isLoggingInInit`, `isLoggingInAfterOAuth`, `isLoggingOut`).
+**Base Layer** (`src/lib/base/`):
+- **Auth Client** (`authClient.ts`) - Authentication with Supabase OAuth, clean 3-function interface: `login()`, `logout()`, `getSession()`
+- **GitHub Client** (`githubClient.ts`) - GitHub GraphQL API integration for fetching projects
+- **Database Client** (`databaseClient.ts`) - Database operations via Supabase for metadata storage
+- **Mock System** (`mock/`) - Complete mock implementation for testing without external dependencies
 
-**Data Layer**:
-- `src/lib/github.ts` - GitHub GraphQL API integration for fetching projects
-- `src/lib/metadata.ts` - Complex metadata management with derived stores for projects, labels, statuses, and views
-- `src/lib/auth.ts` - Authentication state management with persistent login state
+**Business Layer** (`src/lib/business/`):
+- Central orchestration point containing business logic and state management
+- Uses Svelte stores pattern for reactive state
+- Abstracts and shields base layer clients from the UI
+- Single source of truth for application state
+
+**Utils/Helpers** (`src/lib/utils/`):
+- Utility functions for data processing, UI interactions, and formatting
+- Supporting functions for the business layer
+
+**Application UI** (`src/`, `src/components/`):
+- **App.svelte** - Root component managing app initialization and mock setup
+- **Svelte Components** - Reusable UI components in `src/components/`
+
+### Authentication Flow
+
+- Supabase OAuth with GitHub provider
+- Session management through authClient in base layer
+- Enhanced session object includes full user details
+- Authentication state managed through business layer stores
 
 ### Key Components
 
-- **App.svelte** - Root component managing authentication flow and main content rendering
-- **MainContent.svelte** - Primary dashboard interface (loads after authentication)
-- **Header.svelte** - Navigation and user controls
-- **Column.svelte** - Kanban columns for different project statuses
-- **ProjectCard.svelte** - Individual project display with drag-and-drop
+**Root Application**:
+- **App.svelte** - Initializes mock mode via `setupMockMode()`, manages main app flow
+
+**Reusable Components** (`src/components/`):
+- Modular UI components extracted from monolithic structure
+- Clean separation between presentation and business logic
+
+**UI Features**:
+- Native HTML5 drag-and-drop implementation for project management
+- GitHub-themed styling with Tailwind CSS
 
 ### Type System
 
-Central types are defined in `src/lib/commonTypes.ts`:
-- `MetaProject`, `MetaStatus`, `MetaLabel`, `MetaView` for metadata entities
-- `GitHubProject` for GitHub API data structure
-- Metadata store combines all entities with complex relationships
+**Base Layer Types** (`src/lib/base/types.ts`):
+- `AuthClientSession` - Enhanced session with full user details
+- Client-specific types for each external service
+
+**Mock System Types** (`src/lib/base/mock/types.ts`):
+- `MockData` interface for comprehensive mock data structure
+- Type-safe mock data definitions
+
+**Strict TypeScript Configuration**:
+- All scripts include TypeScript compilation with `tsc &&` prefix
+- Strict mode enabled with comprehensive error checking
+- Compile-time validation for all code including tests
+
+### Mock System
+
+**Architecture**: Located in `src/lib/base/mock/`
+- **`utils.ts`** - Mock mode detection (`isMockMode()`) and utilities
+- **`index.ts`** - Mock data setup (`setupMockMode()`, `defineMockData()`)
+- **`types.ts`** - Mock data type definitions
+
+**Flow**:
+1. Tests specify mock data via URL: `?mock-data=/path/to/test-data`
+2. App calls `setupMockMode()` in `onMount()` which detects mock mode
+3. Mock data file (TypeScript) is dynamically imported with compile-time validation
+4. All base layer clients check `isMockMode()` and return mock data instead of real API calls
 
 ### Styling
 
 Uses Tailwind CSS with extensive GitHub-themed color palette defined in `tailwind.config.cjs`. Colors are extracted from GitHub's actual UI for authentic theming.
 
-### Drag & Drop
+## E2E Testing
 
-Implements SortableJS for drag-and-drop functionality between project status columns.
+**Framework**: Playwright with TypeScript integration
+
+**Architecture**:
+- Tests in `tests/suites/` with corresponding mock data files
+- TypeScript mock data files with compile-time validation using `satisfies MockData`
+- Each test suite specifies its own mock data file via URL parameter
+- Automatic dev server startup via Playwright configuration
+
+## TypeScript Integration
+
+**Strict Configuration**:
+- `tsconfig.json` with strict mode enabled
+- All npm scripts include TypeScript checking before execution
+- Local TypeScript installation (no global dependencies)
+
+**Benefits**:
+- Compile-time error detection prevents runtime issues
+- Dead code detection and unused variable identification
+- Type safety across all layers of the architecture
 
 ## Important Notes
 
 - The app requires GitHub OAuth setup through Supabase
 - Uses GitHub GraphQL API with specific scopes: `repo read:user read:project`
 - Base path configured for GitHub Pages deployment: `/github-projects-dashboard/`
-- Metadata store functions include complex validation for unique titles and proper cross-entity relationships
-- Store logging is implemented via `src/lib/log.ts` for debugging state changes
+- All external dependencies are locally installed via npm
+- Mock mode enables comprehensive testing without external API dependencies
 
 ## User Todo List Management
 
@@ -85,4 +151,8 @@ Last updated: [timestamp]
 ## Spelling
 
 Use British spelling (e.g. "Colour" instead of "Color") except in identifiers in the code (e.g. name variables 'color', not 'colour').
-- Please marke the done items in the todo file too
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.

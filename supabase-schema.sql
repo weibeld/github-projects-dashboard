@@ -11,14 +11,12 @@ CREATE TABLE IF NOT EXISTS columns (
   title TEXT NOT NULL,
   prev_column_id UUID REFERENCES columns(id) ON DELETE SET NULL,
   next_column_id UUID REFERENCES columns(id) ON DELETE SET NULL,
-  is_system BOOLEAN DEFAULT false, -- For 'No Status' and 'Closed' which can't be deleted
-  sort_field TEXT DEFAULT 'number', -- Sorting field: title, number, items, updated, closed, created
-  sort_direction TEXT DEFAULT 'desc', -- Sorting direction: asc, desc
+  is_system BOOLEAN, -- For 'No Status' and 'Closed' which can't be deleted
+  sort_field TEXT, -- Sorting field: managed by business layer
+  sort_direction TEXT, -- Sorting direction: managed by business layer
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(user_id, title),
-  CHECK (sort_field IN ('title', 'number', 'items', 'updatedAt', 'closedAt', 'createdAt')),
-  CHECK (sort_direction IN ('asc', 'desc'))
+  UNIQUE(user_id, title)
 );
 
 -- Create labels table
@@ -27,7 +25,7 @@ CREATE TABLE IF NOT EXISTS labels (
   user_id TEXT NOT NULL,
   title TEXT NOT NULL,
   color TEXT NOT NULL,
-  text_color TEXT DEFAULT 'white' CHECK (text_color IN ('white', 'black')),
+  text_color TEXT, -- Text color: managed by business layer
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, title)

@@ -10,9 +10,6 @@ export async function loadDashboardData(): Promise<{
   projects: Project[];
   labels: Label[];
 }> {
-  // Ensure system columns exist
-  await ensureSystemColumns();
-
   // Fetch GitHub projects
   await loadProjectsFromGitHub();
 

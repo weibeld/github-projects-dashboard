@@ -9,28 +9,27 @@ The application follows a clean layered architecture with separation of concerns
 │                                                                              │
 │   ┌───────────────────────────────────────────┐                              │
 │   │                                           │                              │
-│   │             Application                   │                              │
+│   │                Application                │                              │
 │   │                                           │                              │
 │   ├─────────────────────┐                     │                              │
 │   │                     │                     │                              │
 │   │    Utils/Helpers    │                     │                              │
 │   │                     │                     │                              │
 │   ├─────────────────────┴─────────────────────┤                              │
-│   │                                           │ ─┐                           │
-│   │              Business Layer               │  │Business Logic             │
-│   │                                           │ ─┘                           │
-│   ├─────────────┬┬─────────────┬┬─────────────┤                              │
-│   │             ││             ││             │ ─┐                           │
-│   │ Auth Client ││GitHub Client││  DB Client  │  │Base Layer (Auth/API/CRUD) │
-│   │             ││             ││             │ ─┘                           │
-│   └─────┬─▲─────┘└─────┬─▲─────┘└─────┬─▲─────┘                              │
+│   │                                           │                              │
+│   │              Business Layer               │                              │
+│   │                                           │                              │
+│   ├─────────────┬┬─────────────┬┬─────────────┤ ─┐                           │
+│   │             ││             ││             │  │                           │
+│   │ Auth Client ││GitHub Client││  DB Client  │  │ Base Layer                │
+│   │             ││             ││             │  │                           │
+│   └─────┬─▲─────┘└─────┬─▲─────┘└─────┬─▲─────┘ ─┘                           │
 │         │ │            │ │            │ │                                    │
 │    .────▼─┴────.  .────▼─┴────.  .────▼─┴────.                               │
 │   (Auth Provider)(   GitHub    )(  Database   )                              │
 │    `───────────'  `───────────'  `───────────'                               │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
-
 ```
 
 ### Key principles
@@ -64,7 +63,14 @@ The business layer contains the main business logic and serves as the central or
 - **UI interaction support**: Designed to efficiently implement required UI interactions
 - **Single source of truth**: Maintains consistent state and data relationships across the application
 
-### E2E Testing Support
+## Testing
+
+The testing infrastructure uses Playwright for comprehensive end-to-end testing:
+
+- **Test suites**: Organised test suites covering different application workflows
+- **Mock data setup**: Tests define specific mock data scenarios for predictable testing
+- **Full workflow coverage**: Tests simulate complete user journeys through the application
+- **Isolated testing**: No dependency on external APIs or authentication providers
 
 For testing, the architecture supports mock mode to enable comprehensive E2E testing without external dependencies:
 
@@ -73,11 +79,13 @@ For testing, the architecture supports mock mode to enable comprehensive E2E tes
 │                                                                              │
 │   ╔═══════════════════════════════════════════╗                              │
 │   ║◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝║                              │
-│   ║◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝E2E Tests◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝╠───┐                          │
+│   ║◝◝◝◝◝◝◝◝◝◝E2E Tests (Playwright)◝◝◝◝◝◝◝◝◝◝◝╠───┐                          │
 │   ║◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝║   │                          │
-│   ╠═══════════════════════════════════════════╣   │                          │
+│   ╚════════════════════╦═▲════════════════════╝   │                          │
+│                        │ │ Run tests              │                          │
+│   ┌────────────────────▼─┴────────────────────┐   │                          │
 │   │                                           │   │                          │
-│   │             Application                   │   │                          │
+│   │                Application                │   │                          │
 │   │                                           │   │                          │
 │   ├─────────────────────┐                     │   │                          │
 │   │                     │                     │   │                          │
@@ -87,35 +95,34 @@ For testing, the architecture supports mock mode to enable comprehensive E2E tes
 │   │                                           │   │                          │
 │   │              Business Layer               │   │                          │
 │   │                                           │   │                          │
-│   ╠═══════════════════════════════════════════╣   │Enable                    │
-│   ║◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝Mock Mode◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝║◀──┤mock mode                 │
+│   ╠═══════════════════════════════════════════╣   │ Enable                   │
+│   ║◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝Mock Mode◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝◝║◀──┤ mock mode                │
 │   ╠═════════════╦╦═════════════╦╦═════════════╣   │                          │
 │   ║◝◝◝◝◝◝◝◝◝◝◝◝◝║║◝◝◝◝◝◝◝◝◝◝◝◝◝║║◝◝◝◝◝◝◝◝◝◝◝◝◝║   │                          │
 │   ║◝Auth Client◝║║GitHub Client║║◝◝DB Client◝◝║   │                          │
 │   ║◝◝◝◝◝◝◝◝◝◝◝◝◝║║◝◝◝◝◝◝◝◝◝◝◝◝◝║║◝◝◝◝◝◝◝◝◝◝◝◝◝║   │                          │
-│   ╠═════════════╣╠═════════════╣╠═════════════╣   │Define                    │
-│   ║◝◝Mock Auth◝◝║║◝Mock GitHub◝║║Mock Database║◀──┘mock data                 │
+│   ╠═════════════╣╠═════════════╣╠═════════════╣   │ Define                   │
+│   ║◝◝Mock Auth◝◝║║◝Mock GitHub◝║║Mock Database║◀──┘ mock data                │
 │   ╚═════════════╝╚═════════════╝╚═════════════╝                              │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Mock Mode Implementation
+### Mock Mode Implementation
 
-Mock mode is activated through a URL GET parameter, enabling seamless testing:
+Mock mode uses a pull-based architecture where the app reads mock data at startup:
 
-- **Activation**: Mock mode triggered by URL parameter (e.g., `?mock=true`)
-- **Client switching**: All clients automatically switch to mock implementations
-- **Mock data**: Defined and controlled by E2E test suites using Playwright
-- **Application ignorance**: Rest of the application remains unaware of mock mode
+- **Activation**: Mock mode triggered by URL parameter specifying mock data file (`?mock-data=/path/to/file`)
+- **Data loading**: App calls `setupMockMode()` in `onMount()` to detect mock mode and read specified mock data file
+- **Client initialization**: `defineMockData()` processes mock data and initializes all base layer clients
+- **Type-safe mock data**: Mock data files use TypeScript with `satisfies MockData` for compile-time validation
+- **Adaptation layer**: `defineMockData()` handles partial mock data with defaults and transforms to client-specific formats
 - **Transparent operation**: Business layer and UI work identically in both modes
 
-#### Playwright E2E Framework
+## TypeScript Integration
 
-The testing infrastructure uses Playwright for comprehensive end-to-end testing:
+The project uses strict TypeScript type checking for dev serving, building, and testing.
 
-- **Test suites**: Organised test suites covering different application workflows
-- **Mock data setup**: Tests define specific mock data scenarios for predictable testing
-- **Full workflow coverage**: Tests simulate complete user journeys through the application
-- **Isolated testing**: No dependency on external APIs or authentication providers
-
+- **Strict mode enabled**: Maximum type safety with strict TypeScript configuration
+- **Compile-time validation**: All scripts in `package.json` include TypeScript checking before execution
+- **All-encompassign checking**: every type check checks all of the app code, test code, and config files

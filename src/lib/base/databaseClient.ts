@@ -1,51 +1,51 @@
 import { supabase } from './supabase';
-import { isMockMode, mockDelay } from './mockMode';
+import { isMockMode, mockDelay } from './mock/utils';
 import type {
-  Column,
-  Label,
-  Project,
-  ProjectLabel,
-  SortField,
-  SortDirection
-} from './types';
-import {
-  SORT_FIELD_LABELS,
-  SORT_DIRECTION_LABELS,
-  DEFAULT_SORT_FIELD,
-  DEFAULT_SORT_DIRECTION
+  DatabaseClientColumn,
+  DatabaseClientLabel,
+  DatabaseClientProject,
+  DatabaseClientProjectLabel
 } from './types';
 
-let mockColumns: Column[] = [];
-let mockProjects: Project[] = [];
-let mockLabels: Label[] = [];
-let mockProjectLabels: ProjectLabel[] = [];
+// Mock data storage (internal to client)
+let mockColumns: DatabaseClientColumn[] = [];
+let mockProjects: DatabaseClientProject[] = [];
+let mockLabels: DatabaseClientLabel[] = [];
+let mockProjectLabels: DatabaseClientProjectLabel[] = [];
 
 function generateMockId(): string {
   return crypto.randomUUID();
 }
 
-// Mock data setter - used by test framework
-export function setMockDatabaseData(columns: Column[], projects: Project[], labels: Label[], project_labels: ProjectLabel[]) {
-  mockColumns = [...columns];
-  mockProjects = [...projects];
-  mockLabels = [...labels];
-  mockProjectLabels = [...project_labels];
+// Mock data setter (called by the mock component)
+export function initializeMockData(data: {
+  columns: DatabaseClientColumn[];
+  projects: DatabaseClientProject[];
+  labels: DatabaseClientLabel[];
+  project_labels: DatabaseClientProjectLabel[];
+}): void {
+  mockColumns = [...data.columns];
+  mockProjects = [...data.projects];
+  mockLabels = [...data.labels];
+  mockProjectLabels = [...data.project_labels];
 }
 
 // Re-export constants for convenience
+// TODO: remove (type exports in types.ts)
 export { SORT_FIELD_LABELS, SORT_DIRECTION_LABELS, DEFAULT_SORT_FIELD, DEFAULT_SORT_DIRECTION };
 
 
 // HELPER FUNCTIONS
 
 // Get current timestamp for mock data
+// TODO: move to mockMode.ts (see other mock-mode related function)
 function mockCurrentTimestamp(): string {
   return new Date().toISOString();
 }
 
 // Mock linked-list helper: Insert column after specified column
 function mockInsertColumnAfter(newColumn: Column, prevColumnId: string): void {
-  const prevColumn = mockColumns.find(col => col.id === prevColumnId);
+  const prevColumn = mockGetDatabaseData().columns.find(col => col.id === prevColumnId);
   if (prevColumn) {
     const nextColumn = mockColumns.find(col => col.id === prevColumn.next_column_id!);
 
@@ -77,8 +77,8 @@ function mockRemoveColumnFromList(columnId: string): void {
 }
 
 // Mock linked-list helper: Get columns in linked-list order
-function mockGetColumnsInOrder(userId: string): Column[] {
-  const orderedColumns: Column[] = [];
+function mockGetColumnsInOrder(userId: string): DatabaseClientColumn[] {
+  const orderedColumns: DatabaseClientColumn[] = [];
   let currentColumn = mockColumns.find(col => col.user_id === userId && !col.prev_column_id) || null;
 
   while (currentColumn) {
@@ -120,14 +120,6 @@ async function updateTextField(
   if (error) throw error;
 }
 
-// Get user ID from auth layer (used internally by database functions)
-export function getUserId(): string | null {
-  if (isMockMode()) {
-    return 'mock-user';
-  }
-  // This should be imported from auth layer when needed
-  throw new Error('getUserId should be imported from auth layer for non-mock mode');
-}
 
 // COLUMN FUNCTIONS
 
@@ -168,7 +160,7 @@ export async function columnCreate(
 }
 
 // Read all columns for a user in linked list order
-export async function columnReadAll(userId: string): Promise<Column[]> {
+export async function columnReadAll(userId: string): Promise<DatabaseClientColumn[]> {
   if (isMockMode()) {
     await mockDelay();
     // Get columns in linked list order
@@ -185,7 +177,7 @@ export async function columnReadAll(userId: string): Promise<Column[]> {
   if (!data) return [];
 
   // Order by linked list
-  const orderedColumns: Column[] = [];
+  const orderedColumns: DatabaseClientColumn[] = [];
   let currentColumn = data.find(col => !col.prev_column_id);
 
   while (currentColumn) {
@@ -220,12 +212,12 @@ export async function columnUpdateTitle(columnId: string, userId: string, title:
 }
 
 // Update column sort field
-export async function columnUpdateSortField(columnId: string, userId: string, sortField: SortField): Promise<void> {
+export async function columnUpdateSortField(columnId: string, userId: string, sortField: string): Promise<void> {
   await updateTextField('columns', columnId, userId, 'sort_field', sortField);
 }
 
 // Update column sort direction
-export async function columnUpdateSortDirection(columnId: string, userId: string, sortDirection: SortDirection): Promise<void> {
+export async function columnUpdateSortDirection(columnId: string, userId: string, sortDirection: string): Promise<void> {
   await updateTextField('columns', columnId, userId, 'sort_direction', sortDirection);
 }
 
@@ -277,7 +269,7 @@ export async function columnSwapLeft(columnId: string, userId: string): Promise<
   if (!columns) throw new Error('Failed to fetch columns');
 
   // Order by linked list
-  const orderedColumns: Column[] = [];
+  const orderedColumns: DatabaseClientColumn[] = [];
   let currentColumn = columns.find(col => !col.prev_column_id);
   while (currentColumn) {
     orderedColumns.push(currentColumn);
@@ -402,7 +394,7 @@ export async function columnSwapRight(columnId: string, userId: string): Promise
   if (!columns) throw new Error('Failed to fetch columns');
 
   // Order by linked list
-  const orderedColumns: Column[] = [];
+  const orderedColumns: DatabaseClientColumn[] = [];
   let currentColumn = columns.find(col => !col.prev_column_id);
   while (currentColumn) {
     orderedColumns.push(currentColumn);
@@ -535,7 +527,7 @@ export async function labelCreate(label: Omit<Label, 'id' | 'created_at' | 'upda
 }
 
 // Read all labels for a user
-export async function labelReadAll(userId: string): Promise<Label[]> {
+export async function labelReadAll(userId: string): Promise<DatabaseClientLabel[]> {
   if (isMockMode()) {
     await mockDelay();
     return mockLabels.filter(label => label.user_id === userId);
@@ -634,7 +626,7 @@ export async function projectCreate(project: Omit<Project, 'created_at' | 'updat
 }
 
 // Read all projects for a user
-export async function projectReadAll(userId: string): Promise<Project[]> {
+export async function projectReadAll(userId: string): Promise<DatabaseClientProject[]> {
   if (isMockMode()) {
     await mockDelay();
     return mockProjects.filter(project => project.user_id === userId);
@@ -793,7 +785,7 @@ export async function removeLabelFromProject(projectId: string, labelId: string)
 }
 
 // Get labels for a project
-export async function getLabelsForProject(projectId: string): Promise<Label[]> {
+export async function getLabelsForProject(projectId: string): Promise<DatabaseClientLabel[]> {
   if (isMockMode()) {
     await mockDelay();
     const labelIds = mockProjectLabels
@@ -813,7 +805,7 @@ export async function getLabelsForProject(projectId: string): Promise<Label[]> {
 }
 
 // Get projects for a label
-export async function getProjectsForLabel(labelId: string, userId: string): Promise<Project[]> {
+export async function getProjectsForLabel(labelId: string, userId: string): Promise<DatabaseClientProject[]> {
   if (isMockMode()) {
     await mockDelay();
     const projectIds = mockProjectLabels
@@ -836,9 +828,8 @@ export async function getProjectsForLabel(labelId: string, userId: string): Prom
 }
 
 // Ensure system columns exist for both real and mock modes
-export async function ensureSystemColumns(): Promise<void> {
-  const userId = getUserId();
-  if (!userId) throw new Error('User not authenticated');
+// TODO: move to business layer?
+export async function ensureSystemColumns(userId: string): Promise<void> {
 
   if (isMockMode()) {
     await mockDelay();

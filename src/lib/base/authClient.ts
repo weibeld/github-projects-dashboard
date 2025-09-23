@@ -1,31 +1,35 @@
 // Base auth client - Pure auth operations
 import { supabase } from './supabase';
-import { isMockMode, mockDelay } from './mockMode';
-import type { UserInfo, AuthSession } from './types';
+import { isMockMode, mockDelay } from './mock/utils';
+import type { AuthClientSession } from './types';
 
-// Mock auth state (similar to mock database arrays)
-let mockUser: UserInfo | null = null;
-let mockSession: AuthSession | null = null;
+// Mock data storage (internal to client)
+let mockSession: AuthClientSession | null = null;
 
-// CORE AUTH OPERATIONS
+// Mock data setter (called by the mock component)
+export function initializeMockData(session: AuthClientSession | null): void {
+  mockSession = session;
+}
 
-export async function authLogin(): Promise<AuthSession> {
+export async function login(): Promise<void> {
   if (isMockMode()) {
     await mockDelay();
-    mockSession = {
-      access_token: 'mock-token',
-      user: { id: 'mock-user' }
-    };
-    mockUser = {
-      id: 'mock-user',
-      userName: 'mockuser',
-      avatarUrl: null,
-      email: 'mock@example.com'
-    };
-    return mockSession;
+    // In mock mode, login just ensures mock session is available
+    if (!mockSession) {
+      mockSession = {
+        access_token: 'mock-token',
+        user: {
+          id: 'mock-user',
+          userName: 'mock-user',
+          avatarUrl: 'https://github.com/identicons/mock-user.png',
+          email: 'mock@example.com'
+        }
+      };
+    }
+    return;
   }
 
-  const { data, error } = await supabase.auth.signInWithOAuth({
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: 'github',
     options: {
       scopes: 'repo read:user read:project',
@@ -34,14 +38,14 @@ export async function authLogin(): Promise<AuthSession> {
   });
 
   if (error) throw error;
-  return data.session!;
+  // Function returns, OAuth redirect happens
 }
 
-export async function authLogout(): Promise<void> {
+export async function logout(): Promise<void> {
   if (isMockMode()) {
     await mockDelay();
-    mockSession = null;
-    mockUser = null;
+    // In mock mode, logout doesn't actually change the mock data
+    // The test framework controls the mock data state
     return;
   }
 
@@ -49,55 +53,19 @@ export async function authLogout(): Promise<void> {
   if (error) throw error;
 }
 
-export function authGetCurrentSession(): AuthSession | null {
+export function getSession(): AuthClientSession | null {
   if (isMockMode()) {
     return mockSession;
   }
 
   const session = supabase.auth.getSession().data.session;
-  return session;
-}
-
-export async function authGetCurrentUser(): Promise<UserInfo | null> {
-  if (isMockMode()) {
-    await mockDelay();
-    return mockUser;
-  }
-
-  const { data, error } = await supabase.auth.getUser();
-  if (error) throw error;
-
-  return data.user ? {
-    id: data.user.id,
-    userName: data.user.user_metadata?.user_name || data.user.email?.split('@')[0] || 'unknown',
-    avatarUrl: data.user.user_metadata?.avatar_url || null,
-    email: data.user.email || null
+  return session ? {
+    access_token: session.access_token,
+    user: {
+      id: session.user.id,
+      userName: session.user.user_metadata?.user_name || session.user.email?.split('@')[0] || 'unknown',
+      avatarUrl: session.user.user_metadata?.avatar_url || null,
+      email: session.user.email || null
+    }
   } : null;
-}
-
-export async function authRefreshSession(): Promise<AuthSession> {
-  if (isMockMode()) {
-    await mockDelay();
-    if (!mockSession) throw new Error('No mock session to refresh');
-    return mockSession;
-  }
-
-  const { data, error } = await supabase.auth.refreshSession();
-  if (error) throw error;
-  return data.session!;
-}
-
-export function authGetUserId(): string | null {
-  if (isMockMode()) {
-    return mockUser?.id || null;
-  }
-
-  const session = authGetCurrentSession();
-  return session?.user?.id || null;
-}
-
-// Set mock data for testing
-export function setMockAuthData(user: UserInfo | null, session: AuthSession | null) {
-  mockUser = user;
-  mockSession = session;
 }

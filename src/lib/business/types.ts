@@ -1,44 +1,48 @@
 // Business layer types - Public API for application code
 // Re-exports all types that application code should use
 
-// Import all base types from centralized location
+// Import all base client types
 import type {
-  ProjectID,
-  Column,
-  Label,
-  Project,
-  SortField,
-  SortDirection,
-  GitHubProject,
-  UserInfo,
-  AuthSession
-} from '../base/types';
-import {
-  SORT_FIELD_LABELS,
-  SORT_DIRECTION_LABELS,
-  DEFAULT_SORT_FIELD,
-  DEFAULT_SORT_DIRECTION
+  DatabaseClientColumn,
+  DatabaseClientLabel,
+  DatabaseClientProject,
+  GitHubClientProject
 } from '../base/types';
 
-// Re-export all types for application use
+// ===== BUSINESS DOMAIN TYPES =====
+
+// Sort types - these are business logic concepts, not database concerns
+export type SortField = 'title' | 'number' | 'items' | 'updatedAt' | 'closedAt' | 'createdAt';
+export type SortDirection = 'asc' | 'desc';
+
+// Business domain types - these will be the interface for the application
+// For now, they alias the client types, but can evolve independently
 export type {
-  // Base types
-  ProjectID,
+  // Database types (aliased from client types)
+  DatabaseClientColumn as Column,
+  DatabaseClientLabel as Label,
+  DatabaseClientProject as Project,
 
-  // Database types
-  Column,
-  Label,
-  Project,
-  SortField,
-  SortDirection,
+  // GitHub types (aliased from client types)
+  GitHubClientProject as GitHubProject,
 
-  // GitHub types
-  GitHubProject,
-
-  // Auth types
-  UserInfo,
-  AuthSession
 };
 
-// Re-export constants for application use
-export { SORT_FIELD_LABELS, SORT_DIRECTION_LABELS, DEFAULT_SORT_FIELD, DEFAULT_SORT_DIRECTION };
+// ===== BUSINESS CONSTANTS =====
+
+export const SORT_FIELD_LABELS: Record<SortField, string> = {
+  title: 'Title',
+  number: 'Project ID',
+  items: 'Items',
+  updatedAt: 'Updated',
+  closedAt: 'Closed',
+  createdAt: 'Created'
+};
+
+export const SORT_DIRECTION_LABELS: Record<SortDirection, string> = {
+  asc: 'Asc',
+  desc: 'Desc'
+};
+
+export const DEFAULT_SORT_FIELD: SortField = 'updatedAt';
+export const DEFAULT_SORT_DIRECTION: SortDirection = 'desc';

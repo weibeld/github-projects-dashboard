@@ -1,17 +1,35 @@
 // Base GitHub client - Pure GitHub API operations
-import { isMockMode, mockDelay } from './mockMode';
-import type { ProjectID, GitHubProject } from './types';
+// This client is "dumb" and contains no business logic
 
-// Mock GitHub project data for testing
-let mockGitHubProjectData: GitHubProject[] = [];
+import { isMockMode, mockDelay } from './mock/utils';
+import type { GitHubClientProject } from './types';
 
-// Mock data setter - used by test framework
-export function setMockGitHubData(data: GitHubProject[]) {
-  mockGitHubProjectData = [...(data || [])];
+// GitHub API response type (local to this client) - array of projects
+type GitHubApiData = Array<{
+  id: string;
+  number: number;
+  title: string;
+  url: string;
+  public: boolean;
+  closed: boolean;
+  createdAt: string;
+  updatedAt: string | null;
+  closedAt: string | null;
+  items: {
+    totalCount: number;
+  };
+}>;
+
+// Mock data storage (internal to client)
+let mockProjects: GitHubClientProject[] = [];
+
+// Mock data setter (called by the mock component)
+export function initializeMockData(projects: GitHubClientProject[]): void {
+  mockProjects = [...projects];
 }
 
-// GitHub GraphQL query for fetching projects
-const graphQlQuery = `
+// GitHub GraphQL query
+const PROJECTS_QUERY = `
   query {
     viewer {
       projectsV2(first: 100) {
@@ -20,8 +38,8 @@ const graphQlQuery = `
           number
           title
           url
-          isPublic: public
-          isClosed: closed
+          public
+          closed
           createdAt
           updatedAt
           closedAt
@@ -33,11 +51,11 @@ const graphQlQuery = `
     }
   }`;
 
-// Fetch GitHub projects using API token
-export async function githubFetchProjects(apiToken: string): Promise<GitHubProject[]> {
+// Main client function - fetch user's GitHub projects
+export async function queryGitHubProjects(apiToken: string): Promise<GitHubClientProject[]> {
   if (isMockMode()) {
     await mockDelay();
-    return [...mockGitHubProjectData];
+    return [...mockProjects];
   }
 
   const response = await fetch('https://api.github.com/graphql', {
@@ -46,28 +64,29 @@ export async function githubFetchProjects(apiToken: string): Promise<GitHubProje
       'Authorization': `bearer ${apiToken}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ query: graphQlQuery })
+    body: JSON.stringify({ query: PROJECTS_QUERY })
   });
 
   if (!response.ok) {
     if (response.status === 401) {
       throw new Error('GITHUB_AUTH_EXPIRED');
-    } else {
-      throw new Error(`Failed to fetch projects from GitHub: ${await response.text()}`);
     }
+    throw new Error(`GitHub API error: ${response.status}`);
   }
 
-  const rawData: any[] = (await response.json())?.data?.viewer?.projectsV2?.nodes;
-  return rawData.map(p => ({
-    id: p.id,
-    number: p.number,
-    title: p.title,
-    url: p.url,
-    isPublic: p.public,
-    isClosed: p.closed,
-    createdAt: new Date(p.createdAt),
-    updatedAt: p.updatedAt ? new Date(p.updatedAt) : null,
-    closedAt: p.closedAt ? new Date(p.closedAt) : null,
-    items: p.items.totalCount
+  const result = await response.json();
+  const apiData = result?.data?.viewer?.projectsV2?.nodes as GitHubApiData || [];
+
+  return apiData.map((p): GitHubClientProject => ({
+    id: a.id,
+    number: a.number,
+    title: a.title,
+    url: a.url,
+    isPublic: a.public,
+    isClosed: a.closed,
+    createdAt: new Date(a.createdAt),
+    updatedAt: a.updatedAt ? new Date(a.updatedAt) : null,
+    closedAt: a.closedAt ? new Date(a.closedAt) : null,
+    items: a.items.totalCount
   }));
 }

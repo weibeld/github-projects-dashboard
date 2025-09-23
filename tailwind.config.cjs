@@ -21,8 +21,6 @@ export default {
         githubGreenColor: '#428646',          /* Green buttons */
         githubRedColor: '#c03737',            /* Red links */
         githubRedHoverBgColor: '#fcecea',     /* Red links hover background */
-        /* SortableJS drag-and-drop */
-        sortableChosenBgColor: '#d6e4f5',     /* Dragged element background during drag */
         /* Label colours (from https://gist.github.com/borekb/d61cdc45f0c92606a92b15388cf80185) */
         labelColor1: '#b60205',
         labelColor2: '#d93f0b',
