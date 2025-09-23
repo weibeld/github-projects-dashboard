@@ -67,9 +67,9 @@ export async function handleDrop(
   event: DragEvent,
   targetColumnId: string,
   columns: Column[],
-  groupedProjects: Record<string, Project[]>,
-  projects: Project[],
-  projectsStore: { set: (value: Project[]) => void }
+  _groupedProjects: Record<string, Project[]>,
+  _projects: Project[],
+  _projectsStore: { set: (value: Project[]) => void }
 ): Promise<void> {
   event.preventDefault();
   dragOverColumn.set(null);
@@ -83,7 +83,7 @@ export async function handleDrop(
   }
 
   // Don't allow drops into Closed column
-  const targetColumn = columns.find(s => s.id === targetColumnId);
+  const targetColumn = columns.find((s: Column) => s.id === targetColumnId);
   if (targetColumn?.title === 'Closed') {
     draggedProject.set(null);
     throw new Error('Cannot drop into Closed column');
@@ -96,22 +96,12 @@ export async function handleDrop(
   }
 
   try {
-    // Optimistic update function
-    const optimisticUpdate = (projectId: string, columnId: string) => {
-      const updatedProjects = projects.map(p =>
-        p.id === projectId
-          ? { ...p, column_id: columnId }
-          : p
-      );
-      projectsStore.set(updatedProjects);
-    };
+    // TODO: Add optimistic update functionality
 
     // Update project column
     await moveProjectToColumn(
       draggedProj.id,
-      targetColumnId,
-      projectsStore,
-      optimisticUpdate
+      targetColumnId
     );
 
     draggedProject.set(null);

@@ -42,9 +42,12 @@
 
 <span
   class="inline-flex"
+  role="button"
+  tabindex="0"
   on:mouseenter={showTooltip}
   on:mouseleave={hideTooltip}
   on:click={handleClick}
+  on:keydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(e); }}}
 >
   <slot />
 </span>

@@ -110,9 +110,6 @@
   let error = '';
   let filteredProjects: Project[] = [];
 
-  // Authentication state that considers test mode
-  $: isAuthenticated = isTestMode() || $isLoggedIn;
-
   // Create store wrappers for arrays
   const columnsStore = { set: (value: Column[]) => { columns = value; } };
   const projectsStore = { set: (value: Project[]) => { projects = value; } };
@@ -306,7 +303,7 @@
     <div class="max-w-7xl mx-auto px-4 py-4">
       <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold _text-black">GitHub Projects Dashboard</h1>
-      {#if isAuthenticated}
+      {#if $isLoggedIn}
         <ButtonFramed
           variant="red"
           loading={$isLoggingOut}
@@ -322,7 +319,7 @@
 
   <!-- Main Content -->
   <div class="px-4 py-8 mx-auto">
-    {#if isAuthenticated}
+    {#if $isLoggedIn}
       {#if loading}
         <div class="flex items-center justify-center min-h-[400px]">
           <div class="text-center">
@@ -636,9 +633,8 @@
                     <div
                       class="_bg-white rounded-lg p-3 transition-all duration-200 {isDragging ? 'opacity-50 scale-95' : 'hover:shadow-md'} {!isClosedColumn && !isDropdownOpen ? 'cursor-grab active:cursor-grabbing' : ''}"
                       draggable={!isClosedColumn && !isDropdownOpen}
-                      role={!isClosedColumn ? "button" : undefined}
-                      aria-label={!isClosedColumn ? `Drag ${githubProject.title} to another column` : undefined}
-                      tabindex={!isClosedColumn ? "0" : undefined}
+                      role={!isClosedColumn && !isDropdownOpen ? "button" : null}
+                      aria-label={!isClosedColumn && !isDropdownOpen ? `Drag ${githubProject.title} to another column` : null}
                       on:dragstart={(e) => !isClosedColumn && handleDragStart(e, project)}
                       on:dragend={handleDragEnd}
                       animate:flip={{ duration: 400 }}
@@ -808,6 +804,7 @@
                                           {@const isSelected = $selectedLabelIndex === index}
                                           <div
                                             class="flex items-center group {isSelected ? '_dropdown-item-highlight' : 'hover:_dropdown-item-highlight'}"
+                                            role="listitem"
                                             on:mouseenter={() => selectedLabelIndex.set(-1)}
                                             data-label-index={index}
                                           >
@@ -906,6 +903,7 @@
                                           {@const isSelected = $selectedLabelIndex === index}
                                           <div
                                             class="flex items-center group {isSelected ? '_dropdown-item-highlight' : 'hover:_dropdown-item-highlight'}"
+                                            role="listitem"
                                             on:mouseenter={() => selectedLabelIndex.set(-1)}
                                             data-label-index={index}
                                           >
@@ -1089,10 +1087,11 @@
     <div class="space-y-4">
       <!-- Label Title Input -->
       <div>
-        <label class="block _text-regular font-medium _text-gray-black mb-2">
+        <label for="edit-label-title" class="block _text-regular font-medium _text-gray-black mb-2">
           Title
         </label>
         <InputField
+          id="edit-label-title"
           bind:value={$editLabelTitle}
           placeholder="Enter label name..."
           disabled={$editingLabel}
@@ -1104,20 +1103,20 @@
 
       <!-- Color Picker -->
       <div>
-        <label class="block _text-regular font-medium _text-gray-black mb-2">
+        <label for="edit-label-color" class="block _text-regular font-medium _text-gray-black mb-2">
           Colour
         </label>
         <div class="flex items-center gap-1">
           <input
+            id="edit-label-color"
             type="color"
             bind:value={$editLabelColor}
             on:input={() => justOpenedEditModal.set(false)}
             class="sr-only"
             disabled={$editingLabel}
-            id="colorPicker"
           />
           <label
-            for="colorPicker"
+            for="edit-label-color"
             class="flex-1 flex items-center gap-2 px-3 py-2 rounded-full _text-regular cursor-pointer {$editLabelTextColor === 'black' ? '_text-black' : '_text-white'}"
             style="background-color: {$editLabelColor}"
           >
@@ -1137,7 +1136,7 @@
 
       <!-- Text Color Selection -->
       <div>
-        <label class="block _text-regular font-medium _text-gray-black mb-2">
+        <label for="edit-label-text-color" class="block _text-regular font-medium _text-gray-black mb-2">
           Text Colour
         </label>
         <div class="flex items-center gap-3">
@@ -1146,6 +1145,7 @@
 
           <!-- Toggle Switch -->
           <button
+            id="edit-label-text-color"
             type="button"
             on:click={() => editLabelTextColor.set(toggleTextColor($editLabelTextColor))}
             disabled={$editingLabel}
@@ -1184,10 +1184,11 @@
   >
     <div class="space-y-4">
       <div>
-        <label class="block _text-regular font-medium _text-gray-black mb-2">
+        <label for="create-column-name" class="block _text-regular font-medium _text-gray-black mb-2">
           Name
         </label>
         <InputField
+          id="create-column-name"
           bind:value={$newColumnTitle}
           placeholder="Enter column name..."
           errorMessage={isDuplicateNewColumnNameResult ? 'A column with this name already exists' : ''}
@@ -1259,10 +1260,11 @@
   >
     <div class="space-y-4">
       <div>
-        <label class="block _text-regular font-medium _text-gray-black mb-2">
+        <label for="edit-column-name" class="block _text-regular font-medium _text-gray-black mb-2">
           Name
         </label>
         <InputField
+          id="edit-column-name"
           bind:value={$editColumnTitle}
           placeholder="Enter column name..."
           errorMessage={isDuplicateEditColumnNameResult ? 'A column with this name already exists' : ''}

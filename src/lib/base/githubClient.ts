@@ -78,15 +78,15 @@ export async function queryGitHubProjects(apiToken: string): Promise<GitHubClien
   const apiData = result?.data?.viewer?.projectsV2?.nodes as GitHubApiData || [];
 
   return apiData.map((p): GitHubClientProject => ({
-    id: a.id,
-    number: a.number,
-    title: a.title,
-    url: a.url,
-    isPublic: a.public,
-    isClosed: a.closed,
-    createdAt: new Date(a.createdAt),
-    updatedAt: a.updatedAt ? new Date(a.updatedAt) : null,
-    closedAt: a.closedAt ? new Date(a.closedAt) : null,
-    items: a.items.totalCount
+    id: p.id,
+    number: p.number,
+    title: p.title,
+    url: p.url,
+    isPublic: p.public,
+    isClosed: p.closed,
+    createdAt: new Date(p.createdAt),
+    updatedAt: p.updatedAt ? new Date(p.updatedAt) : null,
+    closedAt: p.closedAt ? new Date(p.closedAt) : null,
+    items: p.items.totalCount
   }));
 }

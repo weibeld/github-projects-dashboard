@@ -148,6 +148,19 @@ Always update the "Last updated" timestamp when modifying the file. The file for
 Last updated: [timestamp]
 ```
 
+## Commit Messages
+
+When asked to write a commit message to a file, always write it to a file in the `tmp/` directory.
+
+## Code Quality Requirements
+
+Before proceeding with any development work, always ensure that:
+
+- `npm run typecheck` passes without any errors or warnings
+- `npm run build` completes successfully without any errors or warnings (including TypeScript, Svelte accessibility, and Node.js ES module warnings)
+
+This project maintains strict quality standards with zero tolerance for build warnings or type errors.
+
 ## Spelling
 
 Use British spelling (e.g. "Colour" instead of "Color") except in identifiers in the code (e.g. name variables 'color', not 'colour').

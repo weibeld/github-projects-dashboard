@@ -30,9 +30,6 @@ export function initializeMockData(data: {
   mockProjectLabels = [...data.project_labels];
 }
 
-// Re-export constants for convenience
-// TODO: remove (type exports in types.ts)
-export { SORT_FIELD_LABELS, SORT_DIRECTION_LABELS, DEFAULT_SORT_FIELD, DEFAULT_SORT_DIRECTION };
 
 
 // HELPER FUNCTIONS
@@ -44,8 +41,8 @@ function mockCurrentTimestamp(): string {
 }
 
 // Mock linked-list helper: Insert column after specified column
-function mockInsertColumnAfter(newColumn: Column, prevColumnId: string): void {
-  const prevColumn = mockGetDatabaseData().columns.find(col => col.id === prevColumnId);
+function mockInsertColumnAfter(newColumn: DatabaseClientColumn, prevColumnId: string): void {
+  const prevColumn = mockColumns.find(col => col.id === prevColumnId);
   if (prevColumn) {
     const nextColumn = mockColumns.find(col => col.id === prevColumn.next_column_id!);
 
@@ -125,13 +122,13 @@ async function updateTextField(
 
 // Create a new column after a specific column
 export async function columnCreate(
-  column: Omit<Column, 'id' | 'created_at' | 'updated_at'>,
+  column: Omit<DatabaseClientColumn, 'id' | 'created_at' | 'updated_at'>,
   prevColumnId: string
-): Promise<Column> {
+): Promise<DatabaseClientColumn> {
   if (isMockMode()) {
     await mockDelay();
 
-    const newColumn: Column = {
+    const newColumn: DatabaseClientColumn = {
       ...column,
       id: generateMockId(),
       prev_column_id: prevColumnId,
@@ -189,7 +186,7 @@ export async function columnReadAll(userId: string): Promise<DatabaseClientColum
 }
 
 // Read a specific column by ID
-export async function columnReadById(columnId: string, userId: string): Promise<Column | null> {
+export async function columnReadById(columnId: string, userId: string): Promise<DatabaseClientColumn | null> {
   if (isMockMode()) {
     await mockDelay();
     return mockColumns.find(col => col.id === columnId && col.user_id === userId) || null;
@@ -501,11 +498,11 @@ export async function columnDelete(columnId: string, userId: string): Promise<vo
 // LABEL FUNCTIONS
 
 // Create a new label
-export async function labelCreate(label: Omit<Label, 'id' | 'created_at' | 'updated_at'>): Promise<Label> {
+export async function labelCreate(label: Omit<DatabaseClientLabel, 'id' | 'created_at' | 'updated_at'>): Promise<DatabaseClientLabel> {
   if (isMockMode()) {
     await mockDelay();
 
-    const newLabel: Label = {
+    const newLabel: DatabaseClientLabel = {
       ...label,
       id: generateMockId(),
       created_at: mockCurrentTimestamp(),
@@ -544,7 +541,7 @@ export async function labelReadAll(userId: string): Promise<DatabaseClientLabel[
 }
 
 // Read a specific label by ID
-export async function labelReadById(labelId: string, userId: string): Promise<Label | null> {
+export async function labelReadById(labelId: string, userId: string): Promise<DatabaseClientLabel | null> {
   if (isMockMode()) {
     await mockDelay();
     return mockLabels.find(label => label.id === labelId && label.user_id === userId) || null;
@@ -601,11 +598,11 @@ export async function labelDelete(labelId: string, userId: string): Promise<void
 // PROJECT FUNCTIONS
 
 // Create a new project
-export async function projectCreate(project: Omit<Project, 'created_at' | 'updated_at'>): Promise<Project> {
+export async function projectCreate(project: Omit<DatabaseClientProject, 'created_at' | 'updated_at'>): Promise<DatabaseClientProject> {
   if (isMockMode()) {
     await mockDelay();
 
-    const newProject: Project = {
+    const newProject: DatabaseClientProject = {
       ...project,
       created_at: mockCurrentTimestamp(),
       updated_at: mockCurrentTimestamp()
@@ -642,7 +639,7 @@ export async function projectReadAll(userId: string): Promise<DatabaseClientProj
 }
 
 // Read a specific project by ID
-export async function projectReadById(projectId: string, userId: string): Promise<Project | null> {
+export async function projectReadById(projectId: string, userId: string): Promise<DatabaseClientProject | null> {
   if (isMockMode()) {
     await mockDelay();
     return mockProjects.find(project => project.id === projectId && project.user_id === userId) || null;
@@ -842,7 +839,7 @@ export async function ensureSystemColumns(userId: string): Promise<void> {
 
     // Create No Status column (first column, no previous)
     if (!hasNoStatus) {
-      const noStatusColumn: Column = {
+      const noStatusColumn: DatabaseClientColumn = {
         id: 'col-no-status',
         user_id: userId,
         title: 'No Status',
@@ -860,7 +857,7 @@ export async function ensureSystemColumns(userId: string): Promise<void> {
     // Create Closed column (after No Status)
     if (!hasClosed) {
       const noStatusColumn = mockColumns.find(col => col.title === 'No Status' && col.user_id === userId);
-      const closedColumn: Column = {
+      const closedColumn: DatabaseClientColumn = {
         id: 'col-closed',
         user_id: userId,
         title: 'Closed',
@@ -910,7 +907,7 @@ export async function ensureSystemColumns(userId: string): Promise<void> {
     if (error) throw error;
     noStatusColumnId = data.id;
   } else {
-    noStatusColumnId = existingSystemColumns.find(col => col.title === 'No Status')?.id || null;
+    noStatusColumnId = existingSystemColumns?.find(col => col.title === 'No Status')?.id || null;
   }
 
   // Create Closed column if it doesn't exist

@@ -9,7 +9,7 @@ import * as githubClient from '../base/githubClient';
 // Business types - re-export for application code
 export * from './types';
 import type { DatabaseClientColumn, DatabaseClientLabel, DatabaseClientProject, GitHubClientProject } from '../base/types';
-import type { SortField, SortDirection } from './types';
+import type { SortField, SortDirection, Column, Label } from './types';
 
 // ===== AUTH BUSINESS LOGIC =====
 
@@ -52,7 +52,7 @@ export async function initializeAuth(): Promise<void> {
   try {
     isLoggingIn.set(true);
 
-    const session = authClient.getSession();
+    const session = await authClient.getSession();
     if (session) {
       isLoggedIn.set(true);
     }
@@ -61,8 +61,8 @@ export async function initializeAuth(): Promise<void> {
   }
 }
 
-export function getCurrentUserId(): string | null {
-  const session = authClient.getSession();
+export async function getCurrentUserId(): Promise<string | null> {
+  const session = await authClient.getSession();
   return session?.user?.id || null;
 }
 
@@ -78,7 +78,7 @@ export const githubProjects = writable<Record<string, GitHubClientProject>>({});
 // Derived stores for data relationships
 export const projectsWithLabels = derived(
   [projects, labels],
-  ([$projects, $labels]) => {
+  ([$projects, _$labels]) => {
     // This will be enhanced with proper label joining logic
     return $projects.map(project => ({
       ...project,
@@ -89,7 +89,7 @@ export const projectsWithLabels = derived(
 
 // Data loading functions
 export async function loadAllData(): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
   // Ensure system columns exist
@@ -110,7 +110,7 @@ export async function loadAllData(): Promise<void> {
 
 // Load GitHub projects from API
 export async function loadProjectsFromGitHub(): Promise<void> {
-  const session = authClient.getSession();
+  const session = await authClient.getSession();
   if (!session) {
     throw new Error('No active session');
   }
@@ -137,7 +137,7 @@ export async function loadProjectsFromGitHub(): Promise<void> {
 // ===== COLUMN BUSINESS LOGIC =====
 
 export async function createColumn(title: string, afterColumnId: string): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
   if (!title.trim()) {
@@ -157,7 +157,7 @@ export async function createColumn(title: string, afterColumnId: string): Promis
 }
 
 export async function deleteColumn(column: Column): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
   // Move all projects to "No Status" column first
@@ -187,7 +187,7 @@ export async function deleteColumn(column: Column): Promise<void> {
 }
 
 export async function updateColumnTitle(columnId: string, title: string): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
   if (!title.trim()) {
@@ -199,7 +199,7 @@ export async function updateColumnTitle(columnId: string, title: string): Promis
 }
 
 export async function moveColumnLeft(column: Column): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
   if (column.is_system) {
@@ -219,7 +219,7 @@ export async function moveColumnLeft(column: Column): Promise<void> {
 }
 
 export async function moveColumnRight(column: Column): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
   if (column.is_system) {
@@ -239,7 +239,7 @@ export async function moveColumnRight(column: Column): Promise<void> {
 }
 
 export async function updateColumnSortField(columnId: string, sortField: SortField): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
   // Optimistic update
@@ -257,7 +257,7 @@ export async function updateColumnSortField(columnId: string, sortField: SortFie
 }
 
 export async function updateColumnSortDirection(columnId: string, sortDirection: SortDirection): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
   // Optimistic update
@@ -277,7 +277,7 @@ export async function updateColumnSortDirection(columnId: string, sortDirection:
 // ===== LABEL BUSINESS LOGIC =====
 
 export async function createLabel(title: string, color: string, textColor: 'white' | 'black' = 'white'): Promise<Label> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
   if (!title.trim()) {
@@ -296,7 +296,7 @@ export async function createLabel(title: string, color: string, textColor: 'whit
 }
 
 export async function deleteLabel(labelId: string): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
   await dbClient.labelDelete(labelId, userId);
@@ -319,7 +319,7 @@ export async function removeLabelFromProject(projectId: string, labelId: string)
 // ===== PROJECT BUSINESS LOGIC =====
 
 export async function moveProjectToColumn(projectId: string, columnId: string): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
   // Optimistic update
@@ -401,7 +401,7 @@ export function sortProjects(projects: DatabaseClientProject[], githubProjects: 
  * Sync GitHub projects with database
  * TODO: Implement proper database client calls instead of direct supabase access
  */
-export async function syncProjects(githubProjects: GitHubClientProject[]): Promise<void> {
+export async function syncProjects(_githubProjects: GitHubClientProject[]): Promise<void> {
   // TODO: Implement this function using only database client functions
   // This will be implemented when we build out the complete business logic
   throw new Error('syncProjects not yet implemented - will be done during business logic implementation');
@@ -446,7 +446,7 @@ export function getProjectCountForLabel(labelId: string, projects: DatabaseClien
 
 // Data refresh functions
 async function refreshColumns(): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) return;
 
   const updatedColumns = await dbClient.columnReadAll(userId);
@@ -454,7 +454,7 @@ async function refreshColumns(): Promise<void> {
 }
 
 async function refreshProjects(): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) return;
 
   const updatedProjects = await dbClient.projectReadAll(userId);
@@ -462,7 +462,7 @@ async function refreshProjects(): Promise<void> {
 }
 
 async function refreshLabels(): Promise<void> {
-  const userId = getCurrentUserId();
+  const userId = await getCurrentUserId();
   if (!userId) return;
 
   const updatedLabels = await dbClient.labelReadAll(userId);

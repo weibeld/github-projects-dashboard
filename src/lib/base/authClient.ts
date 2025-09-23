@@ -53,12 +53,14 @@ export async function logout(): Promise<void> {
   if (error) throw error;
 }
 
-export function getSession(): AuthClientSession | null {
+export async function getSession(): Promise<AuthClientSession | null> {
   if (isMockMode()) {
     return mockSession;
   }
 
-  const session = supabase.auth.getSession().data.session;
+  const { data } = await supabase.auth.getSession();
+  const session = data.session;
+
   return session ? {
     access_token: session.access_token,
     user: {

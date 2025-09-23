@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 import { parse, filter } from 'liqe';
-import type { Project, Label } from '../business/types';
+import type { Project } from '../business/types';
 import type { GitHubProject } from '../business/types';
 
 /**
@@ -14,7 +14,7 @@ export function preprocessDates(query: string): string {
   // "updated:>1 month ago", "created:<2 weeks ago", "closed:>=3 days ago"
   const relativeDateRegex = /(\w+):(>|<|>=|<=|=)(\d+)\s+(second|minute|hour|day|week|month|year)s?\s+ago/gi;
 
-  processedQuery = processedQuery.replace(relativeDateRegex, (match, field, operator, amount, unit) => {
+  processedQuery = processedQuery.replace(relativeDateRegex, (_match, field, operator, amount, unit) => {
     // Convert relative date to Unix timestamp
     // Normalize unit (remove 's' if plural) and ensure it's a valid dayjs unit
     const normalizedUnit = unit.toLowerCase().replace(/s$/, '') as 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
@@ -41,21 +41,21 @@ export function preprocessDates(query: string): string {
 
   // ISO date format (YYYY-MM-DD)
   const isoDateRegex = /(\w+):(>|<|>=|<=|=)(\d{4}-\d{2}-\d{2})/gi;
-  processedQuery = processedQuery.replace(isoDateRegex, (match, field, operator, dateStr) => {
+  processedQuery = processedQuery.replace(isoDateRegex, (_match, field, operator, dateStr) => {
     const timestamp = Math.floor(dayjs(dateStr).valueOf() / 1000);
     return `${field}:${operator}${timestamp}`;
   });
 
   // Short format with year (D MMM YYYY)
   const shortDateWithYearRegex = /(\w+):(>|<|>=|<=|=)(\d{1,2}\s+\w{3}\s+\d{4})/gi;
-  processedQuery = processedQuery.replace(shortDateWithYearRegex, (match, field, operator, dateStr) => {
+  processedQuery = processedQuery.replace(shortDateWithYearRegex, (_match, field, operator, dateStr) => {
     const timestamp = Math.floor(dayjs(dateStr, 'D MMM YYYY').valueOf() / 1000);
     return `${field}:${operator}${timestamp}`;
   });
 
   // Short format with current year (D MMM)
   const shortDateRegex = /(\w+):(>|<|>=|<=|=)(\d{1,2}\s+\w{3})/gi;
-  processedQuery = processedQuery.replace(shortDateRegex, (match, field, operator, dateStr) => {
+  processedQuery = processedQuery.replace(shortDateRegex, (_match, field, operator, dateStr) => {
     const currentYear = dayjs().year();
     const timestamp = Math.floor(dayjs(`${dateStr} ${currentYear}`, 'D MMM YYYY').valueOf() / 1000);
     return `${field}:${operator}${timestamp}`;
@@ -95,7 +95,7 @@ export function filterProjects(
         // All searchable text fields (for naked terms and explicit field searches)
         title: githubProject?.title || '',
         description: '',
-        visibility: githubProject?.visibility || '',
+        visibility: githubProject?.isPublic ? 'public' : 'private',
         // Concatenated labels string for label field searches
         label: projectLabels.join(' ').toLowerCase(),
         // Keep numeric and boolean fields for specific searches

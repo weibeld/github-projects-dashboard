@@ -2,12 +2,11 @@ import { get } from 'svelte/store';
 import type { Column, Label } from '../../business/types';
 import {
   selectedLabelIndex,
-  labelSearchQuery,
   activeDropdownProjectId,
   activeSortFieldDropdown,
   selectedSortFieldIndex
 } from './uiState';
-import { addLabelToProject, createLabel, removeLabelFromProject, updateColumnSortField, updateColumnSortDirection } from '../../business';
+import { addLabelToProject } from '../../business';
 
 /**
  * Scroll to selected label to ensure it's visible
@@ -37,10 +36,10 @@ export function scrollToSelectedLabel() {
 /**
  * Handle keyboard events for label dropdown navigation
  */
-export function handleDropdownKeydown(
+export async function handleDropdownKeydown(
   event: KeyboardEvent,
   filteredLabelsForActiveProject: Label[],
-  projectsStore: { set: (value: any[]) => void }
+  _projectsStore: { set: (value: any[]) => void }
 ) {
   const availableLabels = filteredLabelsForActiveProject;
   const maxIndex = availableLabels.length; // availableLabels.length = "Create new label" button index
@@ -71,15 +70,15 @@ export function handleDropdownKeydown(
       if (currentIndex >= 0 && currentIndex < availableLabels.length && activeProjectId) {
         // Selected a label
         const selectedLabel = availableLabels[currentIndex];
-        handleAddLabelToProject(activeProjectId, selectedLabel.id, projectsStore);
+        await addLabelToProject(activeProjectId, selectedLabel.id);
       } else if (currentIndex === availableLabels.length) {
         // Selected "Create new label" button
-        createLabelFromSearch();
+        // TODO: implement createLabelFromSearch();
       }
       break;
     case 'Escape':
       event.preventDefault();
-      closeLabelDropdown();
+      // TODO: implement closeLabelDropdown();
       break;
   }
 }
@@ -91,7 +90,7 @@ export function handleSortFieldKeydown(
   event: KeyboardEvent,
   columnId: string,
   columns: Column[],
-  columnsStore: { set: (value: Column[]) => void }
+  _columnsStore: { set: (value: Column[]) => void }
 ) {
   const column = columns.find(s => s.id === columnId);
   const sortFieldOptions = column?.title === 'Closed'
@@ -117,9 +116,9 @@ export function handleSortFieldKeydown(
       event.preventDefault();
       const currentIndex = get(selectedSortFieldIndex);
       if (currentIndex >= 0) {
-        const column = columns.find(s => s.id === columnId);
-        const field = sortFieldOptions[currentIndex];
-        handleSortingChange(columnId, field as any, column?.sort_direction || 'desc', columns, columnsStore);
+        // TODO: implement handleSortingChange();
+        // const field = sortFieldOptions[currentIndex];
+        // await updateColumnSortField(columnId, field as any);
         activeSortFieldDropdown.set(null);
         selectedSortFieldIndex.set(-1);
       }
