@@ -4,24 +4,22 @@
  */
 
 import type { MockData } from './types';
-import type { AuthClientSession } from '../types';
-import { initializeMockData as initializeMockDataAuth } from '../authClient';
-import { initializeMockData as initializeMockDataGitHub } from '../githubClient';
-import { initializeMockData as initializeMockDataDatabase } from '../databaseClient';
+import type { AuthClientSession } from '../clients/types';
+import { initializeMockData as initializeMockDataAuth } from '../clients/auth';
+import { initializeMockData as initializeMockDataGitHub } from '../clients/github';
+import { initializeMockData as initializeMockDataDatabase } from '../clients/database';
 
 // Single mock data setup function - initializes all clients with defaults
 export function defineMockData(data: MockData = {}): void {
   // Auth data - always initialize with defaults for complete session
   const authData = {
     userName: data.auth?.userName ?? 'mock-user',
-    email: data.auth?.email ?? 'mock@example.com',
-    avatarUrl: data.auth?.avatarUrl ?? 'https://github.com/identicons/mock-user.png',
-    id: data.auth?.id ?? 'mock-user'
+    userAvatarUrl: data.auth?.userAvatarUrl ?? 'https://github.com/identicons/mock-user.png'
   };
 
   const fullSession: AuthClientSession = {
-    access_token: 'mock-token',
-    user: authData
+    accessToken: 'mock-token',
+    ...authData
   };
 
   // GitHub data - default to empty projects

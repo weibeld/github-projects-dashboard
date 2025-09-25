@@ -2,13 +2,13 @@
 import { get, writable, derived } from 'svelte/store';
 
 // Base layer imports
-import * as authClient from '../base/authClient';
-import * as dbClient from '../base/databaseClient';
-import * as githubClient from '../base/githubClient';
+import * as authClient from '../base/clients/auth';
+import * as dbClient from '../base/clients/database';
+import * as githubClient from '../base/clients/github';
 
 // Business types - re-export for application code
 export * from './types';
-import type { DatabaseClientColumn, DatabaseClientLabel, DatabaseClientProject, GitHubClientProject } from '../base/types';
+import type { DatabaseClientColumn, DatabaseClientLabel, DatabaseClientProject, GitHubClientProject } from '../base/clients/types';
 import type { SortField, SortDirection, Column, Label } from './types';
 
 // ===== AUTH BUSINESS LOGIC =====
@@ -63,7 +63,7 @@ export async function initializeAuth(): Promise<void> {
 
 export async function getCurrentUserId(): Promise<string | null> {
   const session = await authClient.getSession();
-  return session?.user?.id || null;
+  return session?.userName || null;
 }
 
 // ===== DATA BUSINESS LOGIC =====
@@ -87,19 +87,58 @@ export const projectsWithLabels = derived(
   }
 );
 
+// System setup functions
+export async function ensureSystemColumns(userId: string): Promise<void> {
+  const existingColumns = await dbClient.columnRead(userId);
+
+  const hasNoStatus = existingColumns.some(col => col.title === 'No Status');
+  const hasClosed = existingColumns.some(col => col.title === 'Closed');
+
+  if (hasNoStatus && hasClosed) {
+    return; // System columns already exist
+  }
+
+  const nextPosition = existingColumns.length;
+
+  // Create No Status column (first system column)
+  if (!hasNoStatus) {
+    await dbClient.columnCreate({
+      userId: userId,
+      title: 'No Status',
+      position: nextPosition,
+      isSystem: true,
+      sortField: 'updatedAt',
+      sortDirection: 'desc'
+    });
+  }
+
+  // Create Closed column (second system column)
+  if (!hasClosed) {
+    const finalPosition = hasNoStatus ? nextPosition + 1 : nextPosition;
+    await dbClient.columnCreate({
+      userId: userId,
+      title: 'Closed',
+      position: finalPosition,
+      isSystem: true,
+      sortField: 'closedAt',
+      sortDirection: 'desc'
+    });
+  }
+}
+
 // Data loading functions
 export async function loadAllData(): Promise<void> {
   const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
   // Ensure system columns exist
-  await dbClient.ensureSystemColumns(userId);
+  await ensureSystemColumns(userId);
 
   // Load all data in parallel
   const [columnsData, projectsData, labelsData] = await Promise.all([
-    dbClient.columnReadAll(userId),
-    dbClient.projectReadAll(userId),
-    dbClient.labelReadAll(userId)
+    dbClient.columnRead(userId),
+    dbClient.projectRead(userId),
+    dbClient.labelRead(userId)
   ]);
 
   // Update stores
@@ -116,7 +155,7 @@ export async function loadProjectsFromGitHub(): Promise<void> {
   }
 
   try {
-    const projectsArray = await githubClient.queryGitHubProjects(session.access_token);
+    const projectsArray = await githubClient.queryGitHubProjects(session.accessToken);
 
     // Convert array to Record for store
     const data: Record<string, GitHubClientProject> = {};
@@ -144,13 +183,23 @@ export async function createColumn(title: string, afterColumnId: string): Promis
     throw new Error('Title is required');
   }
 
+  // Find position of the column we're inserting after - use in-memory data
+  const allColumns = get(columns);
+  const afterColumn = allColumns.find(col => col.id === afterColumnId);
+  if (!afterColumn) {
+    throw new Error('Reference column not found');
+  }
+
+  const newPosition = afterColumn.position + 1;
+
   await dbClient.columnCreate({
-    user_id: userId,
+    userId: userId,
     title: title.trim(),
-    is_system: false,
-    sort_field: 'updatedAt',
-    sort_direction: 'desc'
-  }, afterColumnId);
+    position: newPosition,
+    isSystem: false,
+    sortField: 'updatedAt',
+    sortDirection: 'desc'
+  });
 
   // Refresh columns
   await refreshColumns();
@@ -162,7 +211,7 @@ export async function deleteColumn(column: Column): Promise<void> {
 
   // Move all projects to "No Status" column first
   const allProjects = get(projects);
-  const projectsToMove = allProjects.filter(p => p.column_id === column.id);
+  const projectsToMove = allProjects.filter(p => p.columnId === column.id);
 
   if (projectsToMove.length > 0) {
     const allColumns = get(columns);
@@ -171,7 +220,7 @@ export async function deleteColumn(column: Column): Promise<void> {
       throw new Error('No Status column not found');
     }
 
-    await dbClient.projectUpdateColumnMultiple(
+    await dbClient.projectUpdateColumn(
       projectsToMove.map(p => p.id),
       userId,
       noStatusColumn.id
@@ -179,7 +228,7 @@ export async function deleteColumn(column: Column): Promise<void> {
   }
 
   // Delete the column
-  await dbClient.columnDelete(column.id, userId);
+  await dbClient.columnDelete(column.id, userId, column.position);
 
   // Refresh data
   await refreshColumns();
@@ -202,19 +251,16 @@ export async function moveColumnLeft(column: Column): Promise<void> {
   const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
-  if (column.is_system) {
+  if (column.isSystem) {
     throw new Error("Can't move system columns");
   }
 
-  // Check if we're trying to move before "No Status"
-  const allColumns = get(columns);
-  const currentIndex = allColumns.findIndex(s => s.id === column.id);
-  const prevColumn = allColumns[currentIndex - 1];
-  if (prevColumn?.title === 'No Status') {
+  if (column.position <= 1) {
     throw new Error("Can't move before No Status");
   }
 
-  await dbClient.columnSwapLeft(column.id, userId);
+  const newPosition = column.position - 1;
+  await dbClient.columnUpdatePosition(column.id, userId, column.position, newPosition);
   await refreshColumns();
 }
 
@@ -222,19 +268,22 @@ export async function moveColumnRight(column: Column): Promise<void> {
   const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
-  if (column.is_system) {
+  if (column.isSystem) {
     throw new Error("Can't move system columns");
   }
 
-  // Check if we're trying to move past "Closed"
+  // Get all columns to check max position
   const allColumns = get(columns);
-  const currentIndex = allColumns.findIndex(s => s.id === column.id);
-  const nextColumn = allColumns[currentIndex + 1];
-  if (nextColumn?.title === 'Closed') {
+  const maxNonSystemPosition = Math.max(
+    ...allColumns.filter(col => !col.isSystem).map(col => col.position)
+  );
+
+  if (column.position >= maxNonSystemPosition) {
     throw new Error("Can't move past Closed");
   }
 
-  await dbClient.columnSwapRight(column.id, userId);
+  const newPosition = column.position + 1;
+  await dbClient.columnUpdatePosition(column.id, userId, column.position, newPosition);
   await refreshColumns();
 }
 
@@ -244,7 +293,7 @@ export async function updateColumnSortField(columnId: string, sortField: SortFie
 
   // Optimistic update
   columns.update(cols => cols.map(col =>
-    col.id === columnId ? { ...col, sort_field: sortField } : col
+    col.id === columnId ? { ...col, sortField: sortField } : col
   ));
 
   try {
@@ -262,7 +311,7 @@ export async function updateColumnSortDirection(columnId: string, sortDirection:
 
   // Optimistic update
   columns.update(cols => cols.map(col =>
-    col.id === columnId ? { ...col, sort_direction: sortDirection } : col
+    col.id === columnId ? { ...col, sortDirection: sortDirection } : col
   ));
 
   try {
@@ -285,10 +334,10 @@ export async function createLabel(title: string, color: string, textColor: 'whit
   }
 
   const newLabel = await dbClient.labelCreate({
-    user_id: userId,
+    userId: userId,
     title: title.trim(),
     color: color,
-    text_color: textColor
+    textColor: textColor
   });
 
   await refreshLabels();
@@ -307,12 +356,18 @@ export async function deleteLabel(labelId: string): Promise<void> {
 }
 
 export async function addLabelToProject(projectId: string, labelId: string): Promise<void> {
-  await dbClient.addLabelToProject(projectId, labelId);
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('User not authenticated');
+
+  await dbClient.projectLabelRelationCreate({ projectId, labelId, userId });
   await refreshProjects();
 }
 
 export async function removeLabelFromProject(projectId: string, labelId: string): Promise<void> {
-  await dbClient.removeLabelFromProject(projectId, labelId);
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('User not authenticated');
+
+  await dbClient.projectLabelRelationDelete(projectId, labelId, userId);
   await refreshProjects();
 }
 
@@ -324,11 +379,11 @@ export async function moveProjectToColumn(projectId: string, columnId: string): 
 
   // Optimistic update
   projects.update(projs => projs.map(proj =>
-    proj.id === projectId ? { ...proj, column_id: columnId } : proj
+    proj.id === projectId ? { ...proj, columnId: columnId } : proj
   ));
 
   try {
-    await dbClient.projectUpdateColumn(projectId, userId, columnId);
+    await dbClient.projectUpdateColumn([projectId], userId, columnId);
   } catch (err) {
     // Revert on error
     await refreshProjects();
@@ -343,8 +398,8 @@ export function sortProjects(projects: DatabaseClientProject[], githubProjects: 
   if (!projects || projects.length === 0) return projects;
 
   // Context-aware sort field validation and defaults
-  let sortField = column.sort_field || 'updatedAt';
-  const sortDirection = column.sort_direction || 'desc';
+  let sortField = column.sortField || 'updatedAt';
+  const sortDirection = column.sortDirection || 'desc';
 
   return [...projects].sort((a, b) => {
     const githubA = githubProjects[a.id];
@@ -411,23 +466,24 @@ export async function syncProjects(_githubProjects: GitHubClientProject[]): Prom
 
 // Column movement helpers
 export function canMoveLeft(column: DatabaseClientColumn, columns: DatabaseClientColumn[]): boolean {
-  if (column.is_system || !columns || columns.length === 0) return false;
+  if (column.isSystem || !columns || columns.length === 0) return false;
   const currentIndex = columns.findIndex(s => s.id === column.id);
   const noStatusColumnIndex = columns.findIndex(s => s.title === 'No Status');
   return currentIndex > noStatusColumnIndex + 1;
 }
 
 export function canMoveRight(column: DatabaseClientColumn, columns: DatabaseClientColumn[]): boolean {
-  if (column.is_system || !columns || columns.length === 0) return false;
+  if (column.isSystem || !columns || columns.length === 0) return false;
   const currentIndex = columns.findIndex(s => s.id === column.id);
   const closedColumnIndex = columns.findIndex(s => s.title === 'Closed');
   return currentIndex < closedColumnIndex - 1;
 }
 
 // Label filtering helpers
-export function getFilteredLabels(projectId: string, projects: DatabaseClientProject[], labels: DatabaseClientLabel[], searchQuery: string = ''): DatabaseClientLabel[] {
-  const projectLabelIds = new Set(projects.find(p => p.id === projectId)?.labels?.map(l => l.id) || []);
-  let availableLabels = labels.filter(l => !projectLabelIds.has(l.id));
+export async function getFilteredLabels(_projectId: string, labels: DatabaseClientLabel[], searchQuery: string = ''): Promise<DatabaseClientLabel[]> {
+  // TODO: Implement using in-memory project-label relations
+  // For now, return all labels filtered by search query
+  let availableLabels = [...labels];
 
   if (searchQuery.trim()) {
     availableLabels = availableLabels.filter(l =>
@@ -438,10 +494,10 @@ export function getFilteredLabels(projectId: string, projects: DatabaseClientPro
   return availableLabels;
 }
 
-export function getProjectCountForLabel(labelId: string, projects: DatabaseClientProject[]): number {
-  return projects.filter(project =>
-    project.labels && project.labels.some(label => label.id === labelId)
-  ).length;
+export async function getProjectCountForLabel(_labelId: string, _userId: string): Promise<number> {
+  // TODO: Implement using in-memory project-label relations
+  // For now, return 0
+  return 0;
 }
 
 // Data refresh functions
@@ -449,7 +505,7 @@ async function refreshColumns(): Promise<void> {
   const userId = await getCurrentUserId();
   if (!userId) return;
 
-  const updatedColumns = await dbClient.columnReadAll(userId);
+  const updatedColumns = await dbClient.columnRead(userId);
   columns.set([...updatedColumns]);
 }
 
@@ -457,7 +513,7 @@ async function refreshProjects(): Promise<void> {
   const userId = await getCurrentUserId();
   if (!userId) return;
 
-  const updatedProjects = await dbClient.projectReadAll(userId);
+  const updatedProjects = await dbClient.projectRead(userId);
   projects.set([...updatedProjects]);
 }
 
@@ -465,6 +521,6 @@ async function refreshLabels(): Promise<void> {
   const userId = await getCurrentUserId();
   if (!userId) return;
 
-  const updatedLabels = await dbClient.labelReadAll(userId);
+  const updatedLabels = await dbClient.labelRead(userId);
   labels.set([...updatedLabels]);
 }

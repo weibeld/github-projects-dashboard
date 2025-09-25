@@ -1,6 +1,6 @@
 // Base auth client - Pure auth operations
 import { supabase } from './supabase';
-import { isMockMode, mockDelay } from './mock/utils';
+import { isMockMode, mockDelay } from '../mock/utils';
 import type { AuthClientSession } from './types';
 
 // Mock data storage (internal to client)
@@ -17,13 +17,9 @@ export async function login(): Promise<void> {
     // In mock mode, login just ensures mock session is available
     if (!mockSession) {
       mockSession = {
-        access_token: 'mock-token',
-        user: {
-          id: 'mock-user',
-          userName: 'mock-user',
-          avatarUrl: 'https://github.com/identicons/mock-user.png',
-          email: 'mock@example.com'
-        }
+        accessToken: 'mock-token',
+        userName: 'mock-user',
+        userAvatarUrl: 'https://github.com/identicons/mock-user.png'
       };
     }
     return;
@@ -62,12 +58,8 @@ export async function getSession(): Promise<AuthClientSession | null> {
   const session = data.session;
 
   return session ? {
-    access_token: session.access_token,
-    user: {
-      id: session.user.id,
-      userName: session.user.user_metadata?.user_name || session.user.email?.split('@')[0] || 'unknown',
-      avatarUrl: session.user.user_metadata?.avatar_url || null,
-      email: session.user.email || null
-    }
+    accessToken: session.access_token,
+    userName: session.user.user_metadata.user_name,
+    userAvatarUrl: session.user.user_metadata.avatar_url
   } : null;
 }

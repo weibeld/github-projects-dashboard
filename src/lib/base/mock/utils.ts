@@ -12,3 +12,11 @@ export function isMockMode(): boolean {
 export function mockDelay(ms: number = 100): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+export function getMockUuid(): string {
+  return crypto.randomUUID();
+}
+
+export function getMockCurrentDateString(): string {
+  return new Date().toISOString();
+}

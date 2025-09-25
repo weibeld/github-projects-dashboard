@@ -1,7 +1,7 @@
 // Base GitHub client - Pure GitHub API operations
 // This client is "dumb" and contains no business logic
 
-import { isMockMode, mockDelay } from './mock/utils';
+import { isMockMode, mockDelay } from '../mock/utils';
 import type { GitHubClientProject } from './types';
 
 // GitHub API response type (local to this client) - array of projects

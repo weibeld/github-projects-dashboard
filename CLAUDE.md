@@ -169,3 +169,4 @@ Use British spelling (e.g. "Colour" instead of "Color") except in identifiers in
 Do what has been asked; nothing more, nothing less.
 NEVER create files unless they're absolutely necessary for achieving your goal.
 ALWAYS prefer editing an existing file to creating a new one.
+If you create database migration scripts or other files of an ephemeral nature, ALWAYS create them in the tmp/ directory (in order to exclude them from automatic Git tracking)

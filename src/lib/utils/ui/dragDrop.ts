@@ -90,7 +90,7 @@ export async function handleDrop(
   }
 
   // Don't process if dropping in same column
-  if (draggedProj.column_id === targetColumnId) {
+  if (draggedProj.columnId === targetColumnId) {
     draggedProject.set(null);
     throw new Error('Cannot drop in same column');
   }

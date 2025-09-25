@@ -88,7 +88,7 @@ export function filterProjects(
     // Explicit field syntax like "title:foo" or "label:bar" for precise targeting
     const searchableProjects = projects.map(project => {
       const githubProject = githubProjectsData[project.id];
-      const projectLabels = (project.labels || []).map(l => l.title);
+      const projectLabels: string[] = []; // TODO: Implement proper label lookup via project-label relationships
 
       return {
         ...project,

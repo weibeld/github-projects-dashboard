@@ -53,66 +53,71 @@ export const pretestData = {
     columns: [
       {
         id: "col-1",
-        user_id: "mock-user",
+        userId: "mock-user",
         title: "Test Column 1",
-        is_system: false,
-        sort_field: "updatedAt",
-        sort_direction: "desc"
+        position: 0,
+        isSystem: false,
+        sortField: "updatedAt",
+        sortDirection: "desc"
       },
       {
         id: "col-2",
-        user_id: "mock-user",
+        userId: "mock-user",
         title: "Test Column 2",
-        is_system: false,
-        sort_field: "updatedAt",
-        sort_direction: "desc"
+        position: 1,
+        isSystem: false,
+        sortField: "updatedAt",
+        sortDirection: "desc"
       }
     ],
     projects: [
       {
         id: "proj-1",
-        user_id: "mock-user",
-        column_id: "col-closed"
+        userId: "mock-user",
+        columnId: "col-closed"
       },
       {
         id: "proj-2",
-        user_id: "mock-user",
-        column_id: "col-no-status"
+        userId: "mock-user",
+        columnId: "col-no-status"
       },
       {
         id: "proj-3",
-        user_id: "mock-user",
-        column_id: "col-no-status"
+        userId: "mock-user",
+        columnId: "col-no-status"
       }
     ],
     labels: [
       {
         id: "label-1",
-        user_id: "mock-user",
+        userId: "mock-user",
         title: "label-1",
         color: "#ff0000",
-        text_color: "white"
+        textColor: "white"
       },
       {
         id: "label-2",
-        user_id: "mock-user",
+        userId: "mock-user",
         title: "label-2",
         color: "#00ff00",
-        text_color: "black"
+        textColor: "black"
       }
     ],
     project_labels: [
       {
-        project_id: "proj-1",
-        label_id: "label-1"
+        projectId: "proj-1",
+        labelId: "label-1",
+        userId: "mock-user"
       },
       {
-        project_id: "proj-2",
-        label_id: "label-1"
+        projectId: "proj-2",
+        labelId: "label-1",
+        userId: "mock-user"
       },
       {
-        project_id: "proj-4",
-        label_id: "label-1"
+        projectId: "proj-4",
+        labelId: "label-1",
+        userId: "mock-user"
       }
     ]
   }

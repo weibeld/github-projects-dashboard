@@ -125,4 +125,12 @@ The project uses strict TypeScript type checking for dev serving, building, and 
 
 - **Strict mode enabled**: Maximum type safety with strict TypeScript configuration
 - **Compile-time validation**: All scripts in `package.json` include TypeScript checking before execution
-- **All-encompassign checking**: every type check checks all of the app code, test code, and config files
+- **All-encompassing checking**: every type check checks all of the app code, test code, and config files
+
+## Important Development Notes
+
+### Database Schema and Database Client Types
+
+- The database schema in `supabase-schema.sql` and the database client types in `src/lib/base/types.ts` must currently be **manually** kept in sync
+- This synchronisation is currently **not** enforced at the code level: updating the database schema without also udpating the types in `src/lib/base/types.ts` might result in **hard-to-detect runtime errors** (due to the non-enforcement of exact type matches in TypeScript/JavaScript)
+- To address this issue, a runtime validation system like [Zod](https://zod.dev/) could be put in place in future work

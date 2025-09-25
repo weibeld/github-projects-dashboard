@@ -7,7 +7,7 @@ import type {
   DatabaseClientLabel,
   DatabaseClientProject,
   GitHubClientProject
-} from '../base/types';
+} from '../base/clients/types';
 
 // ===== BUSINESS DOMAIN TYPES =====
 

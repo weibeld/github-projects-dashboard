@@ -9,15 +9,13 @@ import type {
   DatabaseClientProject,
   DatabaseClientLabel,
   DatabaseClientProjectLabel
-} from '../types';
+} from '../clients/types';
 
 // Comprehensive mock data structure - all fields optional with sensible defaults
 export interface MockData {
   auth?: {
     userName?: string;          // Default: 'mock-user'
-    email?: string;             // Default: 'mock@example.com'
-    avatarUrl?: string | null;  // Default: GitHub identicon URL
-    id?: string;                // Default: 'mock-user'
+    userAvatarUrl?: string;     // Default: GitHub identicon URL
   };
   github?: {
     projects?: GitHubClientProject[];  // Default: []
