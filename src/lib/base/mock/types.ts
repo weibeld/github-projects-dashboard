@@ -4,27 +4,27 @@
  */
 
 import type {
-  GitHubClientProject,
-  DatabaseClientColumn,
-  DatabaseClientProject,
-  DatabaseClientLabel,
-  DatabaseClientProjectLabel
-} from '../clients/types';
+  RawGitHub,
+  RawColumn,
+  RawProject,
+  RawLabel,
+  RawProjectLabel
+} from '../types';
 
 // Comprehensive mock data structure - all fields optional with sensible defaults
 export interface MockData {
   auth?: {
-    userName?: string;          // Default: 'mock-user'
-    userAvatarUrl?: string;     // Default: GitHub identicon URL
+    githubUsername?: string;          // Default: 'mock-user'
+    githubAvatarUrl?: string;     // Default: GitHub identicon URL
   };
   github?: {
-    projects?: GitHubClientProject[];  // Default: []
+    projects?: RawGitHub[];  // Default: []
   };
   database?: {
-    columns?: DatabaseClientColumn[];       // Default: []
-    projects?: DatabaseClientProject[];    // Default: []
-    labels?: DatabaseClientLabel[];        // Default: []
-    project_labels?: DatabaseClientProjectLabel[];  // Default: []
+    columns?: RawColumn[];       // Default: []
+    projects?: RawProject[];    // Default: []
+    labels?: RawLabel[];        // Default: []
+    project_labels?: RawProjectLabel[];  // Default: []
   };
 }
 

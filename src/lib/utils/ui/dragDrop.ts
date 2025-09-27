@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
-import type { Project, Column } from '../../business/types';
-import { moveProjectToColumn } from '../../business';
+import type { Project, Column } from '../../business/legacy/types';
+import { moveProjectToColumn } from '../../business/legacy';
 
 // Drag and drop state
 export const draggedProject = writable<Project | null>(null);

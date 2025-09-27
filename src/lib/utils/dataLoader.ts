@@ -1,5 +1,5 @@
-import { loadAllData, loadProjectsFromGitHub } from '../business';
-import type { Column, Project, Label } from '../business/types';
+import { loadAllData, loadProjectsFromGitHub } from '../business/legacy';
+import type { Column, Project, Label } from '../business/legacy/types';
 
 /**
  * Load all dashboard data when user logs in

@@ -9,7 +9,7 @@ The application follows a clean layered architecture with separation of concerns
 │                                                                              │
 │   ┌───────────────────────────────────────────┐                              │
 │   │                                           │                              │
-│   │                Application                │                              │
+│   │                     UI                    │                              │
 │   │                                           │                              │
 │   ├─────────────────────┐                     │                              │
 │   │                     │                     │                              │
@@ -39,7 +39,7 @@ The application follows a clean layered architecture with separation of concerns
 - **Mock support**: All clients support mock mode for testing and development
 - **Single data core**: Centralised, controlled data access through business layer
 
-#### Base Layer
+### Base Layer
 
 The base layer contains clients that connect to the external world, providing encapsulated and "dumb" interfaces:
 
@@ -53,7 +53,7 @@ Each client is designed to be:
 - **"Dumb"**: No business logic, pure data fetching/posting operations
 - **Mock-enabled**: Can switch between real and mock implementations transparently
 
-#### Business Layer
+### Business Layer
 
 The business layer contains the main business logic and serves as the central orchestration point:
 
@@ -62,6 +62,27 @@ The business layer contains the main business logic and serves as the central or
 - **Centralised data access**: Optimised for clean, controlled access to all data sources
 - **UI interaction support**: Designed to efficiently implement required UI interactions
 - **Single source of truth**: Maintains consistent state and data relationships across the application
+
+## Functionality by Layer
+
+This section outlines which layer provides each major piece of functionality:
+
+### Base Layer
+
+- **Authentication**: OAuth authentication with GitHub
+- **GitHub API**: fetching of data from GitHub
+- **Database**: Supabase database CRUD operations
+
+### Business Layer
+
+- **Data stores**: source-of-truth data in reactive data stores
+- **UI data**: reactive denormalised data structures for UI display, base don data stores
+- **Authentication cycle**: reactive data structure with authentication state and user information, lifecyle functions
+- **Business operations**: create/edit/delete on columns, projects, labels
+
+### UI Layer
+
+- **Filtering**: dynamic filtering of displayed UI data
 
 ## Testing
 
@@ -85,7 +106,7 @@ For testing, the architecture supports mock mode to enable comprehensive E2E tes
 │                        │ │ Run tests              │                          │
 │   ┌────────────────────▼─┴────────────────────┐   │                          │
 │   │                                           │   │                          │
-│   │                Application                │   │                          │
+│   │                     UI                    │   │                          │
 │   │                                           │   │                          │
 │   ├─────────────────────┐                     │   │                          │
 │   │                     │                     │   │                          │

@@ -1,13 +1,13 @@
 // Business layer types - Public API for application code
 // Re-exports all types that application code should use
 
-// Import all base client types
+// Import all base types
 import type {
-  DatabaseClientColumn,
-  DatabaseClientLabel,
-  DatabaseClientProject,
-  GitHubClientProject
-} from '../base/clients/types';
+  RawColumn,
+  RawLabel,
+  RawProject,
+  RawGitHub
+} from '../../base/types';
 
 // ===== BUSINESS DOMAIN TYPES =====
 
@@ -19,12 +19,12 @@ export type SortDirection = 'asc' | 'desc';
 // For now, they alias the client types, but can evolve independently
 export type {
   // Database types (aliased from client types)
-  DatabaseClientColumn as Column,
-  DatabaseClientLabel as Label,
-  DatabaseClientProject as Project,
+  RawColumn as Column,
+  RawLabel as Label,
+  RawProject as Project,
 
   // GitHub types (aliased from client types)
-  GitHubClientProject as GitHubProject,
+  RawGitHub as RawGitHub,
 
 };
 

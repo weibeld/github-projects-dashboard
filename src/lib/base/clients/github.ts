@@ -2,7 +2,7 @@
 // This client is "dumb" and contains no business logic
 
 import { isMockMode, mockDelay } from '../mock/utils';
-import type { GitHubClientProject } from './types';
+import type { RawGitHub } from '../types';
 
 // GitHub API response type (local to this client) - array of projects
 type GitHubApiData = Array<{
@@ -21,10 +21,10 @@ type GitHubApiData = Array<{
 }>;
 
 // Mock data storage (internal to client)
-let mockProjects: GitHubClientProject[] = [];
+let mockProjects: RawGitHub[] = [];
 
 // Mock data setter (called by the mock component)
-export function initializeMockData(projects: GitHubClientProject[]): void {
+export function initializeMockData(projects: RawGitHub[]): void {
   mockProjects = [...projects];
 }
 
@@ -52,7 +52,7 @@ const PROJECTS_QUERY = `
   }`;
 
 // Main client function - fetch user's GitHub projects
-export async function queryGitHubProjects(apiToken: string): Promise<GitHubClientProject[]> {
+export async function queryGitHubProjects(apiToken: string): Promise<RawGitHub[]> {
   if (isMockMode()) {
     await mockDelay();
     return [...mockProjects];
@@ -77,7 +77,7 @@ export async function queryGitHubProjects(apiToken: string): Promise<GitHubClien
   const result = await response.json();
   const apiData = result?.data?.viewer?.projectsV2?.nodes as GitHubApiData || [];
 
-  return apiData.map((p): GitHubClientProject => ({
+  return apiData.map((p): RawGitHub => ({
     id: p.id,
     number: p.number,
     title: p.title,

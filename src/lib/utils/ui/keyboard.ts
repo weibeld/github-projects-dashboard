@@ -1,12 +1,12 @@
 import { get } from 'svelte/store';
-import type { Column, Label } from '../../business/types';
+import type { Column, Label } from '../../business/legacy/types';
 import {
   selectedLabelIndex,
   activeDropdownProjectId,
   activeSortFieldDropdown,
   selectedSortFieldIndex
 } from './uiState';
-import { addLabelToProject } from '../../business';
+import { addLabelToProject } from '../../business/legacy';
 
 /**
  * Scroll to selected label to ensure it's visible

@@ -4,7 +4,7 @@
  */
 
 import type { MockData } from './types';
-import type { AuthClientSession } from '../clients/types';
+import type { RawAuth } from '../types';
 import { initializeMockData as initializeMockDataAuth } from '../clients/auth';
 import { initializeMockData as initializeMockDataGitHub } from '../clients/github';
 import { initializeMockData as initializeMockDataDatabase } from '../clients/database';
@@ -13,12 +13,12 @@ import { initializeMockData as initializeMockDataDatabase } from '../clients/dat
 export function defineMockData(data: MockData = {}): void {
   // Auth data - always initialize with defaults for complete session
   const authData = {
-    userName: data.auth?.userName ?? 'mock-user',
-    userAvatarUrl: data.auth?.userAvatarUrl ?? 'https://github.com/identicons/mock-user.png'
+    githubUsername: data.auth?.githubUsername ?? 'mock-user',
+    githubAvatarUrl: data.auth?.githubAvatarUrl ?? 'https://github.com/identicons/mock-user.png'
   };
 
-  const fullSession: AuthClientSession = {
-    accessToken: 'mock-token',
+  const fullSession: RawAuth = {
+    githubToken: 'mock-token',
     ...authData
   };
 

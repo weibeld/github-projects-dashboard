@@ -161,8 +161,14 @@ Before proceeding with any development work, always ensure that:
 
 This project maintains strict quality standards with zero tolerance for build warnings or type errors.
 
-## Spelling
+## Coding Style
 
+### Import Conventions
+- **Local TypeScript imports**: Use no file extensions (e.g. `import { foo } from './bar'`, not `'./bar.ts'` or `'./bar.js'`)
+- **Node module imports**: Keep as-is (e.g. `import { writable } from 'svelte/store'`)
+- **Relative imports**: Always use relative paths for local files (e.g. `'../base/clients/auth'`)
+
+### Spelling
 Use British spelling (e.g. "Colour" instead of "Color") except in identifiers in the code (e.g. name variables 'color', not 'colour').
 
 # important-instruction-reminders

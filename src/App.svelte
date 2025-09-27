@@ -2,17 +2,13 @@
   import { onMount } from 'svelte';
   import { flip } from 'svelte/animate';
   import {
+    checkAuthAndInitAuthStore,
     login,
     logout,
-    isLoggedIn,
-    isLoggingIn,
-    isLoggingOut,
-    initializeAuth,
-    githubProjects,
-    sortProjects
+    loadDataAndInitDataStore
   } from './lib/business';
-  import type { Column, Project, Label, SortField, SortDirection, GitHubProject } from './lib/business/types';
-  import { SORT_FIELD_LABELS, SORT_DIRECTION_LABELS } from './lib/business/types';
+  import type { Column, Project, Label, SortField, SortDirection, GitHubProject } from './lib/business/legacy/types';
+  import { SORT_FIELD_LABELS, SORT_DIRECTION_LABELS } from './lib/business/legacy/types';
   import Modal from './components/Modal.svelte';
   import ButtonFrameless from './components/ButtonFrameless.svelte';
   import ButtonFramed from './components/ButtonFramed.svelte';
@@ -23,7 +19,9 @@
   // Import extracted utilities and actions
   import { formatTimestamp, formatTooltip } from './lib/utils/dateFormatting';
   import { getOptimalTextColor, toggleTextColor } from './lib/utils/colorUtils';
-  import { filterProjects } from './lib/utils/searchUtils';
+  // import { filterProjects } from './lib/utils/searchUtils'; // Disabled - using new filter.ts
+  import { filter } from './lib/utils/filter';
+  import { uiData as fullUiData, uiAuth } from './lib/business';
   import { loadDashboardData } from './lib/utils/dataLoader';
   import { isDuplicateLabelName, isDuplicateColumnName } from './lib/utils/validation';
 
@@ -62,8 +60,7 @@
     columnToEdit,
     editColumnTitle,
     editingColumn,
-    justOpenedEditModal,
-    searchQuery
+    justOpenedEditModal
   } from './lib/utils/ui/uiState';
 
   // Import business functions
@@ -83,7 +80,7 @@
     removeLabelFromProject,
     getFilteredLabels,
     getProjectCountForLabel
-  } from './lib/business';
+  } from './lib/business/legacy';
 
   // Import drag and drop functionality
   import {
@@ -108,7 +105,7 @@
   let githubProjectsMap: Record<string, GitHubProject> = {};
   let loading = false;
   let error = '';
-  let filteredProjects: Project[] = [];
+  let filterQuery = '';
 
   // Create store wrappers for arrays
   const columnsStore = { set: (value: Column[]) => { columns = value; } };
@@ -208,46 +205,37 @@
     editLabelTextColor.set(getOptimalTextColor($editLabelColor));
   }
 
+  // Reruns when $fullUiData (tied to uiData in business layer) or filterQuery (tied to filter input field) changes.
+  // Filter input is empty     → displayUiData = $fullUiData
+  // Filter input is non-empty → displayUiData = filter($fullUiData, filterQuery)
+  $: displayUiData = $fullUiData && filterQuery.trim() ? filter($fullUiData, filterQuery) : $fullUiData;
 
-  // Subscribe to GitHub projects data from store
-  $: githubProjectsMap = $githubProjects;
-
-
-  // Apply search filtering using extracted utility
-  $: filteredProjects = filterProjects($searchQuery, projects, githubProjectsMap);
-
-  // Reactive grouped projects - recomputed whenever filteredProjects or columns change
-  $: groupedProjects = columns.reduce((acc, column) => {
-    acc[column.id] = filteredProjects
-      .filter(p => p.column_id === column.id)
-      .sort((a, b) => a.position - b.position);
+  // Extract columns and projects from display UI data
+  $: columns = displayUiData?.columns || [];
+  $: groupedProjects = displayUiData?.columns.reduce((acc, column) => {
+    acc[column.id] = column.projects || [];
     return acc;
-  }, {} as Record<string, Project[]>);
+  }, {} as Record<string, any[]>) || {};
+
+  // Calculate total projects for summary
+  $: totalDisplayProjects = displayUiData?.columns.reduce((total, column) => total + column.projects.length, 0) || 0;
+  $: totalFullProjects = $fullUiData?.columns.reduce((total, column) => total + column.projects.length, 0) || 0;
 
 
-  onMount(() => {
+  // Load data when auth becomes available
+  $: if ($uiAuth) {
+    loadDataAndInitDataStore().catch(err => {
+      error = err instanceof Error ? err.message : 'Failed to load data';
+      console.error('Dashboard error:', err);
+    });
+  }
+
+  onMount(async () => {
     // Setup mock mode if enabled
     setupMockMode();
 
-    // Unified data loading logic for both test and normal modes
-    isLoggedIn.subscribe(async (loggedIn) => {
-      if (loggedIn) {
-        loading = true;
-        error = '';
-
-        try {
-          const result = await loadDashboardData();
-          columns = result.columns;
-          projects = result.projects;
-          labels = result.labels;
-        } catch (err) {
-          error = err instanceof Error ? err.message : 'Failed to load data';
-          console.error('Dashboard error:', err);
-        } finally {
-          loading = false;
-        }
-      }
-    });
+    // Initialize auth if user has existing session
+    await checkAuthAndInitAuthStore();
 
     // Global error handler for unhandled promise rejections
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
@@ -303,15 +291,19 @@
     <div class="max-w-7xl mx-auto px-4 py-4">
       <div class="flex justify-between items-center">
       <h1 class="text-2xl font-bold _text-black">GitHub Projects Dashboard</h1>
-      {#if $isLoggedIn}
-        <ButtonFramed
-          variant="red"
-          loading={$isLoggingOut}
-          loadingText="Logging out..."
-          on:click={logout}
-        >
-          Logout
-        </ButtonFramed>
+      {#if $uiAuth}
+        <div class="flex items-center gap-4">
+          <div class="flex items-center gap-2">
+            <img src={$uiAuth.githubAvatarUrl} alt="Avatar" class="w-8 h-8 rounded-full">
+            <span class="_text-black">{$uiAuth.githubUsername}</span>
+          </div>
+          <ButtonFramed
+            variant="red"
+            on:click={logout}
+          >
+            Logout
+          </ButtonFramed>
+        </div>
       {/if}
       </div>
     </div>
@@ -319,7 +311,7 @@
 
   <!-- Main Content -->
   <div class="px-4 py-8 mx-auto">
-    {#if $isLoggedIn}
+    {#if $uiAuth}
       {#if loading}
         <div class="flex items-center justify-center min-h-[400px]">
           <div class="text-center">
@@ -350,15 +342,15 @@
                 <Search />
               </div>
               <InputField
-                bind:value={$searchQuery}
-                placeholder="Search projects... (e.g., &quot;app&quot;, &quot;label:frontend&quot;, &quot;updated:>1 month ago&quot;)"
+                bind:value={filterQuery}
+                placeholder="Filter projects... (e.g., &quot;app&quot;, &quot;label:frontend&quot;, &quot;updated:>1 month ago&quot;)"
                 class="flex-1"
               />
-              {#if $searchQuery}
+              {#if filterQuery}
                 <ButtonFrameless
                   variant="red"
-                  title="Clear search"
-                  on:click={() => searchQuery.set('')}
+                  title="Clear filter"
+                  on:click={() => filterQuery = ''}
                 >
                   <X class="_icon-normal" />
                 </ButtonFrameless>
@@ -367,12 +359,12 @@
 
 
             <!-- Results Summary -->
-            {#if $searchQuery}
+            {#if filterQuery}
               <div class="mt-3 _text-regular _text-gray-black">
-                Showing {filteredProjects.length} of {projects.length} projects
-                {#if filteredProjects.length !== projects.length}
+                Showing {totalDisplayProjects} of {totalFullProjects} projects
+                {#if totalDisplayProjects !== totalFullProjects}
                   <span class="ml-2 px-2 py-1 _bg-blue-light _text-blue rounded-full _text-small">
-                    {projects.length - filteredProjects.length} hidden
+                    {totalFullProjects - totalDisplayProjects} hidden
                   </span>
                 {/if}
               </div>
@@ -1011,8 +1003,6 @@
             variant="black"
             size="large"
             class="mx-auto"
-            loading={$isLoggingIn}
-            loadingText="Logging in..."
             on:click={login}
           >
             Sign in with GitHub

@@ -1,36 +1,34 @@
 import { supabase } from './supabase';
 import { isMockMode, mockDelay, getMockUuid } from '../mock/utils';
-import type { DatabaseClientColumn, DatabaseClientLabel, DatabaseClientProject, DatabaseClientProjectLabel } from './types';
+import type { RawColumn, RawLabel, RawProject, RawProjectLabel } from '../types';
 
-// Mock data storage with cascade delete metadata
+// Mock data storage (simple structure)
 const mockData = {
-  columns: { data: [] as DatabaseClientColumn[], cascadeDeletes: [] },
-  projects: { data: [] as DatabaseClientProject[], cascadeDeletes: [{ table: 'project_labels', field: 'projectId' }] },
-  labels: { data: [] as DatabaseClientLabel[], cascadeDeletes: [{ table: 'project_labels', field: 'labelId' }] },
-  project_labels: { data: [] as DatabaseClientProjectLabel[], cascadeDeletes: [] }
+  columns: [] as RawColumn[],
+  projects: [] as RawProject[],
+  labels: [] as RawLabel[],
+  project_labels: [] as RawProjectLabel[]
 };
 
 // Mock data setter
-export function initializeMockData(data: { columns: DatabaseClientColumn[]; projects: DatabaseClientProject[]; labels: DatabaseClientLabel[]; project_labels: DatabaseClientProjectLabel[]; }): void {
-  mockData.columns.data = [...data.columns];
-  mockData.projects.data = [...data.projects];
-  mockData.labels.data = [...data.labels];
-  mockData.project_labels.data = [...data.project_labels];
+export function initializeMockData(data: { columns: RawColumn[]; projects: RawProject[]; labels: RawLabel[]; project_labels: RawProjectLabel[]; }): void {
+  mockData.columns = [...data.columns];
+  mockData.projects = [...data.projects];
+  mockData.labels = [...data.labels];
+  mockData.project_labels = [...data.project_labels];
 }
 
 //==============================================================================
 // COLUMN FUNCTIONS
 //==============================================================================
 
-// Create a new column at specific position
-export async function columnCreate(column: Omit<DatabaseClientColumn, 'id'>): Promise<DatabaseClientColumn> {
-  // Shift higher-order columns to the right
-  await updateRecordIncrement('columns', column.userId, 'position', column.position, undefined, 1);
-  return await insertRecord<DatabaseClientColumn>('columns', column);
+// Create a new column (single operation only)
+export async function columnCreate(column: Omit<RawColumn, 'id'>): Promise<RawColumn> {
+  return await insertRecord<RawColumn>('columns', column);
 }
 
-export async function columnRead(userId: string): Promise<DatabaseClientColumn[]> {
-  return await selectRecords<DatabaseClientColumn>('columns', userId, 'position');
+export async function columnRead(userId: string): Promise<RawColumn[]> {
+  return await selectRecords<RawColumn>('columns', userId, 'position');
 }
 
 export async function columnUpdateTitle(columnId: string, userId: string, title: string): Promise<void> {
@@ -45,40 +43,26 @@ export async function columnUpdateSortDirection(columnId: string, userId: string
   await updateRecord('columns', columnId, userId, 'sort_direction', sortDirection);
 }
 
-// Update the position of a column (shift other columns if necessary)
-export async function columnUpdatePosition(columnId: string, userId: string, oldPosition: number, newPosition: number): Promise<void> {
-  if (oldPosition === newPosition) {
-    return; // No change needed
-  }
-  // Change position of other columns
-  if (oldPosition < newPosition) {
-    // Moving right: shift left between old+1 and new (inclusive)
-    await updateRecordIncrement('columns', userId, 'position', oldPosition+1, newPosition, -1);
-  } else {
-    // Moving left: shift right between new and old-1 (inclusive)
-    await updateRecordIncrement('columns', userId, 'position', newPosition, oldPosition-1, 1);
-  }
-  // Change position of column itself
-  await updateRecord('columns', columnId, userId, 'position', newPosition);
+// Update the position of a column (single operation only)
+export async function columnUpdatePosition(columnId: string, userId: string, position: number): Promise<void> {
+  await updateRecord('columns', columnId, userId, 'position', position);
 }
 
-// Delete a column and reorder positions
-export async function columnDelete(columnId: string, userId: string, position: number): Promise<void> {
+// Delete a column (single operation only)
+export async function columnDelete(columnId: string, userId: string): Promise<void> {
   await deleteRecord('columns', columnId, userId);
-  // Shift higher-order columns to the left
-  await updateRecordIncrement('columns', userId, 'position', position + 1, undefined, -1);
 }
 
 //==============================================================================
 // LABEL FUNCTIONS
 //==============================================================================
 
-export async function labelCreate(label: Omit<DatabaseClientLabel, 'id'>): Promise<DatabaseClientLabel> {
-  return await insertRecord<DatabaseClientLabel>('labels', label);
+export async function labelCreate(label: Omit<RawLabel, 'id'>): Promise<RawLabel> {
+  return await insertRecord<RawLabel>('labels', label);
 }
 
-export async function labelRead(userId: string): Promise<DatabaseClientLabel[]> {
-  return await selectRecords<DatabaseClientLabel>('labels', userId, 'title');
+export async function labelRead(userId: string): Promise<RawLabel[]> {
+  return await selectRecords<RawLabel>('labels', userId, 'title');
 }
 
 export async function labelUpdateTitle(labelId: string, userId: string, title: string): Promise<void> {
@@ -101,18 +85,17 @@ export async function labelDelete(labelId: string, userId: string): Promise<void
 // PROJECT FUNCTIONS
 //==============================================================================
 
-export async function projectCreate(project: DatabaseClientProject): Promise<DatabaseClientProject> {
-  return await insertRecord<DatabaseClientProject>('projects', project);
+export async function projectCreate(project: RawProject): Promise<RawProject> {
+  return await insertRecord<RawProject>('projects', project);
 }
 
-export async function projectRead(userId: string): Promise<DatabaseClientProject[]> {
-  return await selectRecords<DatabaseClientProject>('projects', userId);
+export async function projectRead(userId: string): Promise<RawProject[]> {
+  return await selectRecords<RawProject>('projects', userId);
 }
 
-// Update column_id field for one or multiple projects
-export async function projectUpdateColumn(projectIds: string[], userId: string, columnId: string): Promise<void> {
-  if (projectIds.length === 0) return;
-  await updateRecord('projects', projectIds, userId, 'columnId', columnId);
+// Update column_id field for a single project
+export async function projectUpdateColumn(projectId: string, userId: string, columnId: string): Promise<void> {
+  await updateRecord('projects', projectId, userId, 'columnId', columnId);
 }
 
 export async function projectDelete(projectId: string, userId: string): Promise<void> {
@@ -123,12 +106,12 @@ export async function projectDelete(projectId: string, userId: string): Promise<
 // PROJECT-LABEL JUNCTION RELATION FUNCTIONS
 //==============================================================================
 
-export async function projectLabelRelationCreate(projectLabel: DatabaseClientProjectLabel): Promise<DatabaseClientProjectLabel> {
-  return await insertJunction<DatabaseClientProjectLabel>('project_labels', projectLabel);
+export async function projectLabelRelationCreate(projectLabel: RawProjectLabel): Promise<RawProjectLabel> {
+  return await insertJunction<RawProjectLabel>('project_labels', projectLabel);
 }
 
-export async function projectLabelRelationRead(userId: string): Promise<DatabaseClientProjectLabel[]> {
-  return await selectJunctions<DatabaseClientProjectLabel>('project_labels', userId);
+export async function projectLabelRelationRead(userId: string): Promise<RawProjectLabel[]> {
+  return await selectJunctions<RawProjectLabel>('project_labels', userId);
 }
 
 export async function projectLabelRelationDelete(projectId: string, labelId: string, userId: string): Promise<void> {
@@ -152,7 +135,7 @@ async function insertRecord<T extends Record<string, any>>(
       id: getMockUuid()
     } as unknown as T;
 
-    ((mockData as any)[table].data as any[]).push(newRecord);
+    ((mockData as any)[table] as any[]).push(newRecord);
     return newRecord;
   }
 
@@ -173,7 +156,7 @@ async function insertJunction<T extends Record<string, any>>(
 ): Promise<T> {
   if (isMockMode()) {
     await mockDelay();
-    const collection = (mockData as any)[table].data as any[];
+    const collection = (mockData as any)[table] as any[];
     // Check if junction already exists (compare all fields)
     const exists = collection.some((item: any) => {
       return Object.keys(data).every(key => item[key] === data[key]);
@@ -203,7 +186,7 @@ async function selectRecords<T extends Record<string, any>>(
 ): Promise<T[]> {
   if (isMockMode()) {
     await mockDelay();
-    const collection = (mockData as any)[table].data as any[];
+    const collection = (mockData as any)[table] as any[];
     let filtered = collection.filter((item: any) => item.userId === userId);
     if (orderBy) {
       filtered = filtered.sort((a: any, b: any) => {
@@ -234,7 +217,7 @@ async function selectJunctions<T extends Record<string, any>>(
 ): Promise<T[]> {
   if (isMockMode()) {
     await mockDelay();
-    const collection = (mockData as any)[table].data as any[];
+    const collection = (mockData as any)[table] as any[];
     return collection.filter((item: any) => item.userId === userId) as T[];
   }
 
@@ -247,24 +230,21 @@ async function selectJunctions<T extends Record<string, any>>(
   return (data || []).map(row => toCamelCaseFields(row) as T);
 }
 
-// Update a field value of one or more records (UPDATE operation)
+// Update a field value of a single record (UPDATE operation)
 async function updateRecord(
   table: string,
-  ids: string | string[],
+  id: string,
   userId: string,
   field: string,
   value: string | number
 ): Promise<void> {
-  const idArray = Array.isArray(ids) ? ids : [ids];
   if (isMockMode()) {
     await mockDelay();
-    const collection = (mockData as any)[table].data as any[];
-    idArray.forEach(id => {
-      const item = collection.find((item: any) => item.id === id && item.userId === userId);
-      if (item) {
-        (item as any)[field] = value;
-      }
-    });
+    const collection = (mockData as any)[table] as any[];
+    const item = collection.find((item: any) => item.id === id && item.userId === userId);
+    if (item) {
+      (item as any)[field] = value;
+    }
     return;
   }
 
@@ -273,55 +253,12 @@ async function updateRecord(
     .update({
       [field]: value
     })
-    .in('id', idArray)
+    .eq('id', id)
     .eq('user_id', userId);
   if (error) throw error;
 }
 
-// Increment/decrement the field value of all records where the value of this
-// field is between 'fromFieldValue' and 'toFieldValue' (inclusive).
-// This is primarily used on 'position' fields to "shift" an ordered block of
-// items left or right. The 'increment' param may be negative for decrements.
-async function updateRecordIncrement(
-  table: string,
-  userId: string,
-  field: string,
-  fromFieldValue: number | undefined,
-  toFieldValue: number | undefined,
-  increment: number
-): Promise<void> {
-  if (isMockMode()) {
-    const collection = (mockData as any)[table].data as any[];
-    for (const item of collection) {
-      if (item.userId === userId) {
-        const position = item[field];
-        const afterFrom = fromFieldValue === undefined || position >= fromFieldValue;
-        const beforeTo = toFieldValue === undefined || position <= toFieldValue;
-        if (afterFrom && beforeTo) {
-          await updateRecord(table, item.id, userId, field, position + increment);
-        }
-      }
-    }
-    return;
-  }
-
-  let query = supabase
-    .from(table)
-    .select('id, ' + field)
-    .eq('user_id', userId);
-  if (fromFieldValue !== undefined) {
-    query = query.gte(field, fromFieldValue);
-  }
-  if (toFieldValue !== undefined) {
-    query = query.lte(field, toFieldValue);
-  }
-  const { data: itemsToUpdate } = await query;
-  if (itemsToUpdate) {
-    for (const item of itemsToUpdate) {
-      await updateRecord(table, (item as any).id, userId, field, (item as any)[field] + increment);
-    }
-  }
-}
+// updateRecordIncrement function removed - multi-record operations now handled in business layer
 
 // Delete a record (DELETE operation)
 async function deleteRecord(
@@ -331,15 +268,7 @@ async function deleteRecord(
 ): Promise<void> {
   if (isMockMode()) {
     await mockDelay();
-    // Handle cascade deletes for mock mode using metadata
-    const tableConfig = (mockData as any)[table];
-    if (tableConfig?.cascadeDeletes) {
-      for (const cascade of tableConfig.cascadeDeletes) {
-        const targetTableData = (mockData as any)[cascade.table].data;
-        (mockData as any)[cascade.table].data = targetTableData.filter((item: any) => item[cascade.field] !== id);
-      }
-    }
-    const collection = (mockData as any)[table].data as any[];
+    const collection = (mockData as any)[table] as any[];
     const index = collection.findIndex((item: any) => item.id === id && item.userId === userId);
     if (index !== -1) {
       collection.splice(index, 1);
@@ -347,7 +276,7 @@ async function deleteRecord(
     return;
   }
 
-  // Real mode - database handles cascade deletes automatically
+  // Real mode - simple delete (cascade deletes handled in business layer)
   const { error } = await supabase
     .from(table)
     .delete()
@@ -368,7 +297,7 @@ async function deleteJunction(
 ): Promise<void> {
   if (isMockMode()) {
     await mockDelay();
-    const collection = (mockData as any)[table].data as any[];
+    const collection = (mockData as any)[table] as any[];
     const index = collection.findIndex((item: any) =>
       item.userId === userId &&
       item[toCamelCase(field1Name)] === field1Value &&

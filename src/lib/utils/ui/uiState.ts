@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { Label, Column } from '../../business/types';
+import type { Label, Column } from '../../business/legacy/types';
 
 // Label dropdown management
 export const activeDropdownProjectId = writable<string | null>(null);
@@ -51,9 +51,6 @@ export const editingColumn = writable<boolean>(false);
 
 // Track when we just opened edit modal for existing label (to preserve their text color choice)
 export const justOpenedEditModal = writable<boolean>(false);
-
-// General UI state
-export const searchQuery = writable<string>('');
 
 // Functions to reset UI state
 export function resetLabelDropdownState() {

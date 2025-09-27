@@ -1,4 +1,4 @@
-import type { Label, Column } from '../business/types';
+import type { Label, Column } from '../business/legacy/types';
 
 /**
  * Check if a label name is duplicate

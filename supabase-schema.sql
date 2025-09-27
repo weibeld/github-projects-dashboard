@@ -10,9 +10,9 @@ CREATE TABLE IF NOT EXISTS columns (
   user_id TEXT NOT NULL,
   title TEXT NOT NULL,
   position INTEGER NOT NULL, -- Position for ordering columns (0-based)
-  is_system BOOLEAN NOT NULL DEFAULT false, -- For 'No Status' and 'Closed' which can't be deleted
-  sort_field TEXT NOT NULL DEFAULT 'updatedAt', -- Sorting field: managed by business layer
-  sort_direction TEXT NOT NULL DEFAULT 'desc', -- Sorting direction: managed by business layer
+  is_system BOOLEAN NOT NULL, -- For 'No Status' and 'Closed' which can't be deleted
+  sort_field TEXT NOT NULL, -- Sorting field: managed by business layer
+  sort_direction TEXT NOT NULL, -- Sorting direction: managed by business layer
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, title),
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS labels (
   user_id TEXT NOT NULL,
   title TEXT NOT NULL,
   color TEXT NOT NULL,
-  text_color TEXT NOT NULL DEFAULT 'black', -- Text color: managed by business layer
+  text_color TEXT NOT NULL, -- Text color: managed by business layer
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, title)
@@ -35,20 +35,23 @@ CREATE TABLE IF NOT EXISTS labels (
 CREATE TABLE IF NOT EXISTS projects (
   id TEXT PRIMARY KEY, -- GitHub Project ID
   user_id TEXT NOT NULL,
-  column_id UUID NOT NULL REFERENCES columns(id) ON DELETE RESTRICT,
+  column_id UUID NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(id, user_id)
+  UNIQUE(id, user_id),
+  FOREIGN KEY (column_id) REFERENCES columns(id) ON DELETE RESTRICT
 );
 
 -- Create project_labels junction table (many-to-many)
+-- Note: All cascade delete logic is handled in business layer, not database constraints
 CREATE TABLE IF NOT EXISTS project_labels (
   project_id TEXT NOT NULL,
-  label_id UUID NOT NULL REFERENCES labels(id) ON DELETE CASCADE,
+  label_id UUID NOT NULL,
   user_id TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   PRIMARY KEY (project_id, label_id),
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE RESTRICT,
+  FOREIGN KEY (label_id) REFERENCES labels(id) ON DELETE RESTRICT
 );
 
 -- Create indexes for performance
