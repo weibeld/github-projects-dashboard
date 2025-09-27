@@ -10,6 +10,7 @@ import * as githubClient from '../../base/clients/github';
 export * from './types';
 import type { RawColumn, RawLabel, RawProject, RawGitHub } from '../../base/types';
 import type { SortField, SortDirection, Column, Label } from './types';
+import { COLUMN_TYPE_UNASSIGNED, COLUMN_TYPE_CLOSED, COLUMN_TYPE_USER } from '../types';
 
 // ===== AUTH BUSINESS LOGIC =====
 
@@ -106,7 +107,7 @@ export async function ensureSystemColumns(userId: string): Promise<void> {
       userId: userId,
       title: 'No Status',
       position: nextPosition,
-      isSystem: true,
+      type: COLUMN_TYPE_UNASSIGNED,
       sortField: 'updatedAt',
       sortDirection: 'desc'
     });
@@ -119,7 +120,7 @@ export async function ensureSystemColumns(userId: string): Promise<void> {
       userId: userId,
       title: 'Closed',
       position: finalPosition,
-      isSystem: true,
+      type: COLUMN_TYPE_CLOSED,
       sortField: 'closedAt',
       sortDirection: 'desc'
     });
@@ -196,7 +197,7 @@ export async function createColumn(title: string, afterColumnId: string): Promis
     userId: userId,
     title: title.trim(),
     position: newPosition,
-    isSystem: false,
+    type: COLUMN_TYPE_USER,
     sortField: 'updatedAt',
     sortDirection: 'desc'
   });
@@ -250,7 +251,7 @@ export async function moveColumnLeft(column: Column): Promise<void> {
   const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
-  if (column.isSystem) {
+  if (column.type !== COLUMN_TYPE_USER) {
     throw new Error("Can't move system columns");
   }
 
@@ -267,14 +268,14 @@ export async function moveColumnRight(column: Column): Promise<void> {
   const userId = await getCurrentUserId();
   if (!userId) throw new Error('User not authenticated');
 
-  if (column.isSystem) {
+  if (column.type !== COLUMN_TYPE_USER) {
     throw new Error("Can't move system columns");
   }
 
   // Get all columns to check max position
   const allColumns = get(columns);
   const maxNonSystemPosition = Math.max(
-    ...allColumns.filter(col => !col.isSystem).map(col => col.position)
+    ...allColumns.filter(col => col.type === COLUMN_TYPE_USER).map(col => col.position)
   );
 
   if (column.position >= maxNonSystemPosition) {
@@ -465,14 +466,14 @@ export async function syncProjects(_githubProjects: RawGitHub[]): Promise<void> 
 
 // Column movement helpers
 export function canMoveLeft(column: RawColumn, columns: RawColumn[]): boolean {
-  if (column.isSystem || !columns || columns.length === 0) return false;
+  if (column.type !== COLUMN_TYPE_USER || !columns || columns.length === 0) return false;
   const currentIndex = columns.findIndex(s => s.id === column.id);
   const noStatusColumnIndex = columns.findIndex(s => s.title === 'No Status');
   return currentIndex > noStatusColumnIndex + 1;
 }
 
 export function canMoveRight(column: RawColumn, columns: RawColumn[]): boolean {
-  if (column.isSystem || !columns || columns.length === 0) return false;
+  if (column.type !== COLUMN_TYPE_USER || !columns || columns.length === 0) return false;
   const currentIndex = columns.findIndex(s => s.id === column.id);
   const closedColumnIndex = columns.findIndex(s => s.title === 'Closed');
   return currentIndex < closedColumnIndex - 1;

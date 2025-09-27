@@ -5,11 +5,9 @@ import * as authClient from '../base/clients/auth';
 import * as databaseClient from '../base/clients/database';
 import * as githubClient from '../base/clients/github';
 import { dataStoreInit, dataStoreClear, dataStoreGetColumns, dataStoreGetProjects, dataStoreSetColumns, dataStoreSetProjects, dataStoreSetLabels, dataStoreSetProjectLabels, dataStoreSetGitHub } from './dataStore';
+import type { RawGitHub, RawProject, RawColumn } from '../base/types';
 import { authStoreInit, authStoreClear, authStoreGetAuth } from './authStore';
-
-//==============================================================================
-// AUTH OPERATIONS
-//==============================================================================
+import { DEFAULT_SORT_FIELD, DEFAULT_SORT_DIRECTION, SORT_FIELD_UPDATED_AT, SORT_FIELD_CLOSED_AT, SORT_DIRECTION_DESC, TITLE_UNASSIGNED_COLUMN, TITLE_CLOSED_COLUMN, COLUMN_TYPE_UNASSIGNED, COLUMN_TYPE_CLOSED, COLUMN_TYPE_USER } from './types';
 
 export async function login(): Promise<void> {
   await authClient.login();
@@ -31,21 +29,14 @@ export async function checkAuthAndInitAuthStore(): Promise<void> {
   }
 }
 
-//==============================================================================
-// DATA LOADING OPERATIONS
-//==============================================================================
-
 // Only called at app startup if authenticated
 export async function loadDataAndInitDataStore(): Promise<void> {
   // User is guaranteed to be authenticated (called only when $uiAuth is truthy)
   const auth = authStoreGetAuth()!;
   const userId = auth.githubUsername;
 
-  // Ensure system columns in database
-  await ensureSystemColumns(userId);
-
-  // Load all data in parallel (from database and GitHub API)
-  const [github, columns, projects, labels, projectLabels] = await Promise.all([
+  // Load all data optimistically (no empty check)
+  let [github, columns, projects, labels, projectLabels] = await Promise.all([
     githubClient.queryGitHubProjects(auth.githubToken),
     databaseClient.columnRead(userId),
     databaseClient.projectRead(userId),
@@ -53,45 +44,133 @@ export async function loadDataAndInitDataStore(): Promise<void> {
     databaseClient.projectLabelRelationRead(userId)
   ]);
 
-  // Initialize data store with loaded data
+  // Check if system columns not yet created (only on first time load)
+  if (columns.length === 0) {
+    await createSystemColumns();
+    // Reload columns data with created system columns
+    columns = await databaseClient.columnRead(userId);
+  }
+
+  // Reconcile projects in database with project state from GitHub
+  projects = await reconcileDatabaseProjects(github, projects, columns);
+
+  // Initialize data store with synced data
   dataStoreInit({ github, database: { columns, projects, labels, projectLabels }});
 }
 
-async function ensureSystemColumns(userId: string): Promise<void> {
-  const existingColumns = await databaseClient.columnRead(userId);
+// Renamed and simplified - only creates system columns (called when database is empty)
+async function createSystemColumns(): Promise<void> {
+  const userId = authStoreGetAuth()!.githubUsername;
+  const systemColumns: Omit<RawColumn, 'id'>[] = [
+    {
+      userId,
+      title: TITLE_UNASSIGNED_COLUMN,
+      position: 0,
+      type: COLUMN_TYPE_UNASSIGNED,
+      sortField: SORT_FIELD_UPDATED_AT,
+      sortDirection: SORT_DIRECTION_DESC
+    },
+    {
+      userId,
+      title: TITLE_CLOSED_COLUMN,
+      position: 1,
+      type: COLUMN_TYPE_CLOSED,
+      sortField: SORT_FIELD_CLOSED_AT,
+      sortDirection: SORT_DIRECTION_DESC
+    }
+  ];
 
-  const hasNoStatus = existingColumns.some(col => col.title === 'No Status');
-  const hasClosed = existingColumns.some(col => col.title === 'Closed');
+  await Promise.all(
+    systemColumns.map(column => databaseClient.columnCreate(column))
+  );
+}
 
-  if (hasNoStatus && hasClosed) {
-    return; // System columns already exist
+// Sync GitHub projects state to database:
+// - Create new GitHub projects in database
+// - Delete removed GitHub projects from database
+// - Assign formerly open/now closed GitHub projects to closed column
+// - Assign formerly closed/now open GitHub projects to unassigned column
+// Returns a RawProject[] array matching the reconciled state in the database.
+// Notes:
+// - Data store can't be assumed to be initialised when this is called
+// - No database access, if nothing to reconcile
+async function reconcileDatabaseProjects(github: RawGitHub[], projects: RawProject[], columns: RawColumn[]): Promise<RawProject[]> {
+  const userId = authStoreGetAuth()!.githubUsername;
+
+  // Extract IDs of system columns
+  const idUnassignedCol = columns.find(col => col.type === COLUMN_TYPE_UNASSIGNED)!.id;
+  const idClosedCol = columns.find(col => col.type === COLUMN_TYPE_CLOSED)!.id;
+
+  const githubProjectIds = new Set(github.map(p => p.id));
+  const dbProjectIds = new Set(projects.map(p => p.id));
+
+  // Create missing projects in appropriate columns
+  const inGitHubButNotInDb = github.filter(p => !dbProjectIds.has(p.id));
+  const dbCreate = inGitHubButNotInDb.map(ghProject =>
+    databaseClient.projectCreate({
+      id: ghProject.id,
+      userId,
+      columnId: ghProject.isClosed ? idClosedCol : idUnassignedCol
+    })
+  );
+
+  // Delete superfluous projects
+  const inDbButNotInGitHub = [...dbProjectIds].filter(id => !githubProjectIds.has(id));
+  const dbDelete = inDbButNotInGitHub.map(projectId =>
+    databaseClient.projectDelete(projectId, userId)
+  );
+
+  // Sync open/close state of existing projects
+  const githubProjectsMap = new Map(github.map(p => [p.id, p]));
+  const dbUpdateColumn = projects
+    .filter(dbProject => githubProjectsMap.has(dbProject.id))
+    .map(dbProject => {
+      const ghProject = githubProjectsMap.get(dbProject.id)!;
+      const shouldBeInClosed = ghProject.isClosed;
+      const isInClosed = dbProject.columnId === idClosedCol;
+
+      if (shouldBeInClosed && !isInClosed) {
+        // Assign to closed column
+        return databaseClient.projectUpdateColumn(dbProject.id, userId, idClosedCol);
+      } else if (!shouldBeInClosed && isInClosed) {
+        // Assign to unassigned column
+        return databaseClient.projectUpdateColumn(dbProject.id, userId, idUnassignedCol);
+      }
+      return null;
+    })
+    .filter(Boolean);
+
+  const dbAll = [...dbCreate, ...dbDelete, ...dbUpdateColumn];
+  // Apply database operations in parallel and re-read projects from database
+  if (dbAll.length > 0) {
+    await Promise.all(dbAll);
+    projects = await databaseClient.projectRead(userId);
   }
+  return projects;
+}
 
-  const nextPosition = existingColumns.length;
+// Reload all data from the database into the data store
+// Used for reverting optimistic updates on the data store
+async function reloadDatabaseDataIntoDataStore(): Promise<void> {
+  const userId = authStoreGetAuth()!.githubUsername;
+  const [columns, projects, labels, projectLabels] = await Promise.all([
+    databaseClient.columnRead(userId),
+    databaseClient.projectRead(userId),
+    databaseClient.labelRead(userId),
+    databaseClient.projectLabelRelationRead(userId)
+  ]);
+  dataStoreSetColumns(columns);
+  dataStoreSetProjects(projects);
+  dataStoreSetLabels(labels);
+  dataStoreSetProjectLabels(projectLabels);
+}
 
-  // Create system columns
-  if (!hasNoStatus) {
-    await databaseClient.columnCreate({
-      userId: userId,
-      title: 'No Status',
-      position: nextPosition,
-      isSystem: true,
-      sortField: 'updatedAt',
-      sortDirection: 'desc'
-    });
-  }
-
-  if (!hasClosed) {
-    const finalPosition = hasNoStatus ? nextPosition + 1 : nextPosition;
-    await databaseClient.columnCreate({
-      userId: userId,
-      title: 'Closed',
-      position: finalPosition,
-      isSystem: true,
-      sortField: 'closedAt',
-      sortDirection: 'desc'
-    });
-  }
+// Reload GitHub projects and reconcile with database
+export async function reloadGitHubData(): Promise<void> {
+  const github = await githubClient.queryGitHubProjects(authStoreGetAuth()!.githubToken);
+  const projects = await reconcileDatabaseProjects(github, dataStoreGetProjects(), dataStoreGetColumns());
+  dataStoreSetGitHub(github);
+  dataStoreSetProjects(projects);
 }
 
 //==============================================================================
@@ -126,9 +205,9 @@ export async function createColumn(title: string, afterColumnId: string): Promis
     userId: userId,
     title: title.trim(),
     position: newPosition,
-    isSystem: false,
-    sortField: 'updatedAt',
-    sortDirection: 'desc' as const
+    type: COLUMN_TYPE_USER,
+    sortField: DEFAULT_SORT_FIELD,
+    sortDirection: DEFAULT_SORT_DIRECTION
   };
 
   dataStoreSetColumns([...updatedColumns, newColumn]);
@@ -147,9 +226,9 @@ export async function createColumn(title: string, afterColumnId: string): Promis
       userId: userId,
       title: title.trim(),
       position: newPosition,
-      isSystem: false,
-      sortField: 'updatedAt',
-      sortDirection: 'desc'
+      type: COLUMN_TYPE_USER,
+      sortField: DEFAULT_SORT_FIELD,
+      sortDirection: DEFAULT_SORT_DIRECTION
     });
 
     // 4. Replace temporary column with real one
@@ -173,18 +252,18 @@ export async function deleteColumn(columnId: string): Promise<void> {
   const column = allColumns.find(col => col.id === columnId);
   if (!column) throw new Error('Column not found');
 
-  if (column.isSystem) {
+  if (column.type !== COLUMN_TYPE_USER) {
     throw new Error("Can't delete system columns");
   }
 
-  // Find No Status column for moving projects
-  const noStatusColumn = allColumns.find(col => col.title === 'No Status');
-  if (!noStatusColumn) throw new Error('No Status column not found');
+  // Find unassigned column for moving projects
+  const unassignedColumn = allColumns.find(col => col.type === COLUMN_TYPE_UNASSIGNED);
+  if (!unassignedColumn) throw new Error('Unassigned column not found');
 
-  // 1. Move projects to No Status (optimistic update)
+  // 1. Move projects to unassigned column (optimistic update)
   const projectsToMove = allProjects.filter(p => p.columnId === columnId);
   const updatedProjects = allProjects.map(p =>
-    p.columnId === columnId ? { ...p, columnId: noStatusColumn.id } : p
+    p.columnId === columnId ? { ...p, columnId: unassignedColumn.id } : p
   );
 
   // 2. Remove column and reorder positions (optimistic update)
@@ -201,7 +280,7 @@ export async function deleteColumn(columnId: string): Promise<void> {
     const operations = [
       // Move projects (now single operations)
       ...projectsToMove.map(p =>
-        databaseClient.projectUpdateColumn(p.id, userId, noStatusColumn.id)
+        databaseClient.projectUpdateColumn(p.id, userId, unassignedColumn.id)
       ),
       // Delete column (no position parameter needed)
       databaseClient.columnDelete(columnId, userId),
@@ -240,31 +319,4 @@ export async function moveProjectToColumn(projectId: string, columnId: string): 
     await reloadDatabaseDataIntoDataStore();
     throw error;
   }
-}
-
-//==============================================================================
-// HELPER FUNCTIONS - Cache refresh operations
-//==============================================================================
-
-// Reload all data from the database into the data store
-// Used for reverting optimistic updates on the data store
-async function reloadDatabaseDataIntoDataStore(): Promise<void> {
-  const userId = authStoreGetAuth()!.githubUsername;
-  const [columns, projects, labels, projectLabels] = await Promise.all([
-    databaseClient.columnRead(userId),
-    databaseClient.projectRead(userId),
-    databaseClient.labelRead(userId),
-    databaseClient.projectLabelRelationRead(userId)
-  ]);
-  dataStoreSetColumns(columns);
-  dataStoreSetProjects(projects);
-  dataStoreSetLabels(labels);
-  dataStoreSetProjectLabels(projectLabels);
-}
-
-// Reload data from GitHub API into the data store
-// Currently unused (could be used for "Reload GitHub data" button)
-export async function reloadGitHubDataIntoDataStore(): Promise<void> {
-  const data = await githubClient.queryGitHubProjects(authStoreGetAuth()!.githubToken);
-  dataStoreSetGitHub(data);
 }

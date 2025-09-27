@@ -39,7 +39,7 @@ export interface RawColumn {
   userId: string;
   title: string;
   position: number;
-  isSystem: boolean;
+  type: string; // Column type: managed by business layer
   sortField: string;
   sortDirection: string;
 }

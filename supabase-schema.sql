@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS columns (
   user_id TEXT NOT NULL,
   title TEXT NOT NULL,
   position INTEGER NOT NULL, -- Position for ordering columns (0-based)
-  is_system BOOLEAN NOT NULL, -- For 'No Status' and 'Closed' which can't be deleted
+  type TEXT NOT NULL, -- Column type: managed by business layer
   sort_field TEXT NOT NULL, -- Sorting field: managed by business layer
   sort_direction TEXT NOT NULL, -- Sorting direction: managed by business layer
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -82,11 +82,8 @@ CREATE POLICY "Users can insert own columns" ON columns
 CREATE POLICY "Users can update own columns" ON columns
   FOR UPDATE USING ((auth.jwt() -> 'user_metadata' ->> 'user_name') = user_id);
 
-CREATE POLICY "Users can delete own non-system columns" ON columns
-  FOR DELETE USING (
-    (auth.jwt() -> 'user_metadata' ->> 'user_name') = user_id
-    AND is_system = false
-  );
+CREATE POLICY "Users can delete own columns" ON columns
+  FOR DELETE USING ((auth.jwt() -> 'user_metadata' ->> 'user_name') = user_id);
 
 -- Labels policies
 CREATE POLICY "Users can view own labels" ON labels

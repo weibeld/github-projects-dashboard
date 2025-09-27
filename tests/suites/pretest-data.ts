@@ -3,6 +3,7 @@
  */
 
 import type { MockData } from '../../src/lib/base/mock/types';
+import { COLUMN_TYPE_USER } from '../../src/lib/business/types';
 
 export const pretestData = {
   // Use default auth data (mock-user)
@@ -56,7 +57,7 @@ export const pretestData = {
         userId: "mock-user",
         title: "Test Column 1",
         position: 0,
-        isSystem: false,
+        type: COLUMN_TYPE_USER,
         sortField: "updatedAt",
         sortDirection: "desc"
       },
@@ -65,7 +66,7 @@ export const pretestData = {
         userId: "mock-user",
         title: "Test Column 2",
         position: 1,
-        isSystem: false,
+        type: COLUMN_TYPE_USER,
         sortField: "updatedAt",
         sortDirection: "desc"
       }

@@ -17,7 +17,7 @@ export interface UiColumn {
   id: string;
   title: string;
   position: number;
-  isSystem: boolean;
+  type: string; // Column type: managed by business layer
   sortField: string;
   sortDirection: string;
   projects: UiProject[];
@@ -112,7 +112,7 @@ function buildUiData(): UiData {
         id: column.id,
         title: column.title,
         position: column.position,
-        isSystem: column.isSystem,
+        type: column.type,
         sortField: column.sortField,
         sortDirection: column.sortDirection,
         projects: columnProjects
