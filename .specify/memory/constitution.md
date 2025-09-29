@@ -1,50 +1,92 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report:
+- Version: 0.0.0 → 1.0.0 (Initial ratification)
+- Modified principles: N/A (initial creation)
+- Added sections: All core principles and governance
+- Removed sections: None
+- Templates requiring updates:
+  ✅ plan-template.md (already references constitution)
+  ✅ spec-template.md (no changes needed)
+  ✅ tasks-template.md (no changes needed)
+  ✅ agent-file-template.md (no changes needed)
+- Follow-up TODOs: None
+-->
+
+# GitHub Projects Dashboard Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Layered Architecture (NON-NEGOTIABLE)
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+The application MUST follow Clean Architecture principles with strict separation of concerns:
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+- **Layer separation:** Clear boundaries between UI, business logic, and external services
+- **Dependency rule:** Inner layers MUST NOT depend on outer layers
+- **Single responsibility:** Each layer has one clearly defined purpose
+- **DRY principle:** Avoid duplication through proper abstraction at layer boundaries
+- **Modularity:** Components within each layer MUST be independently testable
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+**Rationale:** Layered separation enables independent testing, clear boundaries of responsibility, and maintainable code evolution. Violations create tight coupling and make testing difficult.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### II. Simplicity Over Tooling
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+Keep build tools, dependencies, and architectural complexity minimal:
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- **YAGNI:** Don't add tools, libraries, or abstractions until they're actually needed
+- **Minimal dependencies:** Every new dependency MUST justify its inclusion
+- **Direct solutions:** Prefer straightforward implementations over clever abstractions
+- **Build simplicity:** Keep build pipeline simple and fast
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+**Rationale:** Every dependency and tool adds maintenance burden, learning curve, and potential failure points. Simplicity improves reliability and developer velocity.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### III. End-to-End Testing
+
+All user workflows MUST have corresponding end-to-end tests:
+
+- **User perspective:** Tests MUST validate complete workflows as users experience them
+- **UI interaction coverage:** All interactive UI features MUST have E2E test coverage
+- **Isolated testing:** Tests MUST NOT depend on external APIs or services
+- **Fast feedback:** Test suite MUST run quickly enough for regular execution
+
+**Rationale:** E2E tests catch integration issues that unit tests miss, validate real user workflows, and provide confidence in application behaviour.
+
+### IV. Strict TypeScript (NON-NEGOTIABLE)
+
+All code MUST pass strict TypeScript checking before execution:
+
+- **Zero tolerance:** No type errors or warnings allowed in any code (application, tests, configuration)
+- **Compile-time validation:** All scripts (`dev`, `build`, `test`) MUST include TypeScript checking
+- **Strict mode:** TypeScript strict mode MUST be enabled with comprehensive error checking
+- **Type safety at boundaries:** All layer interfaces and external integrations MUST have explicit types
+
+**Rationale:** Compile-time validation eliminates entire categories of runtime errors, improves maintainability, and documents contracts between components.
+
+## Quality Gates
+
+All development work MUST satisfy these gates before proceeding:
+
+1. **Type Check Gate:** `npm run typecheck` MUST pass without any errors or warnings
+2. **Build Gate:** `npm run build` MUST complete successfully with zero warnings
+3. **Test Gate:** `npm run test` MUST pass all E2E tests
+
+**Enforcement:** These gates are mandatory checkpoints. No code proceeds if any gate fails.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+**Constitutional Authority:** This constitution supersedes all other development practices and documentation. In case of conflict, constitutional principles take precedence.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Amendment Process:**
+
+1. Proposed amendments MUST document rationale and impact on existing codebase
+2. Version MUST increment per semantic versioning (MAJOR for breaking changes, MINOR for additions, PATCH for clarifications)
+3. All dependent templates (plan, spec, tasks, agent files) MUST be reviewed and updated for consistency
+4. Sync Impact Report MUST be generated documenting version change, modified principles, and template updates
+
+**Compliance Review:**
+
+- All PRs MUST verify compliance with constitutional principles
+- Complexity that violates principles MUST be justified in `Complexity Tracking` section of implementation plans
+- Unjustifiable violations MUST be rejected with request to simplify approach
+- Constitution check is a mandatory gate in implementation planning workflow
+
+**Version:** 1.0.0 | **Ratified:** 2025-09-29 | **Last Amended:** 2025-09-29
