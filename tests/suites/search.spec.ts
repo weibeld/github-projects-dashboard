@@ -3,10 +3,15 @@ import { waitForAppLoad } from '../helpers';
 
 test.describe('Search Functionality', () => {
   test.beforeEach(async ({ page }) => {
-    // Note: The mock-data path should be adjusted to match your local environment
-    // In CI/CD, this would be set via environment variable or test configuration
-    // For now, using a placeholder path that should be customized per environment
-    const mockDataPath = process.env.MOCK_DATA_PATH || '/path/to/tests/suites/search-data';
+    // Note: The mock-data path must be set via the MOCK_DATA_PATH environment variable
+    // to match your local file system layout. Example:
+    // MOCK_DATA_PATH=/Users/username/project/tests/suites/search-data npm run test
+    const mockDataPath = process.env.MOCK_DATA_PATH;
+    
+    if (!mockDataPath) {
+      throw new Error('MOCK_DATA_PATH environment variable must be set to run search tests');
+    }
+    
     await page.goto(`/?mock-data=${mockDataPath}`);
     await waitForAppLoad(page);
   });
