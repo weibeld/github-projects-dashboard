@@ -16,14 +16,15 @@
     "test:safari": "tsc && playwright test --project=webkit"
   },
   "devDependencies": {
-    "svelte": "^5.23.1",
-    "vite": "^6.3.1",
-    "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@playwright/test": "^1.55.0",
-    "postcss": "^8.5.3",
-    "tailwindcss": "^3.4.17",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "autoprefixer": "^10.4.21",
-    "typescript": "^5.9.2"
+    "postcss": "^8.5.3",
+    "svelte": "^5.23.1",
+    "tailwindcss": "^3.4.17",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.2",
+    "vite": "^6.3.1"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",

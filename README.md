@@ -1,5 +1,38 @@
 # GitHub Projects Dashboard
 
+A powerful dashboard for managing and searching your GitHub Projects with advanced filtering capabilities.
+
+## Key Features
+
+### 🔍 Advanced Search & Filtering
+
+Search and filter your GitHub Projects using a powerful Lucene-style query syntax:
+
+- **Simple text search**: Just type a term like `Mem0` or `react` to find all projects mentioning it in titles or labels
+- **Case-insensitive**: Searches work regardless of capitalisation (`mem0`, `Mem0`, `MEM0` all work the same)
+- **Field-specific searches**: 
+  - `title:frontend` - Search only in project titles
+  - `label:bug` - Find projects with specific labels
+  - `number:123` - Search by project number
+- **Date filtering**: 
+  - `updated:>1 week ago` - Projects updated recently
+  - `created:<2025-01-01` - Projects created before a date
+- **Numeric filtering**: 
+  - `items:>5` - Projects with more than 5 items
+- **Column filtering**: 
+  - `column:todo` - Show/hide specific columns
+- **Combined queries**: 
+  - `label:bug updated:>1 month ago` - Multiple criteria at once
+
+**Example**: To find all projects mentioning "Mem0", simply type `Mem0` in the search bar at the top of the dashboard.
+
+### 📊 Project Management
+
+- Drag-and-drop projects between columns
+- Custom column creation and organisation
+- Project labelling and categorisation
+- Sort projects by various fields (title, number, items, dates)
+
 ## Architecture
 
 The application follows a clean layered architecture with separation of concerns:
