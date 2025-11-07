@@ -3,7 +3,16 @@
  */
 
 import type { MockData } from '../../src/lib/base/mock/types';
-import { COLUMN_TYPE_USER } from '../../src/lib/business/types';
+import { 
+  COLUMN_TYPE_USER, 
+  COLUMN_TYPE_UNASSIGNED, 
+  COLUMN_TYPE_CLOSED,
+  TITLE_UNASSIGNED_COLUMN,
+  TITLE_CLOSED_COLUMN,
+  SORT_FIELD_UPDATED_AT,
+  SORT_FIELD_CLOSED_AT,
+  SORT_DIRECTION_DESC
+} from '../../src/lib/business/types';
 
 export const searchData = {
   github: {
@@ -74,22 +83,40 @@ export const searchData = {
   database: {
     columns: [
       {
+        id: "col-no-status",
+        userId: "mock-user",
+        title: TITLE_UNASSIGNED_COLUMN,
+        position: 0,
+        type: COLUMN_TYPE_UNASSIGNED,
+        sortField: SORT_FIELD_UPDATED_AT,
+        sortDirection: SORT_DIRECTION_DESC
+      },
+      {
         id: "col-1",
         userId: "mock-user",
         title: "In Progress",
-        position: 0,
+        position: 1,
         type: COLUMN_TYPE_USER,
-        sortField: "updatedAt",
-        sortDirection: "desc"
+        sortField: SORT_FIELD_UPDATED_AT,
+        sortDirection: SORT_DIRECTION_DESC
       },
       {
         id: "col-2",
         userId: "mock-user",
         title: "Todo",
-        position: 1,
+        position: 2,
         type: COLUMN_TYPE_USER,
-        sortField: "updatedAt",
-        sortDirection: "desc"
+        sortField: SORT_FIELD_UPDATED_AT,
+        sortDirection: SORT_DIRECTION_DESC
+      },
+      {
+        id: "col-closed",
+        userId: "mock-user",
+        title: TITLE_CLOSED_COLUMN,
+        position: 3,
+        type: COLUMN_TYPE_CLOSED,
+        sortField: SORT_FIELD_CLOSED_AT,
+        sortDirection: SORT_DIRECTION_DESC
       }
     ],
     projects: [

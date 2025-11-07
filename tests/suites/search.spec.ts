@@ -3,8 +3,11 @@ import { waitForAppLoad } from '../helpers';
 
 test.describe('Search Functionality', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to test mode with search test data
-    await page.goto('/?mock-data=/home/runner/work/github-projects-dashboard/github-projects-dashboard/tests/suites/search-data');
+    // Note: The mock-data path should be adjusted to match your local environment
+    // In CI/CD, this would be set via environment variable or test configuration
+    // For now, using a placeholder path that should be customized per environment
+    const mockDataPath = process.env.MOCK_DATA_PATH || '/path/to/tests/suites/search-data';
+    await page.goto(`/?mock-data=${mockDataPath}`);
     await waitForAppLoad(page);
   });
 
@@ -19,10 +22,7 @@ test.describe('Search Functionality', () => {
     const searchInput = page.locator('input[placeholder*="Filter projects"]');
     await searchInput.fill('Mem0');
 
-    // Wait for filter to apply
-    await page.waitForTimeout(500);
-
-    // Should only see 2 projects with "Mem0" in title
+    // Wait for filtered results using expect with built-in retries
     const projectCards = page.locator('[data-testid="project-card"]');
     await expect(projectCards).toHaveCount(2);
 
@@ -40,10 +40,7 @@ test.describe('Search Functionality', () => {
     const searchInput = page.locator('input[placeholder*="Filter projects"]');
     await searchInput.fill('mem0');
 
-    // Wait for filter to apply
-    await page.waitForTimeout(500);
-
-    // Should still find the 2 projects
+    // Wait for filtered results
     const projectCards = page.locator('[data-testid="project-card"]');
     await expect(projectCards).toHaveCount(2);
   });
@@ -53,10 +50,7 @@ test.describe('Search Functionality', () => {
     const searchInput = page.locator('input[placeholder*="Filter projects"]');
     await searchInput.fill('label:mem0');
 
-    // Wait for filter to apply
-    await page.waitForTimeout(500);
-
-    // Should see 2 projects with "mem0" label
+    // Wait for filtered results
     const projectCards = page.locator('[data-testid="project-card"]');
     await expect(projectCards).toHaveCount(2);
 
@@ -69,9 +63,8 @@ test.describe('Search Functionality', () => {
     // Enter search query
     const searchInput = page.locator('input[placeholder*="Filter projects"]');
     await searchInput.fill('Mem0');
-    await page.waitForTimeout(500);
 
-    // Should only see 2 projects
+    // Wait for filtered results
     let projectCards = page.locator('[data-testid="project-card"]');
     await expect(projectCards).toHaveCount(2);
 
@@ -79,11 +72,7 @@ test.describe('Search Functionality', () => {
     const clearButton = page.locator('button[title="Clear filter"]');
     await clearButton.click();
 
-    // Wait for filter to clear
-    await page.waitForTimeout(500);
-
-    // Should see all 5 projects again
-    projectCards = page.locator('[data-testid="project-card"]');
+    // Wait for all projects to be shown again
     await expect(projectCards).toHaveCount(5);
   });
 
@@ -92,8 +81,9 @@ test.describe('Search Functionality', () => {
     const searchInput = page.locator('input[placeholder*="Filter projects"]');
     await searchInput.fill('Mem0');
 
-    // Wait for filter to apply
-    await page.waitForTimeout(500);
+    // Check that filtered results are displayed
+    const projectCards = page.locator('[data-testid="project-card"]');
+    await expect(projectCards).toHaveCount(2);
 
     // Check result count display
     await expect(page.getByText(/Showing 2 of 5 projects/)).toBeVisible();
@@ -105,10 +95,7 @@ test.describe('Search Functionality', () => {
     const searchInput = page.locator('input[placeholder*="Filter projects"]');
     await searchInput.fill('title:Mem0');
 
-    // Wait for filter to apply
-    await page.waitForTimeout(500);
-
-    // Should only see 2 projects with "Mem0" in title
+    // Wait for filtered results
     const projectCards = page.locator('[data-testid="project-card"]');
     await expect(projectCards).toHaveCount(2);
 
