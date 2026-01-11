@@ -306,6 +306,7 @@ export async function deleteColumn(columnId: string): Promise<void> {
 export async function moveProjectToColumn(projectId: string, columnId: string): Promise<void> {
   const userId = authStoreGetAuth()!.githubUsername;
 
+  // TODO: check if columnId is valid, prevent assignment to Closed column
   // 1. Optimistic cache update
   const currentProjects = dataStoreGetProjects();
   const updatedProjects = currentProjects.map(p => p.id === projectId ? { ...p, columnId } : p);
